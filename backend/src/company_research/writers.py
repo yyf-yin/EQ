@@ -9,6 +9,65 @@ from .contexts import block_context
 from .framework import digest
 
 TOKEN=re.compile(r'\[\[(fact|calc|assumption):([a-zA-Z0-9_-]+)\]\]')
+# Dates, reporting periods and structural ordinals are not financial quantities and
+# may be written directly; every other digit must come from a bound data token.
+ALLOWED_NUMERALS=re.compile(
+    r'(?:19|20)\d{2}\s*(?:[-–—~至到]\s*(?:19|20)?\d{2,4}\s*)?(?:年度?|财年|A|E|H[12]|Q[1-4]|[1-4]Q)?(?![\d.%])'
+    r'|\d{1,2}\s*月(?:\s*\d{1,2}\s*日)?|\d{1,2}\s*日'
+    r'|(?<![A-Za-z0-9])(?:[HQ][1-4]|[1-4]Q)(?![A-Za-z0-9])'
+    r'|第\s*\d{1,2}\s*(?:季度|季|章|节|部分|条|项|点|阶段)'
+    r'|(?:^|(?<=[。；\s]))[（(]?\d{1,2}[)）、.](?!\d)'
+    r'|[（(]\d{1,2}[)）]')
+
+
+def raw_numbers(paragraph: str) -> list[str]:
+    """Return snippets containing digits that are neither data tokens nor dates/periods."""
+    text=ALLOWED_NUMERALS.sub(lambda m:' '*len(m.group(0)),TOKEN.sub(lambda m:' '*len(m.group(0)),paragraph))
+    return [paragraph[max(0,m.start()-12):m.end()+12] for m in re.finditer(r'\d+(?:[.,]\d+)*\s*%?',text)]
+
+
+def draft_problems(draft: WriterDraft,context: dict) -> list[str]:
+    """Describe every contract violation so one targeted repair round can fix them."""
+    objects={'fact':{f['fact_id'] for f in context['facts']},'calc':{r['result_id'] for r in context['calculations']},'assumption':{a['assumption_id'] for a in context['assumptions']}}
+    declared={'fact':set(draft.fact_ids),'calc':set(draft.calculation_ids),'assumption':set(draft.assumption_ids)}
+    problems=[]
+    unknown=sorted(set(draft.evidence_ids)-{e['evidence_id'] for e in context['evidence']})
+    if unknown:problems.append('evidence_ids 含输入中不存在的证据：'+'、'.join(unknown[:10]))
+    for kind,ids in declared.items():
+        bad=sorted(ids-objects[kind])
+        if bad:problems.append(f'{kind} 引用了输入中不存在的 ID：'+'、'.join(bad[:10]))
+    for i,paragraph in enumerate(draft.paragraphs):
+        for kind,id in TOKEN.findall(paragraph):
+            if id not in objects[kind]:problems.append(f'第{i+1}段的 [[{kind}:{id}]] 不在输入数据中，请删除或换成存在的 ID')
+            elif id not in declared[kind]:problems.append(f'第{i+1}段使用了 [[{kind}:{id}]] 但未在对应 ID 列表中声明')
+        for snippet in raw_numbers(paragraph):
+            problems.append(f'第{i+1}段直接写了数字“{snippet.strip()}”：财务/经营数值必须改用 [[fact:ID]]/[[calc:ID]]/[[assumption:ID]]，没有对应数据时改为定性表述')
+    return problems
+
+
+def sanitize_draft(draft: WriterDraft,context: dict) -> tuple[WriterDraft,list[str]]:
+    """Last resort after a failed repair: drop unverifiable sentences and unknown IDs
+    instead of failing the whole section. Returns the cleaned draft and what was removed."""
+    objects={'fact':{f['fact_id'] for f in context['facts']},'calc':{r['result_id'] for r in context['calculations']},'assumption':{a['assumption_id'] for a in context['assumptions']}}
+    evidence={e['evidence_id'] for e in context['evidence']}
+    removed=[];paragraphs=[]
+    for paragraph in draft.paragraphs:
+        kept=[]
+        for sentence in re.split(r'(?<=[。！？；])',paragraph):
+            if not sentence:continue
+            bad_token=any(id not in objects[kind] for kind,id in TOKEN.findall(sentence))
+            if bad_token or raw_numbers(sentence):removed.append(sentence.strip());continue
+            kept.append(sentence)
+        if ''.join(kept).strip():paragraphs.append(''.join(kept))
+    used={'fact':set(),'calc':set(),'assumption':set()}
+    for paragraph in paragraphs:
+        for kind,id in TOKEN.findall(paragraph):used[kind].add(id)
+    clean=draft.model_copy(update={'paragraphs':paragraphs,
+        'evidence_ids':[e for e in draft.evidence_ids if e in evidence],
+        'fact_ids':sorted((set(draft.fact_ids)&objects['fact'])|used['fact']),
+        'calculation_ids':sorted((set(draft.calculation_ids)&objects['calc'])|used['calc']),
+        'assumption_ids':sorted((set(draft.assumption_ids)&objects['assumption'])|used['assumption'])})
+    return clean,removed
 UNITS={'CNY_million':'百万元','CNY/share':'元/股','CNY/unit':'元/件','million_shares':'百万股','times':'倍','million_units':'百万件','million_users':'百万用户','CNY/user':'元/用户','years':'年'}
 
 
@@ -36,7 +95,7 @@ def resolve_draft(draft: WriterDraft,context: dict,section_id: str,title: str) -
         return text
     paragraphs=[]
     for paragraph in draft.paragraphs:
-        if re.search(r'\d',TOKEN.sub('',paragraph)):raise FinancialError('Writer 直接生成数字，必须改用数据或计算引用')
+        if raw_numbers(paragraph):raise FinancialError('Writer 直接生成数字，必须改用数据或计算引用')
         paragraphs.append(TOKEN.sub(replace,paragraph))
     return ReportSection(section_id=section_id,title=title,paragraphs=paragraphs,evidence_ids=sorted(used_evidence),calculation_ids=draft.calculation_ids,number_bindings=bindings,consistency_checks=draft.consistency_checks)
 
@@ -68,13 +127,22 @@ async def write_one(gateway,c,section_id,title,goal,core=False,instructions=None
         cached=next((r for r in store.records(run_id,'section') if r['section_id']==section_id and r['version']==version),None)
         if cached:return ReportSection.model_validate(cached['content'])
     draft=await ask_bounded(gateway,role,WriterDraft,data)
-    minimum=600 if core or section_id in FINANCIAL_TITLES or section_id.startswith(('industry-','position-')) else 1000
+    # Depth is judged by reflection against the block's questions, not by character
+    # count. A clearly thin draft still gets one expansion request, never a hard fail.
+    minimum=300 if core or section_id in FINANCIAL_TITLES or section_id.startswith(('industry-','position-')) else 500
     if sum(len(p) for p in draft.paragraphs)<minimum:
-        draft=await ask_bounded(gateway,role,WriterDraft,data|{'instructions':(instructions or [])+['上次章节研究深度不足，请补充有来源的分析及限制，使正文达到指定长度。']})
-        if sum(len(p) for p in draft.paragraphs)<minimum:raise ValueError('章节长度及研究深度未达到要求')
+        draft=await ask_bounded(gateway,role,WriterDraft,data|{'instructions':(instructions or [])+['上一稿过于单薄：请逐一回答本章必需问题，补充有来源的机制分析、反证与限制。']})
     reflection=await ask_bounded(gateway,'reflection',Reflection,{'section':data['section'],'draft':draft.model_dump(mode='json'),'evidence':selected['evidence'],'calculations':selected['calculations']})
-    if reflection.needs_revision:
-        draft=await ask_bounded(gateway,role,WriterDraft,data|{'draft':draft.model_dump(mode='json'),'instructions':reflection.instructions+(instructions or [])})
+    problems=draft_problems(draft,local)
+    if reflection.needs_revision or problems:
+        fixes=reflection.instructions if reflection.needs_revision else []
+        draft=await ask_bounded(gateway,role,WriterDraft,data|{'draft':draft.model_dump(mode='json'),'instructions':problems+fixes+(instructions or [])})
+        problems=draft_problems(draft,local)
+    if problems:
+        draft,removed=sanitize_draft(draft,local)
+        if removed:
+            import logging
+            logging.getLogger(__name__).warning('section %s: dropped %d unverifiable sentences after repair', section_id, len(removed))
     section=resolve_draft(draft,local,section_id,title)
     if store:
         from .schemas import now

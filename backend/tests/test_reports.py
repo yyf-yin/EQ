@@ -4,7 +4,7 @@ import pytest
 from pypdf import PdfReader
 from company_research.reports import mock_report,export_docx,html_report,toc,TITLES
 from company_research.renderers import export_pdf
-from company_research.writers import resolve_draft
+from company_research.writers import resolve_draft,raw_numbers,draft_problems,sanitize_draft
 from company_research.agents import WriterDraft
 from company_research.financials import FinancialError
 
@@ -31,3 +31,19 @@ def test_writer_number_binding_and_reject():
     assert section.number_bindings=={'calc:r':'100.50百万元'}
     with pytest.raises(FinancialError):resolve_draft(draft.model_copy(update={'paragraphs':['收入为100亿元。']}),c,'f','财务')
     with pytest.raises(FinancialError):resolve_draft(draft.model_copy(update={'paragraphs':['收入 [[calc:unknown]]']}),c,'f','财务')
+
+
+def test_writer_allows_dates_and_periods_but_not_quantities():
+    assert raw_numbers('截至2025年12月31日，2023-2025年及2026E、2025H1、第3季度与Q3的对比（1）渠道；2、品牌')==[]
+    assert raw_numbers('收入为100亿元。') and raw_numbers('毛利率91.5%') and raw_numbers('有3家子公司')
+
+
+def test_writer_problems_are_specific_and_sanitize_keeps_valid_text():
+    c={'facts':[],'calculations':[{'result_id':'r','value':'100.5','unit':'CNY_million'}],'assumptions':[],'evidence':[{'evidence_id':'e'}]}
+    draft=WriterDraft(paragraphs=['2025年收入为 [[calc:r]]。另一口径约为80亿元。来自 [[fact:x]] 的推断。'],evidence_ids=['e','ghost'],calculation_ids=['r'],fact_ids=[],assumption_ids=[])
+    problems=draft_problems(draft,c)
+    assert any('ghost' in p for p in problems) and any('80亿元' in p for p in problems) and any('fact:x' in p for p in problems)
+    clean,removed=sanitize_draft(draft,c)
+    assert len(removed)==2 and draft_problems(clean,c)==[]
+    section=resolve_draft(clean,c,'financial','财务')
+    assert section.paragraphs==['2025年收入为 100.50百万元。']

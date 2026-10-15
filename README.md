@@ -1,20 +1,10 @@
 # Company Deep Research Agent
 
-固定财务表已增加季度／中期槽：单季度与年初累计分开。本次上传财报中，研究当年最新已披露累计期间及上年同期核心数据必须齐全并计算同比；历史季度未披露可留空。年报、季报、中报均由本次上传提供。期间编码、门槛与使用例见 [季度数据槽](docs/QUARTERLY_DATA_SLOTS.md)。更新后重启服务并新建研究。
-
-真实模式已改为固定财务与证券填槽：七区 133 个原始字段，由程序实例化，plan 不再设计财务取数任务。证券仅从 local-datasource 获取，年报、季报、中报仅由用户为本次研究上传，不自动采纳本地目录财报或寻找替代财报；财务与债券只从本次财报提取，检查通过后锁定，不增加资料质量评分或重复人工确认。业务行业按“通用预设方向＋模型补充中性方向”组织资料包，默认每槽一次宽搜索加最多两次分组补查，允许缺口并记录停止原因，同一资料在本次研究内复用，不建设本地资料库。前端提供固定表及资料方向覆盖查看，模拟模式展示合成数据投影。使用合同、范围与验证见 [用户年报入口](docs/USER_ANNUAL_REPORTS.md)、[固定表实施验收](docs/FIXED_DATA_SLOTS_ACCEPTANCE.md) 和 [业务行业资料收集](docs/QUALITATIVE_COLLECTION.md)。更新后重启服务并创建新研究，旧断点不混用新规则。
-
-启动页已提供“参考资料 / 添加文件”：上传年报、研报等材料并绑定新研究，真实模式优先提取上传资料，仅检索缺失数据和问题；任务刷新后保留附件列表。支持的格式、实际接口和模拟模式行为见 [参考资料上传](docs/REFERENCE_UPLOADS.md)。
-
-当前需求见 [PRD v1.2](docs/PRD.md)。已在既有工程上实施 v1.1 的 A–D：版本化必需框架、有界取证与分析、核心同比硬门槛、局部修复和整体综合。离线、Mock HTTP 与浏览器验证记录见 [v1.1 实施验收](docs/V1_1_ACCEPTANCE.md)；E 阶段真实模型研究与成本对比尚未完成。v1.2 已实现“阶段成果获取与评估出口”，本地验收见 [v1.2 实施验收](docs/V1_2_ACCEPTANCE.md)，历史基线见 [PRD v1.1](docs/PRD_V1_1.md)。
-
 上市公司深度研究 MVP：一个页面输入公司或代码，查看真实节点进度，阅读只读报告并下载 DOCX/PDF。默认 **模拟模式**，使用虚构 DEMO 制造企业的本地合成资料；任意输入都明确标记模拟，不代表该公司的真实情况。
 
-运行进度区显示累计耗时、已完成阶段、并行任务及耗时、资料/证据/财务事实/计算/草稿数量、问题覆盖和取证批次。真实模式显示模型请求次数、处理中请求、服务商返回的输入/输出 Token 及最近请求；尚未返回或缺失用量会明确标注。可展开分析块状态和完整日志，并筛选提示与异常。状态每 3 秒刷新，细分事件通过 SSE 实时推送，刷新页面后恢复任务和事件记录。运行耗时包含排队及中断期间，不代表纯模型执行时间。
-
-提速迭代已增加持续调度、批次/章节/假设的有界并行、完整请求容量组批及成功窗口复用，保持原有证据、审核和续跑要求。新任务自动启用，旧断点保留原策略；载入更新需要重启后端。验证与性能边界见 [提速验收](docs/PERFORMANCE_ACCEPTANCE.md)。
-
 已实现 React/TypeScript/Vite/Tailwind 单页、FastAPI/SQLite/SSE、持久 LangGraph 主图与 Researcher/终审子图、OpenAI-compatible/Anthropic-native Gateway、Web/Local 适配、证据链、Decimal 公式与依赖图、五种收入模板、三表联动、Bear/Base/Bull、章节写作与反思、核心观点、定向返工、HTML/DOCX/PDF。无账户、聊天、侧边栏、Skills 创建、历史管理或额外金融 API。
+
+当前需求见 [PRD v1.2](docs/PRD.md)，配置见 [LLM_CONFIGURATION.md](docs/LLM_CONFIGURATION.md)，各版本变更见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 启动
 
@@ -64,7 +54,7 @@ Copy-Item configs/models.example.yaml configs/models.yaml
 
 在 models.yaml 填 Base URL、模型名称、协议及 Agent 路由。在 .env 填后端密钥并设 CDR_MODE=real。OpenAI-compatible 的 base_url 包含所需 /v1，系统追加 /chat/completions；Anthropic-native 系统追加 /messages，使用原生 x-api-key 与版本头。可单独配置 Writer/Reviewer 等角色。具体参数见 [LLM_CONFIGURATION.md](docs/LLM_CONFIGURATION.md)。
 
-当前本地环境已预置 DeepSeek V4.1 Flash：`configs/models.yaml` 将全部角色路由至 `deepseek-flash`，`.env` 中的 `CDR_DEEPSEEK_API_KEY_FILE=keys.txt` 使后端在启动时读取根目录密钥文件。请不要将密钥填入 `models.yaml`、提交 `keys.txt`，或将其打印到终端。
+当前本地环境已预置 DeepSeek V4.1 Flash：`configs/models.yaml` 将全部角色路由至 `deepseek-flash`，`.env` 中的 `CDR_DEEPSEEK_API_KEY_FILE` 指向根目录的密钥文件（如 `deepseek_key`），后端启动时读取。请不要将密钥填入 `models.yaml`、提交密钥文件，或将其打印到终端；`.gitignore` 已排除 `*_key`、`*_key.txt` 与 `keys.txt`。流程跑通后换更大模型的步骤见 [LLM_CONFIGURATION.md](docs/LLM_CONFIGURATION.md#换用更大模型)。
 
 CDR_SEARCH_URL 指向支持本文档 JSON 合同的搜索服务；CDR_SEARCH_KEY 是认证头的完整值。若真实服务请求合同不同，应实现 SearchProvider 适配后注入，不能只替换 URL。网页/公开文档由同一 Web Adapter 读取。**尚无真实模型、搜索凭证，外部在线联调与真实研报质量待验证；Mock HTTP 通过不代表真实联调成功。**
 
@@ -118,6 +108,7 @@ CDR_SEARCH_URL 指向支持本文档 JSON 合同的搜索服务；CDR_SEARCH_KEY
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest backend/tests -q --basetemp=work/pytest
+# 或双击 scripts\run_backend_tests.bat，结果写入 work\test-latest.log
 cd frontend
 npm.cmd test
 npm.cmd run build

@@ -38,7 +38,7 @@ data/local_sources 或 CDR_LOCAL_SOURCES 指定目录。规范化财务字段见
 
 ## v1.1 容量和预算
 
-models.yaml 的 role_limits 支持 default 和具体角色（配置项使用一整组 RoleLimits，省略字段采用代码默认）：input_capacity、context_capacity、output_reserve、max_output_tokens、timeout、retries、concurrency、block_call_budget。角色并发同时受 CDR_CONCURRENCY 全局并发限制；显式启用次数限制时，角色块预算不能扩大全局块预算。配置示例不指定真实厂商/模型/价格。
+models.yaml 的 role_limits 支持 default 和具体角色；具体角色未填写的字段继承 default 条目：input_capacity、context_capacity、output_reserve、max_output_tokens、timeout、retries、concurrency、block_call_budget、temperature。角色并发同时受 CDR_CONCURRENCY 全局并发限制；显式启用次数限制时，角色块预算不能扩大全局块预算。配置示例不指定真实厂商/模型/价格。
 
 | 环境项 | 默认 | 用途 |
 |---|---:|---|
@@ -53,7 +53,7 @@ models.yaml 的 role_limits 支持 default 和具体角色（配置项使用一�
 | CDR_MAX_REVISIONS | 2 | 终审定向返工轮次 |
 | CDR_CACHE_TTL_HOURS | 6 | 搜索/文档缓存有效期，0 强制下一次读取刷新 |
 
-当前输入估算为 JSON 的 UTF-8 字节保守上界，不是把字符数当精确 token，通常会高估；尚未集成模型专用 tokenizer。完整协议 payload（包括系统指令、Schema）估算 + max(输出预留,最大输出) 必须符合容量。拆分前超容量不会发 HTTP；长度停止原因和不完整 JSON 不作为成功结果，不原样无限重试。
+输入估算按字符类别计算：中日韩字符每个计 `CDR_TOKENS_PER_CJK`（默认 1.0）token，其余字符每 `CDR_CHARS_PER_TOKEN`（默认 3）个计 1 token。旧版用 UTF-8 字节数，中文被高估约 3 倍，导致批次过小、请求数成倍增加。默认系数略高于 DeepSeek 实际用量；Gateway 在供应商返回的输入 token 比估算高 15% 以上时写警告日志，换模型后据此调高系数。尚未集成模型专用 tokenizer。完整协议 payload（包括系统指令、Schema）估算 + max(输出预留,最大输出) 必须符合容量。拆分前超容量不会发 HTTP；长度停止原因和不完整 JSON 不作为成功结果，不原样无限重试。
 
 参考资料问题覆盖检查使用 `reference_planner`，未单独配置路由/容量时沿用 `default`，不再占用 `researcher` 的小批次提取容量。使用独立的覆盖判断提示词，保留全部证据的 claim、逐字 quote、来源/证据 ID 和实际/预测属性，以及财务事实的期间、金额、单位、范围、业务与版本口径；省去整份 PDF 页码列表、重复审计字段和旧搜索查询。完整出处仍保存在原始记录，固定指令和任务背景排在变化的证据列表之前。拆包合并时保留同一问题两部分的证据 ID，后续仍验证引用属于本任务上传资料。提取角色的容量和成功断点不变。
 
@@ -72,3 +72,24 @@ records/call 保存角色、块/批次、模型配置标识、耗时、重试、
 历史财务事实复用要求原始证据仍可定位、公司/期间/单位/口径一致；股价不作为持久历史事实直接复用，需由当前披露/搜索和明示估值时点重新取得。缓存有效期控制再次获取，不能保证搜索服务完整返回最新公告；真实最新披露发现率仍需 E 阶段验证。
 
 研究目录、表格或极小上下文超出有限拆分能力时会明确失败/阻断，需要按实际模型限制配置容量，不能声称任意容量都能成功。真实验收须先提供有效模型、搜索服务、可追溯资料与明确预算，详见 [V1_1_ACCEPTANCE.md](V1_1_ACCEPTANCE.md)。
+
+
+## 采样参数、思考模式与缓存
+
+`models` 下每个模型可设 `temperature`（不填则用服务商默认）和 `extra_body`（原样并入请求体，用于服务商特有参数，例如 DeepSeek 的思考开关、OpenAI 的 `reasoning_effort`、Anthropic 的 `thinking`）。`role_limits` 中的 `temperature` 覆盖模型默认，建议提取和审核用 0、写作略高。Anthropic 开启 thinking 时不要设置 temperature，结构化输出会自动改用 `tool_choice: auto`。
+
+Anthropic 协议默认 `prompt_cache: true`，在 system 与 schema 工具之后打缓存断点；前缀过短时服务商不缓存，无副作用。缓存读取与写入的 token 计入输入用量，并分别记为命中/未命中。DeepSeek 等 OpenAI 兼容服务按相同前缀自动缓存，无需配置。
+
+分析、写作和批判审核的 system 提示会附加 `skills/` 中对应分析块的方法步骤（如 F05 附 ROIC 与竞争优势拆解，I01 附行业供需分析，V01 附预测、估值与倍数校准）。方法只指导分析思路，不放宽数字引用和 schema 规则。`CDR_METHOD_GUIDANCE=false` 可关闭，`CDR_SKILLS_DIR` 可指定其他方法库目录。
+
+重试：429/5xx/408/409/529 等可重试错误按 `Retry-After` 或指数退避加抖动等待（`CDR_RETRY_BASE_SECONDS` 默认 1 秒，`CDR_RETRY_MAX_SECONDS` 默认 30 秒）。每个 Gateway 复用一个连接池，不再每次请求重新建立 TLS 连接。
+
+## 换用更大模型
+
+流程跑通后换模型，一般只改配置：
+
+1. 在 `models` 新增模型条目（协议、base_url、model、密钥环境变量、max_tokens、structured_mode）。
+2. 在 `routes` 中把收益最高的角色指过去：`financial_analyzer`、`writer`、`core_writer`、`critical_reviewer`、`assumption_planner`。量最大的 `researcher` 提取可继续用便宜模型。
+3. 按新模型的上下文窗口调整 `role_limits` 的 `context_capacity`/`input_capacity`，并按其最大输出设置 `max_output_tokens`。
+4. 跑一次研究后查看后端日志中的 “token estimate low” 警告；如出现，调高 `CDR_TOKENS_PER_CJK`（例如 1.3）。
+5. 模型身份变化会使旧断点不能续跑，换模型后新建研究。

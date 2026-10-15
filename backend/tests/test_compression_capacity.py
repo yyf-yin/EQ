@@ -42,7 +42,7 @@ async def test_large_gaps_split_beyond_two_levels_and_resume_committed_parts(tmp
     monkeypatch.setenv('COMPRESSION_TEST_KEY', 'fixture-only')
     context={'task': {'task_id': 'large', 'block_id': 'F01'},
              'evidence': [{'evidence_id': f'e{i}', 'claim': '收入'} for i in range(5)],
-             'gaps': [f'缺口{i}：' + '缺少明确口径的财务数据。'*20 for i in range(80)]}
+             'gaps': [f'缺口{i}：' + '缺少明确口径的财务数据。'*60 for i in range(80)]}
     original=copy.deepcopy(context)
     successful=[]
     fail=True

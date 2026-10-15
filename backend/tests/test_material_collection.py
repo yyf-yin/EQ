@@ -261,11 +261,11 @@ async def test_analysis_receives_shared_industry_gaps_and_snapshot_tracks_them(t
 async def test_many_slots_plan_within_real_researcher_capacity(tmp_path):
     from company_research.agents import request_messages
     from company_research.contexts import estimate_tokens
-    collector,c,task,_,_,gateway=await setup(tmp_path,input_capacity=20000,task_count=12)
+    collector,c,task,_,_,gateway=await setup(tmp_path,input_capacity=7000,task_count=12)
     calls=[v for name,v in gateway.calls if name=='MaterialDirectionPlan']
     assert len(calls)>1
     assert {s['slot_id'] for v in calls for s in v['slots']}=={t['task_id'] for t in c['plan']['tasks']}
-    assert all(estimate_tokens(request_messages('researcher',v))+estimate_tokens(MaterialDirectionPlan.model_json_schema())+1000<=20000 for v in calls)
+    assert all(estimate_tokens(request_messages('researcher',v))+estimate_tokens(MaterialDirectionPlan.model_json_schema())+1000<=7000 for v in calls)
 
 
 async def test_large_excerpt_does_not_hide_other_evidence_or_reextract(tmp_path):

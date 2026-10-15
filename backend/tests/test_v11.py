@@ -75,7 +75,7 @@ def test_long_material_windows_keep_comparison_headers():
     text='无关的文档开头\n'*3000+'单位：人民币百万元 合并\n| 指标 | 2025A | 2024A |\n|---|---|---|\n'+''.join(f'| 营业收入分类{i} | 550 | 500 |\n' for i in range(80))+'注：同期数据已经重述。\n'
     source=SourceRecord(kind='local',title='长年报',content=text,locator='p20 table3')
     task=ResearchTask(company_id='D',block_id='F01',topic='收入同比',role='financial',queries=['营业收入'])
-    batches=extraction_batches([source],task.model_dump(mode='json'),['2025A','2024A'],4000)
+    batches=extraction_batches([source],task.model_dump(mode='json'),['2025A','2024A'],1500)
     assert len(batches)>1
     for b in batches:
         assert any('2024A' in w['content'] and '百万元' in w['content'] and '重述' in w['content'] for w in b.windows)
@@ -299,7 +299,7 @@ async def test_small_role_capacity_splits_and_records_actual_content(tmp_path,mo
         gateway=Gateway({'t':ModelConfig(protocol='openai',base_url='https://fixture.test/v1',model='fixture',api_key_env='V11_TEST_KEY',max_tokens=1000)},
             {'default':'t'},client=client,role_limits={'default':{'input_capacity':6000,'context_capacity':9000,'output_reserve':1000}},global_token_budget=100000)
         store=Store(tmp_path/'db');gateway.attach_store(store,'r')
-        context={'block':{'block_id':'F01'},'facts':[{'fact_id':str(i),'value':str(i),'description':'x'*300} for i in range(20)],'evidence':[],'calculations':[]}
+        context={'block':{'block_id':'F01'},'facts':[{'fact_id':str(i),'value':str(i),'description':'x'*900} for i in range(20)],'evidence':[],'calculations':[]}
         result=await ask_bounded(gateway,'financial_analyzer',FinancialAnalysis,context)
         assert result.observations and len(seen)>1
         assert all(estimate_tokens(p)<=6000 for p in seen)

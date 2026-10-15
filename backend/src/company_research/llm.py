@@ -272,7 +272,7 @@ class Gateway:
                 self.calls+=1;self.block_calls[block]=self.block_calls.get(block,0)+1;self.reserved_tokens+=estimate+reserve
                 started=time.monotonic();record={'role':agent,'block_id':block,'batch_id':meta.get('batch_id'),
                     'model_config':self.routes.get(agent,self.routes.get('default')),'attempt':attempt,'estimated_input_tokens':estimate,
-                    'budget_tokens':estimate+reserve,'count_method':'utf8-byte-upper-bound estimate; provider usage recorded separately'}
+                    'budget_tokens':estimate+reserve,'count_method':'char-class estimate (CJK/other); provider usage recorded separately'}
                 from .framework import digest
                 record.update(model=config.model,protocol=config.protocol,
                               prompt_version=digest([m for m in messages if m.get('role')=='system']))

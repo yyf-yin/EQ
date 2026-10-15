@@ -1,5 +1,7 @@
 """Question-directed source windows and auditable, bounded block contexts."""
 import json
+import math
+import os
 import re
 from .framework import digest, CORE
 from .schemas import ExtractionBatch, ContextPackage
@@ -12,9 +14,47 @@ METRICS={
 }
 
 
+# Token estimate by character class instead of UTF-8 bytes. Bytes over-count
+# Chinese about 3x (one CJK char = 3 bytes, but roughly 0.6-1.3 tokens across
+# common tokenizers), which made every batch ~3x smaller than the model allows
+# and multiplied request counts. Defaults are calibrated slightly above the
+# DeepSeek usage observed in real runs (see docs/LLM_CONFIGURATION.md); tune
+# per model with CDR_TOKENS_PER_CJK / CDR_CHARS_PER_TOKEN when switching
+# providers. The gateway logs the provider's real count next to this estimate.
+_CJK = re.compile(r'[\u2e80-\u2fff\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]')
+
+
+def _ratio(name, default):
+    try:
+        value = float(os.environ.get(name, default))
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+def tokens_per_cjk():
+    return _ratio('CDR_TOKENS_PER_CJK', 1.0)
+
+
+def chars_per_token():
+    return _ratio('CDR_CHARS_PER_TOKEN', 3.0)
+
+
+def estimate_text_tokens(text: str) -> int:
+    other = len(_CJK.sub('', text))
+    cjk = len(text) - other
+    return math.ceil(cjk * tokens_per_cjk() + other / chars_per_token())
+
+
 def estimate_tokens(value):
-    """Conservative UTF-8 byte upper-bound, NOT an exact model tokenizer count."""
-    return len(json.dumps(value,ensure_ascii=False,default=str).encode('utf-8'))
+    """Approximate token count of the JSON-serialized value (not an exact tokenizer)."""
+    text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, default=str)
+    return estimate_text_tokens(text)
+
+
+def chars_for_tokens(tokens):
+    """Conservative character allowance for a token budget (assumes CJK-dense text)."""
+    return int(max(0, tokens) / max(tokens_per_cjk(), 1 / chars_per_token()))
 
 
 def locate_windows(sources, task, capacity):
@@ -42,7 +82,7 @@ def locate_windows(sources, task, capacity):
             # Metadata itself must not grow to include all table rows.
             preceding=[i for i in metadata if i<=max(start,hits[0]) and not re.search(r'注[:：]|注\d|footnote',lines[i],re.I)]
             prefix=''.join(lines[i] for i in preceding[-6:])+'\n'+footnotes
-            max_chars=max(32,(capacity-estimate_tokens(prefix)-800)//4)
+            max_chars=max(32,chars_for_tokens(capacity-estimate_tokens(prefix)-800))
             for pos in range(0,len(content),max_chars):
                 excerpt=prefix+content[pos:pos+max_chars]
                 windows.append({'source_id':source.source_id,'title':source.title,'locator':source.locator,

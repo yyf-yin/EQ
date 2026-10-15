@@ -12,7 +12,7 @@ from pathlib import Path
 from pydantic import Field
 
 from .agents import EvidenceProposal, ask, locate_quote
-from .contexts import estimate_tokens, source_context
+from .contexts import chars_for_tokens, estimate_tokens, source_context
 from .datasources import DatasourceError, join_document_chunks
 from .execution import check_pause, unit
 from .financials.formulas import FinancialDataProcessor, FinancialError, UNIT_SCALE, FIELD_MAP
@@ -580,7 +580,7 @@ class FixedCollection:
         # Stable windows are independent of task IDs and analysis questions. Leave
         # room for fixed definitions and schema, split only for actual capacity.
         available=min(self.w.settings.extraction_input_tokens,self.w.gateway.limits('researcher').input_capacity-3000)
-        chars=max(256,(available-estimate_tokens(base_context)-estimate_tokens(SlotExtraction.model_json_schema())-2000)//4)
+        chars=max(256,chars_for_tokens(available-estimate_tokens(base_context)-estimate_tokens(SlotExtraction.model_json_schema())-2000))
         # Split between rows rather than in the middle of a multi-year row.
         chunks=[];current=''
         for line in source.content.splitlines(keepends=True):

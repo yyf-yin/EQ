@@ -32,7 +32,7 @@ async def test_protocol_http_server(protocol,monkeypatch):
         if protocol=='anthropic':
             assert headers['x-api-key']=='test-secret'
             assert headers['anthropic-version']=='2023-06-01'
-            assert data['system']=='instructions'
+            assert data['system']==[{'type':'text','text':'instructions','cache_control':{'type':'ephemeral'}}]
             assert data['tools'][0]['input_schema']['properties']['answer']['type']=='string'
         else:
             assert headers['authorization']=='Bearer test-secret'
@@ -138,3 +138,44 @@ async def test_deepseek_cache_and_reasoning_counters_are_saved_without_response_
     assert record['response_model']=='actual-model'
     assert gateway.reserved_tokens==120  # Cache hits still count as input, not free token budget.
     assert 'private reasoning' not in json.dumps(record)
+
+
+def test_retry_delay_honours_retry_after_and_backs_off(monkeypatch):
+    from company_research.llm import retry_delay
+    monkeypatch.setenv('CDR_RETRY_BASE_SECONDS','2');monkeypatch.setenv('CDR_RETRY_MAX_SECONDS','30')
+    assert retry_delay(0,httpx.Response(429,headers={'retry-after':'7'}))==7
+    assert retry_delay(0,httpx.Response(429,headers={'retry-after':'999'}))==30
+    assert 1<=retry_delay(0)<=2 and 4<=retry_delay(2)<=8 and retry_delay(10)<=30
+
+
+@pytest.mark.parametrize('protocol',['openai','anthropic'])
+async def test_sampling_extra_body_and_cache_accounting(protocol,monkeypatch):
+    monkeypatch.setenv('TEST_KEY','x');seen=[]
+    def handler(request):
+        seen.append(json.loads(request.content))
+        if protocol=='openai':
+            return httpx.Response(200,json={'choices':[{'message':{'content':'ok'},'finish_reason':'stop'}],
+                'usage':{'prompt_tokens':100,'completion_tokens':5,'prompt_cache_hit_tokens':80,'prompt_cache_miss_tokens':20}})
+        return httpx.Response(200,json={'content':[{'type':'text','text':'ok'}],'stop_reason':'end_turn',
+            'usage':{'input_tokens':20,'cache_read_input_tokens':70,'cache_creation_input_tokens':10,'output_tokens':5}})
+    extra={'thinking':{'type':'disabled'}} if protocol=='openai' else {'metadata':{'user_id':'t'}}
+    config=ModelConfig(protocol=protocol,base_url='http://mock/v1',model='m',api_key_env='TEST_KEY',temperature=0.7,extra_body=extra)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as c:
+        g=Gateway({'m':config},{'default':'m'},client=c,role_limits={'default':{},'researcher':{'temperature':0}})
+        await g.complete('writer',[{'role':'system','content':'s'},{'role':'user','content':'q'}])
+        await g.complete('researcher',[{'role':'system','content':'s'},{'role':'user','content':'q'}])
+    assert seen[0]['temperature']==0.7 and seen[1]['temperature']==0
+    assert all(seen[0][k]==v for k,v in extra.items())
+    assert g.usage['writer']['input_tokens']==100
+    assert g.call_records[0]['cache_hit_tokens']==(80 if protocol=='openai' else 70)
+    assert g.call_records[0]['cache_miss_tokens']==(20 if protocol=='openai' else 30)
+
+
+async def test_gateway_reuses_one_pooled_client(monkeypatch):
+    monkeypatch.setenv('TEST_KEY','x')
+    g=Gateway({'m':ModelConfig(protocol='openai',base_url='http://mock/v1',model='m',api_key_env='TEST_KEY')},{'default':'m'})
+    first=g.http_client()
+    assert g.http_client() is first
+    await g.aclose()
+    assert g.http_client() is not first
+    await g.aclose()

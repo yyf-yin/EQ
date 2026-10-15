@@ -33,6 +33,22 @@ class BudgetError(LLMError):
     pass
 
 CALL_CONTEXT = ContextVar('call_context', default={})
+RETRYABLE_STATUS = {408, 409, 429, 500, 502, 503, 504, 529}
+
+
+def retry_delay(attempt: int, response: 'httpx.Response | None' = None) -> float:
+    """Exponential backoff with jitter; honours Retry-After from rate limiters."""
+    import random
+    base = float(os.environ.get('CDR_RETRY_BASE_SECONDS', '1') or 1)
+    cap = float(os.environ.get('CDR_RETRY_MAX_SECONDS', '30') or 30)
+    if response is not None:
+        header = response.headers.get('retry-after')
+        try:
+            if header is not None:
+                return min(max(float(header), 0), cap)
+        except ValueError:
+            pass
+    return min(cap, base * 2 ** attempt) * (0.5 + random.random() / 2)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -46,6 +62,8 @@ class RoleLimits(BaseModel):
     max_output_tokens: int | None = None
     concurrency: int | None = Field(default=None, ge=1, le=8)
     block_call_budget: int | None = Field(default=None, ge=1)
+    # Per-role sampling override, e.g. 0 for extraction/review, higher for writing.
+    temperature: float | None = Field(default=None, ge=0, le=2)
 
 
 class ModelConfig(BaseModel):
@@ -57,6 +75,16 @@ class ModelConfig(BaseModel):
     max_tokens: int = 6000
     structured_mode: Literal['native', 'tool', 'json'] = 'tool'
     anthropic_version: str = '2023-06-01'
+    # Model-level sampling default; omitted from the request when None.
+    temperature: float | None = Field(default=None, ge=0, le=2)
+    # Provider-specific request fields merged into every payload, e.g.
+    # DeepSeek {"thinking": {"type": "disabled"}}, OpenAI {"reasoning_effort": "low"},
+    # Anthropic {"thinking": {"type": "enabled", "budget_tokens": 4000}}.
+    extra_body: dict[str, Any] = Field(default_factory=dict)
+    # Anthropic: mark tools+system as a cacheable prefix (no effect below the
+    # provider's minimum cacheable length). OpenAI-compatible providers such as
+    # DeepSeek cache identical prefixes automatically.
+    prompt_cache: bool = True
 
     def key(self) -> str:
         value = os.environ.get(self.api_key_env, '')
@@ -95,6 +123,8 @@ class LLMResponse(BaseModel):
 
 def openai_payload(config: ModelConfig, messages: list[dict], tools: list[dict] | None = None, schema: type[BaseModel] | None = None) -> dict:
     payload = {'model': config.model, 'messages': messages, 'max_tokens': config.max_tokens}
+    if config.temperature is not None:
+        payload['temperature'] = config.temperature
     if tools:
         payload['tools'] = [{'type':'function', 'function':{'name':t['name'], 'description':t.get('description',''), 'parameters':t['input_schema']}} for t in tools]
     if schema:
@@ -106,7 +136,7 @@ def openai_payload(config: ModelConfig, messages: list[dict], tools: list[dict] 
         else:
             payload['response_format'] = {'type':'json_object'}
             payload['messages'] = messages + [{'role':'user','content':'只返回 JSON，结构：'+json.dumps(schema.model_json_schema(),ensure_ascii=False)}]
-    return payload
+    return payload | config.extra_body
 
 
 def anthropic_payload(config: ModelConfig, messages: list[dict], tools: list[dict] | None = None, schema: type[BaseModel] | None = None) -> dict:
@@ -130,13 +160,24 @@ def anthropic_payload(config: ModelConfig, messages: list[dict], tools: list[dic
             converted[-1]['content'].extend(blocks)
         else:
             converted.append({'role':target_role, 'content':blocks})
-    payload = {'model':config.model, 'max_tokens':config.max_tokens, 'system':'\n\n'.join(system), 'messages':converted}
+    system_text = '\n\n'.join(system)
+    if config.prompt_cache and system_text:
+        # Cache breakpoint after tools + system: the stable per-role prefix.
+        system_value = [{'type':'text','text':system_text,'cache_control':{'type':'ephemeral'}}]
+    else:
+        system_value = system_text
+    payload = {'model':config.model, 'max_tokens':config.max_tokens, 'system':system_value, 'messages':converted}
+    if config.temperature is not None:
+        payload['temperature'] = config.temperature
     if tools:
         payload['tools'] = tools
     if schema:
         payload['tools'] = [{'name':'structured_output','description':'返回符合 schema 的结果','input_schema':schema.model_json_schema()}]
-        payload['tool_choice'] = {'type':'tool','name':'structured_output'}
-    return payload
+        thinking = (config.extra_body.get('thinking') or {}).get('type') == 'enabled'
+        # Extended thinking only allows tool_choice auto/none; the single tool and
+        # the instruction still make the model answer through structured_output.
+        payload['tool_choice'] = {'type':'auto'} if thinking else {'type':'tool','name':'structured_output'}
+    return payload | config.extra_body
 
 
 def parse_response(protocol: str, body: dict) -> LLMResponse:
@@ -147,11 +188,25 @@ def parse_response(protocol: str, body: dict) -> LLMResponse:
         return LLMResponse(content=message.get('content') or '', tool_calls=[ToolCall(id=t['id'],name=t['function']['name'],arguments=json.loads(t['function']['arguments'])) for t in message.get('tool_calls',[])], input_tokens=usage.get('prompt_tokens',0), output_tokens=usage.get('completion_tokens',0), finish_reason=choice.get('finish_reason',''))
     blocks = body.get('content', [])
     usage = body.get('usage', {})
-    return LLMResponse(content='\n'.join(b['text'] for b in blocks if b['type']=='text'), tool_calls=[ToolCall(id=b['id'],name=b['name'],arguments=b['input']) for b in blocks if b['type']=='tool_use'], input_tokens=usage.get('input_tokens',0), output_tokens=usage.get('output_tokens',0), finish_reason=body.get('stop_reason',''))
+    return LLMResponse(content='\n'.join(b['text'] for b in blocks if b['type']=='text'), tool_calls=[ToolCall(id=b['id'],name=b['name'],arguments=b['input']) for b in blocks if b['type']=='tool_use'], input_tokens=anthropic_input_tokens(usage), output_tokens=usage.get('output_tokens',0), finish_reason=body.get('stop_reason',''))
+
+
+def _count(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
+
+
+def anthropic_input_tokens(usage: dict) -> int:
+    """Anthropic reports cached prefix tokens separately from input_tokens."""
+    return _count(usage.get('input_tokens')) + _count(usage.get('cache_read_input_tokens')) + _count(usage.get('cache_creation_input_tokens'))
 
 
 def cache_usage(usage: dict, protocol: str) -> dict:
     """Missing provider cache counters are unknown, never a measured zero hit."""
+    if protocol == 'anthropic':
+        if 'cache_read_input_tokens' not in usage and 'cache_creation_input_tokens' not in usage:
+            return {}
+        hit = _count(usage.get('cache_read_input_tokens'))
+        return {'cache_hit_tokens': hit, 'cache_miss_tokens': anthropic_input_tokens(usage) - hit}
     if protocol != 'openai':
         return {}
     hit = usage.get('prompt_cache_hit_tokens', (usage.get('prompt_tokens_details') or {}).get('cached_tokens'))
@@ -181,6 +236,21 @@ class Gateway:
         self.enforce_call_budgets=enforce_call_budgets
         self.calls=0;self.reserved_tokens=0;self.block_calls={};self.call_records=[]
         self.store=None;self.run_id=None
+        self._owned_client=None
+
+    def http_client(self) -> httpx.AsyncClient:
+        """One pooled client per gateway: keeps TLS connections alive across calls."""
+        if self.client:
+            return self.client
+        if self._owned_client is None or self._owned_client.is_closed:
+            self._owned_client = httpx.AsyncClient(trust_env=False,
+                limits=httpx.Limits(max_connections=32, max_keepalive_connections=16))
+        return self._owned_client
+
+    async def aclose(self):
+        if self._owned_client is not None:
+            await self._owned_client.aclose()
+            self._owned_client = None
 
     def limits(self, role):
         return self.role_limits.get(role,self.role_limits.get('default',RoleLimits(timeout=self.timeout,retries=min(self.retries,3))))
@@ -234,7 +304,8 @@ class Gateway:
     async def complete(self, agent: str, messages: list[dict], tools: list[dict] | None = None, schema: type[BaseModel] | None = None) -> LLMResponse:
         config = self.resolve(agent)
         limits=self.limits(agent)
-        config=config.model_copy(update={'max_tokens':limits.max_output_tokens or config.max_tokens})
+        config=config.model_copy(update={'max_tokens':limits.max_output_tokens or config.max_tokens,
+                                         'temperature':limits.temperature if limits.temperature is not None else config.temperature})
         key = config.key()
         native = config.protocol == 'anthropic'
         payload = (anthropic_payload if native else openai_payload)(config, messages, tools, schema)
@@ -283,14 +354,12 @@ class Gateway:
                     run=self.store.run(self.run_id)
                     record.update(unit_id=SCOPE.get(),run_attempt_id=run.attempt_id if run else None)
                 if self.store:self.store.record(self.run_id,'call',record['call_id'],record)
+                response=None
                 try:
-                    if self.client:
-                        response = await self.client.post(endpoint,json=payload,headers=headers,timeout=limits.timeout)
-                    else:
-                        async with httpx.AsyncClient(timeout=limits.timeout,trust_env=False) as client:
-                            response = await client.post(endpoint,json=payload,headers=headers)
+                    response = await self.http_client().post(endpoint,json=payload,headers=headers,timeout=limits.timeout)
                     if response.status_code >= 400:
-                        if response.status_code not in {408,429,500,502,503,504}:
+                        record['http_status']=response.status_code
+                        if response.status_code not in RETRYABLE_STATUS:
                             raise LLMError(f'模型请求被拒绝 HTTP {response.status_code}')
                         raise httpx.HTTPStatusError('retryable',request=response.request,response=response)
                     body=response.json()
@@ -309,6 +378,10 @@ class Gateway:
                     bucket['calls'] += 1
                     bucket['input_tokens'] += result.input_tokens
                     bucket['output_tokens'] += result.output_tokens
+                    if result.input_tokens and result.input_tokens > estimate * 1.15:
+                        # Estimator under-counts for this model: requests may hit the real
+                        # context limit. Raise CDR_TOKENS_PER_CJK / lower CDR_CHARS_PER_TOKEN.
+                        logger.warning('token estimate low for %s: provider=%s estimate=%s', config.model, result.input_tokens, estimate)
                     if usage:
                         self.reserved_tokens-=estimate+reserve
                         self.reserved_tokens+=result.input_tokens+result.output_tokens
@@ -322,7 +395,7 @@ class Gateway:
                     record['result']='transport_or_protocol_failure'
                     if attempt + 1 == limits.retries:
                         raise LLMError('模型调用失败：网络、超时或响应结构异常') from None
-                    await asyncio.sleep(.1 * 2**attempt)
+                    await asyncio.sleep(retry_delay(attempt, response if response is not None and response.status_code >= 400 else None))
                 finally:
                     if record['result']=='running':record['result']='unexpected_failure'
                     from .execution import accounted_tokens
@@ -337,6 +410,13 @@ class Gateway:
             identity = {'model': config.model, 'protocol': config.protocol, 'base_url': config.base_url,
                         'structured_mode': config.structured_mode,
                         'max_tokens': self.limits(agent).max_output_tokens or config.max_tokens}
+            # Only non-default sampling settings join the identity, so committed
+            # results from runs created before these options existed stay reusable.
+            temperature = self.limits(agent).temperature if self.limits(agent).temperature is not None else config.temperature
+            if temperature is not None:
+                identity['temperature'] = temperature
+            if config.extra_body:
+                identity['extra_body'] = config.extra_body
             async def invoke():
                 return (await self._structured(agent, messages, schema)).model_dump(mode='json')
             result = await unit(self.store, self.run_id, 'model', agent,

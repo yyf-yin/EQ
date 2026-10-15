@@ -83,12 +83,13 @@ class Runner:
                 run.error=str(exc) if isinstance(exc,(ConfigurationError,LLMError,FinancialError,DatasourceError)) else '研究无法继续：身份、期间、引用或配置未通过检查。'
                 run.failure_code='budget' if isinstance(exc,BudgetError) else 'quality' if isinstance(exc,FinancialError) else 'configuration' if isinstance(exc,ConfigurationError) else 'execution'
                 self.store.save_run(run);self.store.emit(run_id,run.stage,'run',run.status,run.error)
-                logger.warning('run=%s failed_type=%s',run_id,type(exc).__name__)
+                # Keep the traceback in the backend log; the UI message stays generic.
+                logger.warning('run=%s failed_type=%s detail=%s',run_id,type(exc).__name__,exc,exc_info=isinstance(exc,ValueError))
             except Exception as exc:
                 run=self.store.run(run_id);run.status='failed';run.error='研究执行异常，请检查后端日志中的节点及异常类型。'
                 run.failure_code='execution'
                 self.store.save_run(run);self.store.emit(run_id,run.stage,'run','failed',run.error)
-                logger.error('run=%s node=%s error_type=%s',run_id,run.stage,type(exc).__name__)
+                logger.error('run=%s node=%s error_type=%s',run_id,run.stage,type(exc).__name__,exc_info=True)
             finally:
                 final=self.store.run(run_id)
                 attempt.update(status=final.status,ended_at=now(),failure_code=final.failure_code)
@@ -97,3 +98,6 @@ class Runner:
                     'budget_tokens_reserved':gateway.reserved_tokens,'provider_input_tokens':sum(r.get('input_tokens') or 0 for r in gateway.call_records),
                     'provider_output_tokens':sum(r.get('output_tokens') or 0 for r in gateway.call_records),
                     'usage_missing_calls':sum(r.get('usage_source')!='provider' for r in gateway.call_records)})
+                if gateway:
+                    try:await gateway.aclose()
+                    except Exception:pass

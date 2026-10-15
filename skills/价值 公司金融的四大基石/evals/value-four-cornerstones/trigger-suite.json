@@ -1,0 +1,87 @@
+{
+  "suite_id": "trigger-value-four-cornerstones",
+  "target": "value-four-cornerstones",
+  "split_seed": 42,
+  "train_ratio": 0.6,
+  "trigger_cases": [
+    {
+      "case_id": "value-four-cornerstones::should-trigger-01",
+      "prompt": "这只股票过去五年涨了 400%，回报到底来自盈利增长、估值扩张还是分红回购？帮我拆一下。",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-four-cornerstones::should-trigger-02",
+      "prompt": "最近市场整体估值抬升，主要是利率下行驱动的还是盈利改善驱动的？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-four-cornerstones::should-trigger-03",
+      "prompt": "这个赛道现在的估值和情绪，算不算泡沫？和典型的金融危机有什么本质区别？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-four-cornerstones::should-trigger-04",
+      "prompt": "这家公司这个季度业绩大超预期，我要不要因此上调对它的长期看法？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-four-cornerstones::should-trigger-05",
+      "prompt": "这家公司的主要股东结构是怎样的？被动指数基金占比高还是主动内在投资者占比高？这会不会影响它的估值定价？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-four-cornerstones::should-trigger-06",
+      "prompt": "集团要把一块业务卖掉，什么样的人买最合适？剥离是不是比继续持有对股东更好？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-four-cornerstones::should-trigger-07",
+      "prompt": "这家公司净负债率 70%，如果经济下行它扛得住吗？它的财务弹性和风险承受边界在哪？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-four-cornerstones::should-not-trigger-01",
+      "prompt": "这家公司 ROIC 6%、增速 20%、WACC 9%，增长是在创造价值还是毁灭价值？",
+      "expected": "sibling",
+      "sibling_target": "roic-growth-value-core",
+      "runs": 1
+    },
+    {
+      "case_id": "value-four-cornerstones::should-not-trigger-02",
+      "prompt": "这家公司当前股价隐含了什么样的增长预期？",
+      "expected": "sibling",
+      "sibling_target": "implied-expectations-reverse-dcf",
+      "runs": 1
+    },
+    {
+      "case_id": "value-four-cornerstones::should-not-trigger-03",
+      "prompt": "帮我看看这只票的 MACD 和均线，现在能不能进场？",
+      "expected": "should_not_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-four-cornerstones::edge-01",
+      "prompt": "帮我算一下这家银行的合理估值区间。",
+      "expected": "edge_case",
+      "sibling_target": null,
+      "runs": 1
+    }
+  ],
+  "version": "0.2.0",
+  "evaluation_status": "not_run_after_revision"
+}

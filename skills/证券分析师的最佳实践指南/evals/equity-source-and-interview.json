@@ -1,0 +1,54 @@
+{
+  "skill": "equity-source-and-interview",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "下周要做一次专家访谈，怎么设计问题？",
+      "expected_behavior": "激活，输出中性问题、受访者知识范围、资料核查与记录模板；外联需已有授权，不能声称访谈完成。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "怎么开发和维护行业信息源？",
+      "expected_behavior": "激活，按问题评估信息源的直接知识、偏差、时效和来源依赖；不用 2% 电话占比作 agent 的固定预算。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "我想知道公司下季度会不会上调指引，但不能直接问，怎么办？",
+      "expected_behavior": "激活，设计合法可用的经营问题并记录推断链；改问法不能使重大非公开信息合法，未遭反驳不等于确认。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "查一下这家公司去年的营业收入是多少",
+      "expected_behavior": "不应激活，这是公开财报数据的查询/分析，应走 equity-financial-forensics 或直接查资料",
+      "notes": "范围诱饵：公开数据不是一手调研"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "这样做合规吗？我能去问管理层吗？",
+      "expected_behavior": "不应激活，应激活 equity-ethics-review",
+      "notes": "跨 skill 混淆诱饵：合规裁定属道德卡，本卡只提供拼图工艺"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "我想发一轮问卷调研行业需求",
+      "expected_behavior": "可激活作取证方式选择，问卷具体设计转路由 primary-survey-design；判断样本与问题适配，不以单家公司必用一对一作为硬规则。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

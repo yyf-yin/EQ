@@ -1,0 +1,54 @@
+{
+  "skill": "equity-financial-forensics",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "这家公司的财报有没有问题？会不会做账？",
+      "expected_behavior": "激活，审查报表、现金桥接、动机与外部信号；没有动机也不跳过审查。异常是核查线索，不按信号数量定罪或自动折价。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "净利润和经营现金流长期背离，这说明了什么？",
+      "expected_behavior": "激活，检查符号、零/近零分母、期间及季节性，做净利润到 CFO 桥接并比较营运资金、税与非现金项目；不得按 1.5/0.5 阈值直接判定夸大利润或盈利准备金。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "行业协会发布的这组数据能直接引用吗？",
+      "expected_behavior": "激活，检查定义、样本、覆盖、方法、版本、出资方和独立来源；权威原始披露可引用，不用通用黑名单替代逐项核查。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "帮我建一个财务模型",
+      "expected_behavior": "不应激活，应激活 equity-forecast-modeling",
+      "notes": "跨 skill 混淆诱饵：建模属建模卡"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "给这家公司估个值",
+      "expected_behavior": "不应激活，应激活 equity-valuation",
+      "notes": "跨 skill 混淆诱饵：估值属估值卡"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "审计师刚换了，要不要紧？",
+      "expected_behavior": "应激活：更换审计师属报表外检疫旗（第三段），需结合其他信号判断，不得单独定罪",
+      "notes": "边界：报表外信号容易被忽略，但确实属本卡第三段"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

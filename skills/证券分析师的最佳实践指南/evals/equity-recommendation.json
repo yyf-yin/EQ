@@ -1,0 +1,54 @@
+{
+  "skill": "equity-recommendation",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "该不该给这只票一个买入评级？",
+      "expected_behavior": "激活，比较预测/估值/情绪与可观察市场预期，给投资期限、收益风险、反证和可兑现条件；证据不足可给观察结论。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "我的观点和市场分歧在哪儿？",
+      "expected_behavior": "应激活，走分歧审计四问：差异是什么 / 属 FaVeS 哪一类 / 市场为什么错 / 催化剂与触发时点",
+      "notes": "分歧审计是本卡的核心动作"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "这个投资逻辑有催化剂吗？什么时候会被市场接受？",
+      "expected_behavior": "激活，列事件、影响机制、预期与时间不确定性；宏观变量可影响结果，不因不可预测而忽略，只避免承诺具体催化时间。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "帮我算一下 DCF 值多少钱",
+      "expected_behavior": "不应激活，应激活 equity-valuation",
+      "notes": "跨 skill 混淆诱饵：估值计算本身属估值卡"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "这份研报该怎么写？",
+      "expected_behavior": "不应激活，应激活 equity-report-writing",
+      "notes": "跨 skill 混淆诱饵：表达属写作卡"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "我比市场更懂这家公司的技术路线，可以推荐买入吗？",
+      "expected_behavior": "激活，把技术优势映射增长、利润、再投资或风险，并比较价格隐含假设；不足以证明投资吸引力时给条件判断，不机械否定好公司。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

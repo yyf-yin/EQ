@@ -1,0 +1,7 @@
+{"case_id": "value-conservation-test::should-trigger-01", "run": 1, "selected_skill": "value-conservation-test"}
+{"case_id": "value-conservation-test::should-not-trigger-03", "run": 1, "selected_skill": "value-four-cornerstones"}
+{"case_id": "value-conservation-test::should-trigger-02", "run": 1, "selected_skill": "value-conservation-test"}
+{"case_id": "value-conservation-test::edge-01", "run": 1, "selected_skill": "none"}
+{"case_id": "value-conservation-test::should-trigger-03", "run": 1, "selected_skill": "value-conservation-test"}
+{"case_id": "value-conservation-test::should-not-trigger-01", "run": 1, "selected_skill": "ma-value-creation-assessment"}
+{"case_id": "value-conservation-test::should-not-trigger-02", "run": 1, "selected_skill": "none"}

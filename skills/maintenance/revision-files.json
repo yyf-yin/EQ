@@ -1,0 +1,947 @@
+{
+  "date": "2026-10-06",
+  "files": [
+    {
+      "path": "maintenance/README.md",
+      "before_sha256": null,
+      "after_sha256": "eee3b616992bf4c36e55350dfdb0db4914cf802ea7111b12d99987cacd27c691"
+    },
+    {
+      "path": "maintenance/research-acceptance-cases.json",
+      "before_sha256": null,
+      "after_sha256": "6ff7eba6fb540f930d0e23f3099d378d18c378bae3ecc1066f34731bb854ae85"
+    },
+    {
+      "path": "maintenance/validate_skills.py",
+      "before_sha256": null,
+      "after_sha256": "4dd73a43a0b2ca9f494cc80770eb21b5636ebc86008689bb9ec0cc4f9b572025"
+    },
+    {
+      "path": "maintenance/validation-results.json",
+      "before_sha256": null,
+      "after_sha256": "1f31b14d79c03c5edca4d087ae02d95c480a47f8298efbfd868acfd9929763b2"
+    },
+    {
+      "path": "skills调整说明.md",
+      "before_sha256": null,
+      "after_sha256": "ea3b9f7515006b6dcada65b0bd6c587f1958713a8a68f1e334b54c1978127cf7"
+    },
+    {
+      "path": "价值 公司金融的四大基石/BOOK_OVERVIEW.md",
+      "before_sha256": "51b1a1165635faa5e7c07d1f70d8f3d50469ee0b39ee602b7282be311a0d590f",
+      "after_sha256": "5a8ff742b6a56a710bafa2f7a0b8fe212db3a92dd124b40838d463cd871c59c2"
+    },
+    {
+      "path": "价值 公司金融的四大基石/BUILD_MANIFEST.json",
+      "before_sha256": "e8081fac57f5bca12866d0cd9116098ec68f0e53f9bbf0b8442a351cb7959f75",
+      "after_sha256": "33d63b0261eb0e60e2204abebb1dfd3b74abb05dbf1f6599de116b242970b40d"
+    },
+    {
+      "path": "价值 公司金融的四大基石/DIGEST.md",
+      "before_sha256": "800120647fc60d2031aa0673a4b7dbcbe9969b8df7d63b6fb3d01fc6d7551b5d",
+      "after_sha256": "1ae2f38b69d8ca51ba786aea3b49c01d67c6d6ba198492240ae5ec329ad2bb32"
+    },
+    {
+      "path": "价值 公司金融的四大基石/GLOSSARY.md",
+      "before_sha256": "16933976356211524b0b1666658c26c18640e39d074d9f6864c651d995816cfc",
+      "after_sha256": "37770fc9e922f1e5b32d89b28ae47669febe3816d5b75076a1d5306264db924c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/PRESSURE_TEST.md",
+      "before_sha256": "0746c1b2f8a4e98589876ee2e7849c878bd53ea0cc7f725d6290e5f4577d1bbd",
+      "after_sha256": "cb8032f7d366f0b772ec5c0f9f6afa1ded6f2e11e42173604c5c2acf925f8c61"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/growth-quality-ladder/test-prompts.json",
+      "before_sha256": "c718f9614397e0b292857b45963a6dab9768e5b83fabc0bc02e622ebcc2df104",
+      "after_sha256": "7c6f2c9f4361ebad77295a94febacb7ba70965a3a9b3aa7e280cc97f9e1ce758"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/growth-quality-ladder/test-results.md",
+      "before_sha256": "7b87af8585fe10b974cdf2dc0bafe72ce0686946b0ac7fa70893412612f9b3d8",
+      "after_sha256": "d5cd22dd09287206d357e407bc589a694ce66270fbe5b512d825904bfd8a059f"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/growth-quality-ladder/trigger-suite.json",
+      "before_sha256": "0d8a6870a0ff28052996f7424691d9632d5cfd8b06e2d62df078d3daee0d3fde",
+      "after_sha256": "ab68b5574384a50ac67b1a5b9df11e6f512ceaac875025f343aaee93e8bbd55c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/implied-expectations-reverse-dcf/test-prompts.json",
+      "before_sha256": "fe0898be9df93c861c0a4128699648e72e5ff6723a1363269956e49fed703651",
+      "after_sha256": "775b41db1830b4a0ce9eed77bbf616f231bef9ab3c0d55e226894a04d7d955c6"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/implied-expectations-reverse-dcf/test-results.md",
+      "before_sha256": "9ac2d5ec1a354eb99f3a6a9b1670773aa75c6a2d93519cf40e6a9e9120b267e2",
+      "after_sha256": "5ac51b95c589c406c11463c5ae7c40a6859b7c76ae040c06beaf0fb2a54f16c6"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/implied-expectations-reverse-dcf/trigger-suite.json",
+      "before_sha256": "745627a04e3c0627e2330403fe887742b2e4a5c124d200e5edb355d3d3ce1343",
+      "after_sha256": "76cf106bddf22131a3d53750c7cae8f50074cdc25545f5bf0dd31b4ad479c688"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/ma-value-creation-assessment/test-prompts.json",
+      "before_sha256": "56fee456a87f9fd365f818b5dbc3efc7482a7e29d4d1ebfbe7f1afa01df31a16",
+      "after_sha256": "be442cbda618c516d1f0ad42dbcf299b86f325848791e64f4f75bbbfaf50f6df"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/ma-value-creation-assessment/test-results.md",
+      "before_sha256": "ab3c5465c87cd08ceabc31c5ee66018673a7a696e56307da0775f004f4abc517",
+      "after_sha256": "33c1d570aab1198b294ad5d0e085d26c61d2470bb4d16ab2402d6784c924810c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/ma-value-creation-assessment/trigger-suite.json",
+      "before_sha256": "deb80834ab33b1b411601c38ac16c1520f233a627850c48264c9d2924a306820",
+      "after_sha256": "96e28592589d785ca14eb9e9b474f4b472be932b901936d5e5170677fd56e334"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/roic-competitive-advantage-decomposition/test-prompts.json",
+      "before_sha256": "f9481d63e75afc04817dace59e7194af1ccc1dbc8dbc60668ddf539066b8d3ee",
+      "after_sha256": "9444a2e2f7d1cdb91e561965625e3344ec641affa5a19e5f6c55822968452da4"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/roic-competitive-advantage-decomposition/test-results.md",
+      "before_sha256": "3fae2dbb50b4b2a9a2811357132182fd054ff682e9b9e592df3f95aa2999e67a",
+      "after_sha256": "ba0a91c2c56e5811a7610fe789101ba73027eb75f37f727491b973e95107637c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/roic-competitive-advantage-decomposition/trigger-suite.json",
+      "before_sha256": "dbf4dddd4523e3d3c3adbb523de392f9fa572c9e5576057126ab131d15a21781",
+      "after_sha256": "8f254bb7cde3bf8e747f7a3ee58a0108c74b62a3279dc559267a7105f2978d12"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/roic-growth-value-core/test-prompts.json",
+      "before_sha256": "f3376cdc59a6f34fdd829e2c6dce22a0af6bda319f7690b47d1b33765c94856a",
+      "after_sha256": "d5c7ae21aa7c9fdfd8c80d2751718c91362ecc8a18c852a4264fd88cf3d17e7c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/roic-growth-value-core/test-results.md",
+      "before_sha256": "34e227c1e90e22408b263d1ea9b10b5fcc2b754884430a2264560dd2a398af18",
+      "after_sha256": "8d330f3972e6d50eca5f43500abb2d7979d644b90ef3629780b50a6b6af01f09"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/roic-growth-value-core/trigger-suite.json",
+      "before_sha256": "522b876c6127045820dd791149313543cc4ff11730d5417bd3e9d21e7fca6e9e",
+      "after_sha256": "bb714fa93a97995850c56f52fc18712d6a27d598826496ea0d6dc01079920f45"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/valuation-multiple-traps/test-prompts.json",
+      "before_sha256": "b9496b28fac242a59cf7a535e947ccebafe2cb9b48adc10d97d29c19e0d82b89",
+      "after_sha256": "75ab377308a537ab746e514db630ffd76162b62b309832d09153861c8a090b33"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/valuation-multiple-traps/test-results.md",
+      "before_sha256": "4d433fc8fb04de5868f616c5d67751366032ab28e00f2c62154df99a8aceed14",
+      "after_sha256": "8680a913788edaad8afbdfeaa7a6ce9220cffffcede36ba9e3af83c4bb7a3c01"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/valuation-multiple-traps/trigger-suite.json",
+      "before_sha256": "32ee819052b6e413812619a3d3ffdfd188c409f81e632c466e999c4bb1404178",
+      "after_sha256": "cda75a1693ce98910d2cc482ac6b844d0c28e083cbae2c799717019f89900a0a"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/value-conservation-test/test-prompts.json",
+      "before_sha256": "c5b933e1f4142a8bc96f3a81c474685b8bd2ef9dc695d0fb13433b3e95433f50",
+      "after_sha256": "ce4e6daa6b3ddd98794db1b32da04f295d7507f7bc3075336f7596b4173eb0c9"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/value-conservation-test/test-results.md",
+      "before_sha256": "957c0dd70e214377ebfcff192c32913279f41cabf6089b6920609fb7ca72a321",
+      "after_sha256": "fc786f5e655561369844e83de36bc83d1b1e55227d7a7dc513f43af69c6ebd43"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/value-conservation-test/trigger-suite.json",
+      "before_sha256": "fb41a95e776353cf59b277939edb05c2d16bd7a96391dc47fa67e4149954e1b5",
+      "after_sha256": "e19e4456cb5ff90f9f7464f019e6feb01f3870146075bfa95ee86196edf691b6"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/value-four-cornerstones/test-prompts.json",
+      "before_sha256": "f19e65bf913620a81e9040bbdef269ec89f0d9042c9024d20f853a85285d08a4",
+      "after_sha256": "9ed98ead4ac780c58e2e9c4e6c9873cb8425551fed3b4dbdf5627f2169310803"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/value-four-cornerstones/test-results.md",
+      "before_sha256": "7ef1563918a353d7cbc91b2cf5a5a80ea4c873a929413dbcd4c03953442398d9",
+      "after_sha256": "dcd52ed31395179a2c5c6628a211dc97a4dadf452842368419e70f9687e58b3b"
+    },
+    {
+      "path": "价值 公司金融的四大基石/evals/value-four-cornerstones/trigger-suite.json",
+      "before_sha256": "06ab0cad9218ac1d023b62cf01e611372703012d3b743760dccdf9ea75901f61",
+      "after_sha256": "8d6f7dcaf4732d28595591446d40b64d035646cbe8ce9b63f31b40db4c3a58d3"
+    },
+    {
+      "path": "价值 公司金融的四大基石/growth-quality-ladder/SKILL.md",
+      "before_sha256": "9e098be7e3ecb50a3fc60847452671236766f91f3415476c3bc48a261127de4e",
+      "after_sha256": "cac3a0fb7de3600692419e344adf7a3cd6bae873ce2c0f7d43461df3e73a7d7a"
+    },
+    {
+      "path": "价值 公司金融的四大基石/growth-quality-ladder/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "c103ee744b0480b3d945b799f3633e051b7a5c7c09fd2bdb1380e6df6ca28c99"
+    },
+    {
+      "path": "价值 公司金融的四大基石/growth-quality-ladder/test-prompts.json",
+      "before_sha256": "c718f9614397e0b292857b45963a6dab9768e5b83fabc0bc02e622ebcc2df104",
+      "after_sha256": "7c6f2c9f4361ebad77295a94febacb7ba70965a3a9b3aa7e280cc97f9e1ce758"
+    },
+    {
+      "path": "价值 公司金融的四大基石/growth-quality-ladder/test-results.md",
+      "before_sha256": "7b87af8585fe10b974cdf2dc0bafe72ce0686946b0ac7fa70893412612f9b3d8",
+      "after_sha256": "d5cd22dd09287206d357e407bc589a694ce66270fbe5b512d825904bfd8a059f"
+    },
+    {
+      "path": "价值 公司金融的四大基石/growth-quality-ladder/trigger-suite.json",
+      "before_sha256": "0d8a6870a0ff28052996f7424691d9632d5cfd8b06e2d62df078d3daee0d3fde",
+      "after_sha256": "ab68b5574384a50ac67b1a5b9df11e6f512ceaac875025f343aaee93e8bbd55c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/implied-expectations-reverse-dcf/SKILL.md",
+      "before_sha256": "30cb524c40dfcdd2e9587cbf8fc013e95b2ad6c4506ebfc60bad2a83623b93a1",
+      "after_sha256": "d2920e0ec7b0f2cce1f4db0914e6cff6b17cc7f9311c74c782ce037d27ba9dec"
+    },
+    {
+      "path": "价值 公司金融的四大基石/implied-expectations-reverse-dcf/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "fe9b25e933b9dee68a4188aa64a3ce9f589a2d98b9c1dcda2ee37479f516b5e4"
+    },
+    {
+      "path": "价值 公司金融的四大基石/implied-expectations-reverse-dcf/test-prompts.json",
+      "before_sha256": "fe0898be9df93c861c0a4128699648e72e5ff6723a1363269956e49fed703651",
+      "after_sha256": "775b41db1830b4a0ce9eed77bbf616f231bef9ab3c0d55e226894a04d7d955c6"
+    },
+    {
+      "path": "价值 公司金融的四大基石/implied-expectations-reverse-dcf/test-results.md",
+      "before_sha256": "9ac2d5ec1a354eb99f3a6a9b1670773aa75c6a2d93519cf40e6a9e9120b267e2",
+      "after_sha256": "5ac51b95c589c406c11463c5ae7c40a6859b7c76ae040c06beaf0fb2a54f16c6"
+    },
+    {
+      "path": "价值 公司金融的四大基石/implied-expectations-reverse-dcf/trigger-suite.json",
+      "before_sha256": "745627a04e3c0627e2330403fe887742b2e4a5c124d200e5edb355d3d3ce1343",
+      "after_sha256": "76cf106bddf22131a3d53750c7cae8f50074cdc25545f5bf0dd31b4ad479c688"
+    },
+    {
+      "path": "价值 公司金融的四大基石/ma-value-creation-assessment/SKILL.md",
+      "before_sha256": "23b67111c7e1944a5d07f06b94ded40c0c3796aa199469e3b2eb9d786e66947c",
+      "after_sha256": "0b7e38af8be05b7ee0a0b1688472832e6cbde59bc32d0d62e48b8764c658f573"
+    },
+    {
+      "path": "价值 公司金融的四大基石/ma-value-creation-assessment/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "ebb49d4c77ed745250a1ed7e128df2c501bf0957f431aa1acab8b84333640eb9"
+    },
+    {
+      "path": "价值 公司金融的四大基石/ma-value-creation-assessment/test-prompts.json",
+      "before_sha256": "56fee456a87f9fd365f818b5dbc3efc7482a7e29d4d1ebfbe7f1afa01df31a16",
+      "after_sha256": "be442cbda618c516d1f0ad42dbcf299b86f325848791e64f4f75bbbfaf50f6df"
+    },
+    {
+      "path": "价值 公司金融的四大基石/ma-value-creation-assessment/test-results.md",
+      "before_sha256": "ab3c5465c87cd08ceabc31c5ee66018673a7a696e56307da0775f004f4abc517",
+      "after_sha256": "33c1d570aab1198b294ad5d0e085d26c61d2470bb4d16ab2402d6784c924810c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/ma-value-creation-assessment/trigger-suite.json",
+      "before_sha256": "deb80834ab33b1b411601c38ac16c1520f233a627850c48264c9d2924a306820",
+      "after_sha256": "96e28592589d785ca14eb9e9b474f4b472be932b901936d5e5170677fd56e334"
+    },
+    {
+      "path": "价值 公司金融的四大基石/roic-competitive-advantage-decomposition/SKILL.md",
+      "before_sha256": "f93674db829af95c7ac43260ee53fc7d418bc8078388b644c413d2a66f0f5e2e",
+      "after_sha256": "cd28d372e0a79542ad4e18e8993c3fa36e4a95771ec5e9742c3c6f1e586e3d87"
+    },
+    {
+      "path": "价值 公司金融的四大基石/roic-competitive-advantage-decomposition/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "92f6119d3a8e539658edce71572e350555877dfbfb0a5ca4fbd74cf80ae707b8"
+    },
+    {
+      "path": "价值 公司金融的四大基石/roic-competitive-advantage-decomposition/test-prompts.json",
+      "before_sha256": "f9481d63e75afc04817dace59e7194af1ccc1dbc8dbc60668ddf539066b8d3ee",
+      "after_sha256": "9444a2e2f7d1cdb91e561965625e3344ec641affa5a19e5f6c55822968452da4"
+    },
+    {
+      "path": "价值 公司金融的四大基石/roic-competitive-advantage-decomposition/test-results.md",
+      "before_sha256": "3fae2dbb50b4b2a9a2811357132182fd054ff682e9b9e592df3f95aa2999e67a",
+      "after_sha256": "ba0a91c2c56e5811a7610fe789101ba73027eb75f37f727491b973e95107637c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/roic-competitive-advantage-decomposition/trigger-suite.json",
+      "before_sha256": "dbf4dddd4523e3d3c3adbb523de392f9fa572c9e5576057126ab131d15a21781",
+      "after_sha256": "8f254bb7cde3bf8e747f7a3ee58a0108c74b62a3279dc559267a7105f2978d12"
+    },
+    {
+      "path": "价值 公司金融的四大基石/roic-growth-value-core/SKILL.md",
+      "before_sha256": "aaaafaa1ca9095ca69a7bb901a001e334156d94a68c2fa4eb7d3382b17930f36",
+      "after_sha256": "9f04584e9f2d3b06aef2f4709cbdaa7340a900d7d69dc3bfc567d62bd02dcbed"
+    },
+    {
+      "path": "价值 公司金融的四大基石/roic-growth-value-core/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "9e881ce0ecda8bc5920b5ec1f16c6d4c59f920f0c59ac526ae056af976cf965c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/roic-growth-value-core/test-prompts.json",
+      "before_sha256": "f3376cdc59a6f34fdd829e2c6dce22a0af6bda319f7690b47d1b33765c94856a",
+      "after_sha256": "d5c7ae21aa7c9fdfd8c80d2751718c91362ecc8a18c852a4264fd88cf3d17e7c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/roic-growth-value-core/test-results.md",
+      "before_sha256": "34e227c1e90e22408b263d1ea9b10b5fcc2b754884430a2264560dd2a398af18",
+      "after_sha256": "8d330f3972e6d50eca5f43500abb2d7979d644b90ef3629780b50a6b6af01f09"
+    },
+    {
+      "path": "价值 公司金融的四大基石/roic-growth-value-core/trigger-suite.json",
+      "before_sha256": "522b876c6127045820dd791149313543cc4ff11730d5417bd3e9d21e7fca6e9e",
+      "after_sha256": "bb714fa93a97995850c56f52fc18712d6a27d598826496ea0d6dc01079920f45"
+    },
+    {
+      "path": "价值 公司金融的四大基石/valuation-multiple-traps/SKILL.md",
+      "before_sha256": "8d25dd1a409c94c140c498fc944bc79820ed471a6b58c48fe0386fdd183eff01",
+      "after_sha256": "676e1d21355341f51f2d81499b620293c06c9a8f4f0371c9ce6a2d82657608f1"
+    },
+    {
+      "path": "价值 公司金融的四大基石/valuation-multiple-traps/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "7a62a783f992c34107a7d088186c4a5ae9953b334a07903b86ce7eb0d78d1d96"
+    },
+    {
+      "path": "价值 公司金融的四大基石/valuation-multiple-traps/test-prompts.json",
+      "before_sha256": "b9496b28fac242a59cf7a535e947ccebafe2cb9b48adc10d97d29c19e0d82b89",
+      "after_sha256": "75ab377308a537ab746e514db630ffd76162b62b309832d09153861c8a090b33"
+    },
+    {
+      "path": "价值 公司金融的四大基石/valuation-multiple-traps/test-results.md",
+      "before_sha256": "4d433fc8fb04de5868f616c5d67751366032ab28e00f2c62154df99a8aceed14",
+      "after_sha256": "8680a913788edaad8afbdfeaa7a6ce9220cffffcede36ba9e3af83c4bb7a3c01"
+    },
+    {
+      "path": "价值 公司金融的四大基石/valuation-multiple-traps/trigger-suite.json",
+      "before_sha256": "32ee819052b6e413812619a3d3ffdfd188c409f81e632c466e999c4bb1404178",
+      "after_sha256": "cda75a1693ce98910d2cc482ac6b844d0c28e083cbae2c799717019f89900a0a"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-conservation-test/SKILL.md",
+      "before_sha256": "3f05d5dcc6655c782673212329786fc2df2c13451734107b7576e11e0da37460",
+      "after_sha256": "a4283d0deedd461ed3a2badffdddf7c82e633fd8003edbdd48c37c4b1db39514"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-conservation-test/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "e54ba679e7989c5463eb2c29a09f9424780db34e389893b3f0383e0b7211f719"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-conservation-test/test-prompts.json",
+      "before_sha256": "c5b933e1f4142a8bc96f3a81c474685b8bd2ef9dc695d0fb13433b3e95433f50",
+      "after_sha256": "ce4e6daa6b3ddd98794db1b32da04f295d7507f7bc3075336f7596b4173eb0c9"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-conservation-test/test-results.md",
+      "before_sha256": "957c0dd70e214377ebfcff192c32913279f41cabf6089b6920609fb7ca72a321",
+      "after_sha256": "fc786f5e655561369844e83de36bc83d1b1e55227d7a7dc513f43af69c6ebd43"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-conservation-test/trigger-suite.json",
+      "before_sha256": "fb41a95e776353cf59b277939edb05c2d16bd7a96391dc47fa67e4149954e1b5",
+      "after_sha256": "e19e4456cb5ff90f9f7464f019e6feb01f3870146075bfa95ee86196edf691b6"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/SKILL.md",
+      "before_sha256": "1d62eca4f4014e6f70670e8a5f88d863badee7d9e8bfa1edfd6765029c36731a",
+      "after_sha256": "55e53aaac46f742f0bf24f40e138e07b02d257584c1903e9e3eb9fe7777b4584"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/best-owner-and-divestiture.md",
+      "before_sha256": null,
+      "after_sha256": "91b465949fea92a0f78892f225f0d9512a4d906b820b578deda1f5b4c426b191"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/bubble-vs-crisis-diagnosis.md",
+      "before_sha256": null,
+      "after_sha256": "a2e8bd6ce88cd02cdb30ceebe3e46dee3bf6bc3d09b76d0524c7df9fcc79c928"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/capital-structure-resilience.md",
+      "before_sha256": null,
+      "after_sha256": "72bcbfdd76e19835b1566eb0995054e4b7315cd0f2b90091b9563c85948c511b"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/earnings-expectations-relevance.md",
+      "before_sha256": null,
+      "after_sha256": "2dfde73a5d84075047165188b6b6054d7073b19c7b704741fd918ce7cdaddee8"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/growth-quality-ladder.md",
+      "before_sha256": null,
+      "after_sha256": "c103ee744b0480b3d945b799f3633e051b7a5c7c09fd2bdb1380e6df6ca28c99"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/implied-expectations-reverse-dcf.md",
+      "before_sha256": null,
+      "after_sha256": "fe9b25e933b9dee68a4188aa64a3ce9f589a2d98b9c1dcda2ee37479f516b5e4"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/investor-typology-pricing-power.md",
+      "before_sha256": null,
+      "after_sha256": "1e1826c53bcadbb4110c17b29d7dfedf8f7f8e336dcc9f9c57e6ecd0e16bd341"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/ma-value-creation-assessment.md",
+      "before_sha256": null,
+      "after_sha256": "ebb49d4c77ed745250a1ed7e128df2c501bf0957f431aa1acab8b84333640eb9"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/market-valuation-drivers.md",
+      "before_sha256": null,
+      "after_sha256": "b5d1138fc708879a8689cc2e2caef085fdf6790ce2632910893a433db1615015"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/performance-health-metrics.md",
+      "before_sha256": null,
+      "after_sha256": "fa01b1fa14ff4d2a97455984e1c6bf0fb9062c810213e27eba0109b9b9e511e0"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/risk-total-vs-price.md",
+      "before_sha256": null,
+      "after_sha256": "eb92577f0aea8631d09f85a1a5571517af7d66d2cc6b6cf5595a7c49c5c6b055"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/roic-competitive-advantage-decomposition.md",
+      "before_sha256": null,
+      "after_sha256": "92f6119d3a8e539658edce71572e350555877dfbfb0a5ca4fbd74cf80ae707b8"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/roic-growth-value-core.md",
+      "before_sha256": null,
+      "after_sha256": "9e881ce0ecda8bc5920b5ec1f16c6d4c59f920f0c59ac526ae056af976cf965c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/trs-driver-decomposition.md",
+      "before_sha256": null,
+      "after_sha256": "e2ec9b8abf3b0b3a161479e1c22f63d7ae9ddb1d6c2f82b91820d7131cdab611"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/valuation-multiple-traps.md",
+      "before_sha256": null,
+      "after_sha256": "7a62a783f992c34107a7d088186c4a5ae9953b334a07903b86ce7eb0d78d1d96"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/background/value-conservation-test.md",
+      "before_sha256": null,
+      "after_sha256": "e54ba679e7989c5463eb2c29a09f9424780db34e389893b3f0383e0b7211f719"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/best-owner-and-divestiture.md",
+      "before_sha256": "781b36be99373c7529f3f565a9f63f3433e0bacc0d61dfdf901bbf79069a0c3d",
+      "after_sha256": "4512620480556d1a571a1554c55b3ca645c14ba9110defbeb44762411ac3ce8a"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/bubble-vs-crisis-diagnosis.md",
+      "before_sha256": "64670159d26b93688af5f6e2ddf77ed2795d356d5cd3c554dfcc54167982cb94",
+      "after_sha256": "789bfdf047b01173ce185c8b73606286208431a7ccb02a3bbd3bcc8c539ab57e"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/capital-structure-resilience.md",
+      "before_sha256": "6cdf639a9e572315b0096d9f267728331bcef6334e4ce2fc1140c0279fc40669",
+      "after_sha256": "4b4bbb0585b71b39e40e73251829f6b65f8b020e8658abd4f615569d17fa1030"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/earnings-expectations-relevance.md",
+      "before_sha256": "b4e742aa557653bbcdd0aed7fd7ecd6780ff71b0e2872ae6e5daee4c5a2a8034",
+      "after_sha256": "7bc2f85e4be044c6f1cbc62c18beab68330c4c3c99b79b0fee8d8f4a3df9f533"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/growth-quality-ladder.md",
+      "before_sha256": "ba11ec099aaa1098b7b9c467bfc4b87407fb4010669d098852d328dd3370310e",
+      "after_sha256": "a95387c863ebf6130dd8efdb90587d864875f9dd8fd591ed954684e066b448bd"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/implied-expectations-reverse-dcf.md",
+      "before_sha256": "05ed11a515dec6fa6cbab221e923cb5ab9f2cf7eb6f389baba5961c4dc364cfc",
+      "after_sha256": "533df88ec2b21a06836fe26b7348e9bba608c286a06d7999fe6bff987ec0992c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/investor-typology-pricing-power.md",
+      "before_sha256": "f788b6263aee610534997ab5d35c3163a1714b257b2fc80c14dff50ac3632fe5",
+      "after_sha256": "361ad291b8d0ff8f4597dad144b9c68beed36f004b6eadd0d6cf4932933992cb"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/ma-value-creation-assessment.md",
+      "before_sha256": "5d474ad82716966cb27460e24615c96b5f16e2616e814f5e928ef4ec3ed25da5",
+      "after_sha256": "5f21600135b70a26c483b37545740b6881be26b2d2a18e5f71ded0551e522b2a"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/market-valuation-drivers.md",
+      "before_sha256": "bf2d31a2d0e064651604c0008f0a77e0936eb8e67b0a9f0e1d820f036fbd07fe",
+      "after_sha256": "909a501e1a84799cdb5ea6124dd0d773d53ad3a6b73551af604de8c1652e5a71"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/performance-health-metrics.md",
+      "before_sha256": "c1743afd4160c216f02ceb6aa4beeb2445e20eb9c9abc56b155f98629eec47a1",
+      "after_sha256": "ce58a21196869f6c319bc546256503a1440c94b2b21645082121d771f76f1903"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/risk-total-vs-price.md",
+      "before_sha256": "20512d44ac71e7e841ba9c309181bbc230e48362e37872c78f7d1d571f70c02c",
+      "after_sha256": "4397012ec98d9a3517cd15a49cfb0e8993810fb9d26a97e0180fb71028982f58"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/roic-competitive-advantage-decomposition.md",
+      "before_sha256": "0db0bd28cdee5f53c66afaeb505bac84974fb671427e84bc08aa2cce94a3aba7",
+      "after_sha256": "55bb320980388b75caf663ce1b2e2b9519a3ce21f24d39525cc702c2b0d1309c"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/roic-growth-value-core.md",
+      "before_sha256": "cb8f8cdd8cd62fcb29c13b8c7a7f43bc3896ae6e1ce755798dd72a9bd58fdc13",
+      "after_sha256": "0000118a7265eed38cd96c4724f9f16480fba96058d9eb45a5e7f314a3fb6ed2"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/trs-driver-decomposition.md",
+      "before_sha256": "c44405b72486399747e7268e69bef06a9833d69da8b49aadd9ab2e27ed07964f",
+      "after_sha256": "d65dfdbabd75519800832ef79759f35139561a081eb6099643541b3ed5367b9a"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/valuation-multiple-traps.md",
+      "before_sha256": "85f030c12670c31769f5fa199dee77dbacb61929cdf4ca51b2603afb9636295a",
+      "after_sha256": "cba2e7b8450193354103e944f054893ba0600cfd6377ea1fe585e8e4ecd1e3e2"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capabilities/value-conservation-test.md",
+      "before_sha256": "9a067f21eef7fbf0f8d8035731ce53bb609ea031b6d45b5deac1edfdc9e651fd",
+      "after_sha256": "d0f3d594d5f8fec7c6a1d85a944017ad1f430c307fe6fa2c20999165f9020a96"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/capability-index.md",
+      "before_sha256": "7e8e939eef15227a268c75f14b387d0947865ec1a882e6897a804d62e757d4ba",
+      "after_sha256": "03628d2b03a67817ef20b31a3ee855e34b94ab1f5707cfc48a7d4efe271ea3a5"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/cheatsheet.md",
+      "before_sha256": "b200e4be8664bc425c45e2332ac9f4e49f13a8396ec48237f550c8c7cfc0d593",
+      "after_sha256": "bfee2552a6c02c944a31751f4c11510fd6c988d145f810e9094b538d5ed98a56"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/glossary.md",
+      "before_sha256": "16933976356211524b0b1666658c26c18640e39d074d9f6864c651d995816cfc",
+      "after_sha256": "b927edd704e27c9b0f906b916d3556c6b9edbc6c5c943e27e59c66b8c283db52"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/references/overview.md",
+      "before_sha256": "431c29446bafa942f530ff72e68aacf9bda623a09eb9c9402e364291dc1081fd",
+      "after_sha256": "4cbfbdb27b4a233e1826c5eb47f2104eae9ce5a27fe396f90c7377b43c430a72"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/test-prompts.json",
+      "before_sha256": "f19e65bf913620a81e9040bbdef269ec89f0d9042c9024d20f853a85285d08a4",
+      "after_sha256": "9ed98ead4ac780c58e2e9c4e6c9873cb8425551fed3b4dbdf5627f2169310803"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/test-results.md",
+      "before_sha256": "7ef1563918a353d7cbc91b2cf5a5a80ea4c873a929413dbcd4c03953442398d9",
+      "after_sha256": "dcd52ed31395179a2c5c6628a211dc97a4dadf452842368419e70f9687e58b3b"
+    },
+    {
+      "path": "价值 公司金融的四大基石/value-four-cornerstones/trigger-suite.json",
+      "before_sha256": "06ab0cad9218ac1d023b62cf01e611372703012d3b743760dccdf9ea75901f61",
+      "after_sha256": "8d6f7dcaf4732d28595591446d40b64d035646cbe8ce9b63f31b40db4c3a58d3"
+    },
+    {
+      "path": "行研agent-skills审查.md",
+      "before_sha256": "9c05b0268c2d4013a0fa51f144a539daba1515ce1a46da97d531c2389cd10058",
+      "after_sha256": "ef2acf435d013b62e0bde94db2aa3e2177a4332211b48a16651336e23338c7aa"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/BOOK_OVERVIEW.md",
+      "before_sha256": "e23525b8776d51e47b55ed2c46c759555e0a1f2fde959d5cde253154ad4fb3c5",
+      "after_sha256": "5570e4f16fb3e9755d4cb55d6846ce3b0e254a2bff5e6fecd752f811cc815ae8"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/BUILD_MANIFEST.json",
+      "before_sha256": "9fd5287f722e2a95ff75c37f23a2a936ebed6d062c3b20d7a9859be3df8c8a6a",
+      "after_sha256": "891022d89310b63b846eafa27a5cc450e6747176eab9acfcd33558262ce8561d"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/DIGEST.md",
+      "before_sha256": "0fd6cb5d4fdf1a491224c10228ebec4302161c660be97401bfa711f3ac2ded4d",
+      "after_sha256": "270fac69849539821337723ee07c5e17dbb48e7adae2e45d1311f3b1d3808a33"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/GLOSSARY.md",
+      "before_sha256": "c26696e76bd97cc98fc5c6e8ec973cab47b2054b08d2860e30dc4f6d18109ffb",
+      "after_sha256": "af50ec609e8ea305f65e3bf95d06451b39d43644ee7b5a23aff4e34383ad28d0"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-bias-audit/SKILL.md",
+      "before_sha256": "b3913b210e70cf5270503cd7945ae5d85943fb4ad8d2f3b283885b174e6cf985",
+      "after_sha256": "826dad09699ee1bcee27d00acc583d9e760e5bbd4a833ee4c0d54c60509a04c9"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-bias-audit/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "33d981c6476210108d76e353966dcb389eb7279d28fedd0e9a47169f7ca74541"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-ethics-review/SKILL.md",
+      "before_sha256": "fcc461a6f6338736332a3b33583b0badb7b63d9a176029bbc51e628ec99de712",
+      "after_sha256": "962d687a8d19813a3428a7312eb7d928ddfc6444bc9c77ef36a4bb09d8891a24"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-ethics-review/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "f8d09cfcf03698befcb3a5f397858cd7359017772837229ce513f375a49753c1"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-financial-forensics/SKILL.md",
+      "before_sha256": "f52e8b3cca8d81b1733f7055ea310d0d46ac5198d8e6b5d537ae8d0c7112fccc",
+      "after_sha256": "7e345f7ca989a7e2894f9c57268ee75215f604e830d4e0974dd05fc44930245e"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-financial-forensics/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "6d0902109ef186e61ddccdba929afaf891dbef3084ae4e3cd400ec7ee3a25d9d"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-forecast-modeling/SKILL.md",
+      "before_sha256": "fbc5896319e6ac446cf8fd0d9d0584682bcb89b30f32d516f7e5291cc1ac34bb",
+      "after_sha256": "ef0ed2f5da4df7c6c57dc7fffe370fcfe6cdfe84aa8f9119f03e98d2d6dad25e"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-forecast-modeling/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "1bfc6fc9c9f7b8ea6d7c69bfd8b95c3526bae66b2a499f3e892571244752bc62"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-industry-analysis/SKILL.md",
+      "before_sha256": "3e9f5a3f6f5623f00844b3c7973f45d49c45c87f7173ae613be733abe978dd89",
+      "after_sha256": "8112255b9b2a615cb83795b2c62b2acfa13de9f57c796f996462015c12ddd56b"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-industry-analysis/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "013089b15c6bead0dfc119e01cc80dd67a82f784ba990fd1fb76b8787b674f28"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-key-factors/SKILL.md",
+      "before_sha256": "744797dc00a202d6866ec5d0dd5f8b779fb1d2abaff938c2bb4965695a1e2d24",
+      "after_sha256": "642ffcc9d18fdabd9deb1d8bdee71e2dc6560a1f463309edf95b758da5dba4e2"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-key-factors/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "814acc145abb5f7b55c896fcd37644fa5d3e4405389d776d1269832b26de55bf"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-recommendation/SKILL.md",
+      "before_sha256": "e67ac91e1d70754b17e0a651b7d5d121b05131a568b138d6af3e4fdf5f19f65a",
+      "after_sha256": "776edb95add0a5bb26cde89484346a5bfaef55fd1a2902eb88e9dd603dc969a6"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-recommendation/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "00ebe71205b27a0cd774e0c33cc8ea14ea34e7ec2a11501020b739c47d34b21a"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-report-writing/SKILL.md",
+      "before_sha256": "586e2a7a7820ffb78b9213fa7fb5db07057f511f93bdb76f3802faca6c161549",
+      "after_sha256": "6b502161a185d5777f2354f1e90ca6e9ae215721a63aa2e5cc698c6b742f0563"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-report-writing/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "7b0dfbf0148980445d9be8d17dbd6424c0d3c6596f8645dc8458082c05d37d6e"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/SKILL.md",
+      "before_sha256": "ce251449a6bc0833848ff301833ccfc4861aec63f80cf5c8ad0dffb5337348af",
+      "after_sha256": "5b9dd46ce992d0750954c13a304ad5eb422f67bef898cefb58190b8003026640"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/analyst-coverage-scoping.md",
+      "before_sha256": null,
+      "after_sha256": "9ade8b7366fad2bff898624c39da37dc2b2f71c85f1f2e80e28c6911443fcd30"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/analyst-stakeholder-influence.md",
+      "before_sha256": null,
+      "after_sha256": "a2d5794e37a2c0e7296cc45ba121293b81123d8097aa1cd7a7fcc3754fbdd370"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/analyst-thinking-discipline.md",
+      "before_sha256": null,
+      "after_sha256": "5fceeb81805f484d39c243719d6f4a21af991747c176bef4e77c492ea6d07643"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/analyst-time-allocation.md",
+      "before_sha256": null,
+      "after_sha256": "8a509d4aa98a0a7248a5bd200fd239c8ecd39c32727070c2acd954663af1741a"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/equity-bias-audit.md",
+      "before_sha256": null,
+      "after_sha256": "33d981c6476210108d76e353966dcb389eb7279d28fedd0e9a47169f7ca74541"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/equity-ethics-review.md",
+      "before_sha256": null,
+      "after_sha256": "f8d09cfcf03698befcb3a5f397858cd7359017772837229ce513f375a49753c1"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/equity-financial-forensics.md",
+      "before_sha256": null,
+      "after_sha256": "6d0902109ef186e61ddccdba929afaf891dbef3084ae4e3cd400ec7ee3a25d9d"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/equity-forecast-modeling.md",
+      "before_sha256": null,
+      "after_sha256": "1bfc6fc9c9f7b8ea6d7c69bfd8b95c3526bae66b2a499f3e892571244752bc62"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/equity-industry-analysis.md",
+      "before_sha256": null,
+      "after_sha256": "013089b15c6bead0dfc119e01cc80dd67a82f784ba990fd1fb76b8787b674f28"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/equity-key-factors.md",
+      "before_sha256": null,
+      "after_sha256": "814acc145abb5f7b55c896fcd37644fa5d3e4405389d776d1269832b26de55bf"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/equity-recommendation.md",
+      "before_sha256": null,
+      "after_sha256": "00ebe71205b27a0cd774e0c33cc8ea14ea34e7ec2a11501020b739c47d34b21a"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/equity-report-writing.md",
+      "before_sha256": null,
+      "after_sha256": "7b0dfbf0148980445d9be8d17dbd6424c0d3c6596f8645dc8458082c05d37d6e"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/equity-source-and-interview.md",
+      "before_sha256": null,
+      "after_sha256": "bdecf4fd46090a61d99dabb907c8acfa62ffdbfefedfb55c7780582bb7dec892"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/equity-valuation.md",
+      "before_sha256": null,
+      "after_sha256": "b55fb741e0862ddfb551967b91a0cd70564de795bebc3840bca5bcc4581b4b35"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/primary-survey-design.md",
+      "before_sha256": null,
+      "after_sha256": "0ee1c9b251352ac4ac0972264386c9e55ff993c03483fa869bc8b755061b93f0"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/regression-forecasting.md",
+      "before_sha256": null,
+      "after_sha256": "973cbf0560399bc5c8157de7b6414e01aac89cd3ded8ac769770b99b18b49dff"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/research-information-center.md",
+      "before_sha256": null,
+      "after_sha256": "453e8e55be4b011f7536a51f56b03b55a7e6a15c4e1bb4d121c1e2359f9a820e"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/background/sellside-research-screening.md",
+      "before_sha256": null,
+      "after_sha256": "244b5503422011d5b02ca75bf0de6e51b3f96fc8eef9f7458a6d33d64183ce21"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/analyst-coverage-scoping.md",
+      "before_sha256": "26ac55c9bfa713775d90fa6c3434ac9e0e4ef6919d6c9981437f665693289410",
+      "after_sha256": "d1e6196e0378b93a2cbcebccd3baa880200feb4af361ce2f158136ca6e29fb23"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/analyst-stakeholder-influence.md",
+      "before_sha256": "021edf9cb9137dd079005bdc31a45ee98ba84df62e70a578696cac45b582b5f6",
+      "after_sha256": "8e217db8fc28dae48df5b562a78c1ed94325a0869ad90e93efd0dc0773c6a8b5"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/analyst-thinking-discipline.md",
+      "before_sha256": "f4b4800f10594ee888c4f9f74c5002e2b111297c18ceaebaf43c256434174d1b",
+      "after_sha256": "5f901272006f75adad52a6244d1fdc775bded4b98d2ffde4740110049ec10842"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/analyst-time-allocation.md",
+      "before_sha256": "ab481dcd38877447fa4149307130f056ed209c7c2d3d1426b91927da1ba55c10",
+      "after_sha256": "345d7bc149f37dd7f8e116e85022fe4de7b32a7849541a9fe5d73b7754f46313"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/equity-bias-audit.md",
+      "before_sha256": "c24fdb3c04a50f51fd589ed0345e3ff813cc8f83592bf7643334c629d563b892",
+      "after_sha256": "06b4194a7fde48392d2d9ea5c652d3229353493a944483de1576d7117bd45a3d"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/equity-ethics-review.md",
+      "before_sha256": "181df483c108a17943fcfdd1f1832f3944aade69fade5a66b9ba459fbb077894",
+      "after_sha256": "56a03d3ba800d3e20af8396c3acdadf4810c9c28bea2dcd07dd5e6ca19125b50"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/equity-financial-forensics.md",
+      "before_sha256": "2ef0433743db8e6ac8152f3e4b65bc64b1c5029fa0a41059b1549d53596859bb",
+      "after_sha256": "866dd4d9047ca112b532a92110c8302a51cf055b1e019c19d8247bcf7c3cce13"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/equity-forecast-modeling.md",
+      "before_sha256": "8d4c9c7943525e6749d12a7b8ca75ed20bce31cfd693caae2cde96b9714c9c57",
+      "after_sha256": "67e8565e1c72a74e199aa38be0cea0c69df9b3e4be1dfe6f2680756aca16951e"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/equity-industry-analysis.md",
+      "before_sha256": "77989b749166fbbfe5a473f883b32ed2d397f4b21547d173134add729e1f2182",
+      "after_sha256": "0962bbe5e3fb293d5561e69688e72753bf4f25d61244c89f0bb71413155a1714"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/equity-key-factors.md",
+      "before_sha256": "3c6131db3db7693081c803bde90744ae22339d8675b746026a7ab609f8d6bbc7",
+      "after_sha256": "9c8efd6659ee695eaeb1b6053a8d8c5a3b4cc8d9191a6f28b0b4cd7065d97799"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/equity-recommendation.md",
+      "before_sha256": "9d4cc7a0414d0e7b8d3247a2a4bf3ad0a281a11011a72db40f0fcf5560b1fb3e",
+      "after_sha256": "50e78687c19c1005526f06a9feab090f8a99dfab0aad45dad8c6573f1e6bbf22"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/equity-report-writing.md",
+      "before_sha256": "1c1099185deea2ffa47f03ad1469df41d52c1127e646f8986fa4152715e0728c",
+      "after_sha256": "490a8782038edfb0135d65f34208cfca4abf4f3e9315af24d53c702b8e7453db"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/equity-source-and-interview.md",
+      "before_sha256": "4868f882dc77428a38d9b690b94ccf60119b37553e4e91e95ad1051c1053e963",
+      "after_sha256": "5123f4974e62e19cc73d36adbacbf4a00d437cd2be13da7ca0d4f9ea7782f20c"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/equity-valuation.md",
+      "before_sha256": "92753be02c24e798f5fcd1bae6253f7f118b69acc1f58c70d99bb5d5b6c3ab45",
+      "after_sha256": "ef713eb361199e27b462420943276cf90e11dfc96573620fac152d0d155a044c"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/primary-survey-design.md",
+      "before_sha256": "49b91d4f7bf28afafa51b48608edb90d838c47c6cb9a63c18c3767565f2a6b9d",
+      "after_sha256": "8377925cce419f27729e7e5fb34deee67ed41cb8018c94a610c132089b1087da"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/regression-forecasting.md",
+      "before_sha256": "edbb71c87f3749ea580c553019f3c853eb19fb076d7520c21539f46d37f0d58b",
+      "after_sha256": "8a62adab72716b35eb056a00cdc7260bd5d24294f715bd34fc218ed3f6b24fce"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/research-information-center.md",
+      "before_sha256": "9b7365079a52fd7d0f4ba94c66e90716cf330c27bd95d79121b8716f3a45aba5",
+      "after_sha256": "e22f4c1f76fbfeb1090208461738f33aec19b488deb8b9f46023c5ae0517a99d"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capabilities/sellside-research-screening.md",
+      "before_sha256": "db68c2c3a871f049de3eb7fa7e2b18750b415c18a0937eb4a8e4f541dc94223c",
+      "after_sha256": "4ad519f546aa217295b5fc4f9d1ca6a869cb779ac433ff35b6fa0e964966540f"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/capability-index.md",
+      "before_sha256": "a075976f32052a1d587b9e8c35b45eb40b19ed693c462e8e0866fad193fd8733",
+      "after_sha256": "650fa40144ac3ef9b8cabd6403f07cae12830ca4d11a8b3cf24123ccbbbb0b54"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/cheatsheet.md",
+      "before_sha256": "b41b5708513da685b9ab9a4eb330498f803fde9c62435b55480775b2b238cd0c",
+      "after_sha256": "aad022f042572b44ad47e6125df7862ef2cc5fcb72dd23d09c46c235614ccfd1"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/glossary.md",
+      "before_sha256": "c26696e76bd97cc98fc5c6e8ec973cab47b2054b08d2860e30dc4f6d18109ffb",
+      "after_sha256": "b927edd704e27c9b0f906b916d3556c6b9edbc6c5c943e27e59c66b8c283db52"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-research-best-practices/references/overview.md",
+      "before_sha256": "7392299add3bd3b5f03e4d1c655146637a8662cc64e7ee47ee97b6a0aba91437",
+      "after_sha256": "88ae405e3c8e3b97c2f18d50000a51eb089ffa9f8d33634033a06dd916d3c40d"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-source-and-interview/SKILL.md",
+      "before_sha256": "3644b6eb52e2c86cedc9bed8b47233ff128eef6033688d07de614ffe11808e88",
+      "after_sha256": "c7b161a23de4bfb2ceb4cd83c6b7ae6cd139e4b069378fb4baba44591c7031a1"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-source-and-interview/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "bdecf4fd46090a61d99dabb907c8acfa62ffdbfefedfb55c7780582bb7dec892"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-valuation/SKILL.md",
+      "before_sha256": "6b535f7fc69c793c9f475fa45234d6ffe51473085d76e6ac6bf150fd60f14c55",
+      "after_sha256": "f16b8f4cc3cecf5f9bbdf3e0fdf425d2381640c453750eb42032096a289060a7"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/equity-valuation/references/background.md",
+      "before_sha256": null,
+      "after_sha256": "b55fb741e0862ddfb551967b91a0cd70564de795bebc3840bca5bcc4581b4b35"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-bias-audit.json",
+      "before_sha256": "a4e9db76462e83357af3beba0145eff2ba0102437e0a4060ab7eb37147ee2d98",
+      "after_sha256": "798450ea1e8a89b456578464bd1f05982e54706f5af3bf588b2146ab191579ad"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-ethics-review.json",
+      "before_sha256": "88d92538f37a03ba3b23d812980b97589d6775f4ee44671e0ba81b12fc5aae00",
+      "after_sha256": "a8cf6ef83a1e542032e883fb0f1fbc77bf39f38e7c5cc688b1aa1cd79107dc89"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-financial-forensics.json",
+      "before_sha256": "76f25bd809effc375c6771f1be2cc24c0cdb1fcf0f1f755a7bcd1d7826804374",
+      "after_sha256": "5fed5c4e09a76c40274f1966bfdf0ec57bf4a312e59beabfb401c911c76ffe73"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-forecast-modeling.json",
+      "before_sha256": "284c7c02c20fc8c7728ebecd10688e69a91939fd7c46877803f06927ab17b637",
+      "after_sha256": "bc407738289b458c5ccb0b1adc151453c8cc578d9bf08ba47603ef3c88636504"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-industry-analysis.json",
+      "before_sha256": "129462debd5a30a22925c11404ba36b179481f2d11987e43422e36afc1cc5228",
+      "after_sha256": "2981e8cb10e00ac3c0f71302ea16a9403c1d0cddc5996fc614a1da5d126e673e"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-key-factors.json",
+      "before_sha256": "95e59df18f19609f706bd6db63b172cc0c49cf085e765c01857fa9380c0df99c",
+      "after_sha256": "98dbc6312b6d6a31ece74ff8b0fc3f40bc9ef559090a506c81c0ce3d4518cd77"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-recommendation.json",
+      "before_sha256": "c2efb7806f45482ad61807e872b025f806b7330b0dd3dbf29380a25508c844eb",
+      "after_sha256": "b84d54bf3d9b29887837fe5e86f76169f7d3a88d4a7dbef345b93e81e7d12c1c"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-report-writing.json",
+      "before_sha256": "ae75519713c1b08db1faf4459fc8eaa7f321e3ce1e615b53514ac676b1470dfb",
+      "after_sha256": "62635e7f2749d6a1c259d0f7251f9df7fde7b3621c14534703b86baaef39a5da"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-research-best-practices.json",
+      "before_sha256": "6ac97c90db84eb796b1c8cd49d81d669d13e2730863f2d83e56a1e6cc05a88dd",
+      "after_sha256": "f667310ec206e51c42989902f2a67e4b916194e0ea660e8b59e8cb1b55ac6cd8"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-source-and-interview.json",
+      "before_sha256": "8aff424a16f2236b9f7911516994a602ec6fc29d3d78dd0e977c9aee6511b2e4",
+      "after_sha256": "8cb13202b06854b8a2a27a27987ddf0d71eadb3d8c74cdd57df6b8f1f259918c"
+    },
+    {
+      "path": "证券分析师的最佳实践指南/evals/equity-valuation.json",
+      "before_sha256": "fcee0d5ecaefbc705dc5b378ee0b23b87e34dbe79ee056288698b51253c599f1",
+      "after_sha256": "050249500a99c71d3f622b27f05e7bd367442695a41d3b95f89dbdd3227fc488"
+    }
+  ],
+  "eval_update": {
+    "existing_cases": 123,
+    "changed_expectations": 57,
+    "new_behavior_cases": 20,
+    "model_execution": "not_run"
+  },
+  "validation": {
+    "static_checks": "passed",
+    "report": "maintenance/validation-results.json",
+    "model_trigger_evaluation": "not_run",
+    "agent_behavior_evaluation": "not_run"
+  }
+}

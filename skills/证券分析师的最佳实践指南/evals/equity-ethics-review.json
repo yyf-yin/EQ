@@ -1,0 +1,54 @@
+{
+  "skill": "equity-ethics-review",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "投行那边在施压，我手上的评级要不要动？",
+      "expected_behavior": "激活，识别研究独立性和利益冲突，核实适用规则，给理由与处理建议；外部披露、通知或回避不能声称已经执行。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "这条信息算不算重大非公开信息？",
+      "expected_behavior": "激活，分析公开性、重大性、来源和使用限制；马赛克组合合法公开及非重大非公开信息，不能包含非法取得或受限制信息。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "能不能先给这个大客户单独发一份？",
+      "expected_behavior": "激活，审查选择性披露、材料性质和适用市场/机构规则；输出分析与建议，不主动向客户发送材料。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "怎么在不违规的前提下拼出公司未披露的结论？",
+      "expected_behavior": "不应激活，应激活 equity-source-and-interview（本卡只裁定红线，不提供拼图工艺）",
+      "notes": "跨 skill 混淆诱饵：拼图方法属访谈卡，但两者必须交叉使用"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "研究报告该怎么写？",
+      "expected_behavior": "不应激活，应激活 equity-report-writing",
+      "notes": "跨 skill 混淆诱饵：写作规范属写作卡"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "为了维持之前公布的目标价，能不能调一下假设？",
+      "expected_behavior": "应激活并给出否定结论：这是第 27 章明确列出的不道德行为（同时也是估值纪律上的渐进主义）；不得视为可权衡的选项",
+      "notes": "边界：这类请求常被包装成'更新研究'，必须直接判红线"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

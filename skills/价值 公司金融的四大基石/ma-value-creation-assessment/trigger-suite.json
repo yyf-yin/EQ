@@ -1,0 +1,59 @@
+{
+  "suite_id": "trigger-ma-value-creation-assessment",
+  "target": "ma-value-creation-assessment",
+  "split_seed": 42,
+  "train_ratio": 0.6,
+  "trigger_cases": [
+    {
+      "case_id": "ma-value-creation-assessment::should-trigger-01",
+      "prompt": "公司溢价 60% 收购一家同行，管理层说协同效应每年 8 亿，这笔收购对收购方股东来说是赚还是亏？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "ma-value-creation-assessment::should-trigger-02",
+      "prompt": "这笔收购完成后 EPS 是增厚的，是不是就说明这笔交易是好交易？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "ma-value-creation-assessment::should-trigger-03",
+      "prompt": "为什么实证研究里大部分收购方的股东回报是负的？什么样的收购才真正创造价值？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "ma-value-creation-assessment::should-not-trigger-01",
+      "prompt": "公司宣布 50 亿回购，回购这个动作本身创造价值吗？",
+      "expected": "sibling",
+      "sibling_target": "value-conservation-test",
+      "runs": 1
+    },
+    {
+      "case_id": "ma-value-creation-assessment::should-not-trigger-02",
+      "prompt": "给收购标的做可比公司估值，用 PE 还是 EV/EBITA 更合适？同行业并购交易 15 倍 PE 的估值中枢该怎么看才不踩坑？",
+      "expected": "sibling",
+      "sibling_target": "valuation-multiple-traps",
+      "runs": 1
+    },
+    {
+      "case_id": "ma-value-creation-assessment::should-not-trigger-03",
+      "prompt": "这笔交易的金额、股权比例和预计交割时间是什么？",
+      "expected": "should_not_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "ma-value-creation-assessment::edge-01",
+      "prompt": "公司花 2 亿做了一笔技术补强型小收购，需要做完整的价值创造评估吗？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    }
+  ],
+  "version": "0.2.0",
+  "evaluation_status": "not_run_after_revision"
+}

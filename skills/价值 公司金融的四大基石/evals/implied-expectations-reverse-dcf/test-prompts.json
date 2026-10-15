@@ -1,0 +1,61 @@
+{
+  "skill": "implied-expectations-reverse-dcf",
+  "version": "0.2.0",
+  "source_book": "价值：公司金融的四大基石（修订本） — Tim Koller / Richard Dobbs / Bill Huyett",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "这家公司现在 40 倍 PE，市场给的这个价格到底隐含了未来多少年的增长？要多高的增速才撑得住？",
+      "expected_behavior": "激活，先桥接全部普通股价值与经营价值，再在给定其余假设下反解增长/回报/利润率/持续期的条件组合；单个 PE 不能识别唯一预期。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "这家公司基本面很好，ROIC 25%，护城河也扎实，但我现在买是不是已经晚了？好公司等于好投资吗？",
+      "expected_behavior": "激活，比较价值桥接与条件隐含假设；不套 80% 股价合理先验，WACC 不是普通股持有人的预期回报。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "这个板块过去一年跌了 40%，市场是不是过度悲观了？当前价格隐含的预期是多少，还能不能买？",
+      "expected_behavior": "激活，反推隐含预期并与合理区间对照，区分'价格已反映悲观'与'悲观还不够'",
+      "notes": "正面：判断市场是否过度乐观/悲观"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "已知 ROIC 15%、增速 8%、WACC 9%、NOPLAT 20 亿，帮我算一下它的企业价值。",
+      "expected_behavior": "不激活本 skill，应激活 roic-growth-value-core —— 给了基本面求价值，是正向估值而非反推隐含预期",
+      "notes": "跨 skill 混淆诱饵：同为 DCF 家族，但输入/输出方向相反"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "这只股票过去三年涨了三倍，回报主要来自盈利增长还是估值扩张？帮我拆一下。",
+      "expected_behavior": "不激活本 skill，应激活 value-four-cornerstones 路由入口下的 trs-driver-decomposition —— 复盘已实现回报的归因",
+      "notes": "跨 skill 混淆诱饵：与路由入口的互斥近邻负例（本 skill description 已显式排除该场景）"
+    },
+    {
+      "id": "should-not-trigger-03",
+      "type": "should_not_trigger",
+      "prompt": "今天这只票为什么突然跳水？盘口和大单有什么异动？",
+      "expected_behavior": "不激活任何本书 skill —— 日内波动与盘口解释在本书适用范围外",
+      "notes": "诱饵：'价格'关键词命中，但是日内级别"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "这家公司股价三天跌了 12%，是不是说明市场已经把坏消息 price in 了？",
+      "expected_behavior": "不激活 —— 日/周级别波动不属于隐含预期分析；只有用户追问'当前估值隐含的长期增长与 ROIC 预期'时才激活",
+      "notes": "边界：出现了 'price in' 触发词，但时间尺度是三天而非多年"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "3 条 should_trigger + 3 条 should_not_trigger（含 ≥1 条同书兄弟 skill 混淆诱饵）+ 1 条 edge_case。should_not_trigger 容错为 0。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

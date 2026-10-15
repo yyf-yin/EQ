@@ -1,0 +1,12 @@
+{"case_id": "c002", "run": 1, "selected_skill": "roic-growth-value-core", "reason": "给出NOPLAT/ROIC/g/WACC求关键价值驱动公式估值"}
+{"case_id": "c007", "run": 1, "selected_skill": "none", "reason": "城商行属金融机构，核心与入口均声明不适用"}
+{"case_id": "c012", "run": 1, "selected_skill": "value-four-cornerstones", "reason": "复盘历史回报归因属TRS分解，未晋级为独立skill"}
+{"case_id": "c017", "run": 1, "selected_skill": "roic-competitive-advantage-decomposition", "reason": "明确触发商誉是否计入ROIC且需双口径对比"}
+{"case_id": "c022", "run": 1, "selected_skill": "growth-quality-ladder", "reason": "抢份额增长的价值含量与价格战判定"}
+{"case_id": "c027", "run": 1, "selected_skill": "none", "reason": "纯行业规模与增速数据拉取，属事实查询"}
+{"case_id": "c032", "run": 1, "selected_skill": "implied-expectations-reverse-dcf", "reason": "当前PE反推隐含增长预期"}
+{"case_id": "c037", "run": 1, "selected_skill": "value-conservation-test", "reason": "分拆释放价值说法成立性检验"}
+{"case_id": "c042", "run": 1, "selected_skill": "none", "reason": "预测高送转股价短期反应，属不适用条款"}
+{"case_id": "c047", "run": 1, "selected_skill": "none", "reason": "仅比较交易倍数行业高低，非并购价值评估"}
+{"case_id": "c052", "run": 1, "selected_skill": "value-four-cornerstones", "reason": "泡沫诊断能力，无对应独立skill"}
+{"case_id": "c057", "run": 1, "selected_skill": "none", "reason": "银行估值属金融机构，入口明确排除"}

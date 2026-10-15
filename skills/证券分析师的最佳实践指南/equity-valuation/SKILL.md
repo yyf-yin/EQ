@@ -1,0 +1,39 @@
+---
+name: equity-valuation
+description: "选择公司估值方法、建立可比公司表、估算价值或目标价区间时使用。先匹配现金流、资本请求权和指标口径；经营预测用 equity-forecast-modeling，买卖评级用 equity-recommendation。"
+metadata:
+  cangjie.generated-by: "cangjie-tools v2.5.0"
+  cangjie.capability-id: "cap.erp.valuation"
+  cangjie.capability-revision: 2
+  cangjie.bundle-id: "equity-research-best-practices"
+  cangjie.source-title: "证券分析师的最佳实践指南"
+  cangjie.tags: "valuation, framework"
+  local.review-date: "2026-10-06"
+  local.adaptation: "industry-company-research"
+---
+# 估值方法与价值区间
+
+## 执行
+
+1. 固定估值日、市场、币种、股本和目的。选择方法依据商业模式、生命周期、财务可用性与资本结构；记录市场惯用方法，但不为了跟随市场而保留不适用的口径。
+2. 匹配分子分母：股权市值配归属普通股的利润/现金流，经营 EV 配经营指标。FCFF 用 WACC，FCFE 用股权成本；经营价值桥接非经营资产、债务、少数股东及其他请求权后才能得到普通股价值，最后处理稀释股本。
+3. 同行匹配增长、回报、利润率、风险、会计与周期；前瞻值固定期间与数据日期。历史比较用当时可得预测，不能用后来实际数回填；历史不足用可得序列和情景说明，不强制十年数据或同事批准。
+4. 使用适合的主方法，条件允许时以另一类方法交叉校验；输入共用时不得宣称证据独立。解释估值差异来自现金流、再投资、资本成本、终值或可比选择，不挑最合意结果。
+5. 给关键假设的区间和敏感性。永续增长低于相应折现率，高增长阶段显式建模；周期极值用正常化盈利。银行、保险等用专属资本和股权估值框架，不能直接套非金融 FCFF 口径。
+6. 目标价注明期限、假设、股息/稀释处理及上下行；不为维持旧目标价倒改假设。退出规则只有用户要求投资执行方案时才补充，不能默认代表已获交易授权。
+
+## 输出与限制
+
+方法选择、输入来源与口径、桥接表、主/交叉结果、价值区间、敏感性和待验证项。估值无法可靠量化时提供条件范围或方法结论；缺少催化剂限制推荐的可兑现性，不取消基本面价值分析。
+
+## 证据与交接
+
+保留研究对象、市场与截止日期、指标期间/单位/币种/会计口径、来源及页码或链接，区分实际值、他人预测和自己的假设；输出结论、反证、置信度理由、缺口与下一步。权威原始披露可以作为事实来源；重大推断按重要性寻找独立证据，转载同一消息不算第二源。资料不足时交付可支持的部分并标记未验证，不虚构数据或执行结果。
+
+相邻能力用于分工；未安装时沿用本卡方法、记录缺口，不因缺少其他 skill 而拒绝整个任务。只在当前任务需要时读取背景材料；书中历史统计与建议数量不作为当前市场的通用阈值。
+
+## 来源背景
+
+需要原书案例和章节位置时读取 [references/background.md](references/background.md)。计算与执行规则已作行研适配；补充校核来源见下方（如有）。
+
+口径校核：[CFA Institute 自由现金流估值](https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/free-cash-flow-valuation)。

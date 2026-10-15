@@ -1,0 +1,8 @@
+{"case_id": "r001", "run": 1, "selected_skill": "valuation-multiple-traps", "reason": "问可比估值选 PE 还是 EV/EBITA 及估值中枢，属倍数选择"}
+{"case_id": "r002", "run": 1, "selected_skill": "value-four-cornerstones", "reason": "投资者结构属母入口 16 能力之一，无独立 skill"}
+{"case_id": "r003", "run": 1, "selected_skill": "value-four-cornerstones", "reason": "最佳所有者与剥离属母入口能力，无独立 skill"}
+{"case_id": "r004", "run": 1, "selected_skill": "value-four-cornerstones", "reason": "风险承受边界与财务弹性属母入口能力"}
+{"case_id": "f001", "run": 1, "selected_skill": "roic-growth-value-core", "reason": "给出 ROIC 与 WACC，问增长创造还是毁灭价值"}
+{"case_id": "f002", "run": 1, "selected_skill": "roic-growth-value-core", "reason": "NOPLAT/ROIC/g/WACC 求关键价值驱动公式估值"}
+{"case_id": "f003", "run": 1, "selected_skill": "roic-growth-value-core", "reason": "ROE 换算 ROIC 及投资率，属其核心触发"}
+{"case_id": "f004", "run": 1, "selected_skill": "implied-expectations-reverse-dcf", "reason": "问价格隐含增长与是否 price in，核心明确排除"}

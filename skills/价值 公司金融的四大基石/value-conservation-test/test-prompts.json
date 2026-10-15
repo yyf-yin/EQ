@@ -1,0 +1,61 @@
+{
+  "skill": "value-conservation-test",
+  "version": "0.2.0",
+  "source_book": "价值：公司金融的四大基石（修订本） — Tim Koller / Richard Dobbs / Bill Huyett",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "公司宣布 50 亿回购，这是不是利好？回购这个动作本身创造价值吗？",
+      "expected_behavior": "激活，区分总体价值、财富转移、融资约束与风险/税/行为改变；低估回购可向留下的股东转移财富，不仅比较总名义现金流。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "公司要分拆一块业务单独上市，市场说能 SOTP 重估释放价值，这个说法成立吗？",
+      "expected_behavior": "激活，比较经营现金流时间/风险、税、成本、融资约束与所有者机制；纯结构变化不自动创造价值，但总名义现金流未增不证明价值不变。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "这次会计政策变更让利润表好看多了，会影响公司价值吗？",
+      "expected_behavior": "激活，检查现金税、契约、激励、融资和真实行为后果；纯列报变化不改变现金流时基本价值不变，信息与短期定价另论。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "公司花 80 亿收购一家同行，溢价 40%，管理层说协同效应每年 10 亿，这笔收购划算吗？",
+      "expected_behavior": "不激活本 skill，应激活 ma-value-creation-assessment —— 涉及真实协同的并购定量计算",
+      "notes": "跨 skill 混淆诱饵：'这个交易创造价值吗'句式重叠，判据是有无真实协同与溢价"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "帮我查一下这次回购的具体方案、价格区间和时间表。",
+      "expected_behavior": "不激活任何本书 skill —— 纯事实查询",
+      "notes": "诱饵：含回购关键词，但无价值判断诉求"
+    },
+    {
+      "id": "should-not-trigger-03",
+      "type": "should_not_trigger",
+      "prompt": "公司要发 30 亿可转债，摊薄影响怎么算？会不会影响它后续的财务弹性？",
+      "expected_behavior": "不激活本 skill，应激活 value-four-cornerstones 路由入口下的 capital-structure-resilience —— 资本结构与财务弹性问题",
+      "notes": "跨 skill 混淆诱饵：资本运作类问题，但落点是杠杆与弹性而非价值守恒"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "公司宣布 10 送 10 高送转，股价会不会涨？",
+      "expected_behavior": "不激活 —— 纯股本拆分无现金流影响，且'股价短期反应预测'在适用边界外",
+      "notes": "边界：资本运作关键词命中，但既不改变现金流也不是价值守恒要检验的类型"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "3 条 should_trigger + 3 条 should_not_trigger（含 ≥1 条同书兄弟 skill 混淆诱饵）+ 1 条 edge_case。should_not_trigger 容错为 0。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

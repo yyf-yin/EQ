@@ -1,0 +1,12 @@
+{"case_id": "c001", "run": 1, "selected_skill": "roic-growth-value-core", "reason": "给出 ROIC 与 WACC 相对大小，问增长是否创造价值"}
+{"case_id": "c006", "run": 1, "selected_skill": "none", "reason": "纯代码实现请求，非价值方法论问题"}
+{"case_id": "c011", "run": 1, "selected_skill": "roic-growth-value-core", "reason": "用关键价值驱动公式由 ROIC、g、WACC 算企业价值"}
+{"case_id": "c016", "run": 1, "selected_skill": "roic-competitive-advantage-decomposition", "reason": "分辨高毛利来源与真假品牌溢价"}
+{"case_id": "c021", "run": 1, "selected_skill": "none", "reason": "券商属金融机构，护城河拆解明确不适用"}
+{"case_id": "c026", "run": 1, "selected_skill": "roic-competitive-advantage-decomposition", "reason": "问高 ROIC 来源及为何优于同行"}
+{"case_id": "c031", "run": 1, "selected_skill": "valuation-multiple-traps", "reason": "周期股估值该用哪个倍数及如何调整"}
+{"case_id": "c036", "run": 1, "selected_skill": "value-conservation-test", "reason": "回购是否利好、是否创造价值"}
+{"case_id": "c041", "run": 1, "selected_skill": "value-four-cornerstones", "reason": "可转债摊薄与财务弹性属资本结构能力"}
+{"case_id": "c046", "run": 1, "selected_skill": "value-conservation-test", "reason": "回购动作本身是否创造价值"}
+{"case_id": "c051", "run": 1, "selected_skill": "value-four-cornerstones", "reason": "判断市场估值由利率还是盈利驱动"}
+{"case_id": "c056", "run": 1, "selected_skill": "none", "reason": "MACD 与均线属技术分析，明确不适用"}

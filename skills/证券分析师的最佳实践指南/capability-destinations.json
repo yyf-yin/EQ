@@ -1,0 +1,81 @@
+{
+  "generated_by": "cangjie-tools v2.5.0",
+  "bundle_id": "equity-research-best-practices",
+  "router_entrypoint": "equity-research-best-practices",
+  "entrypoint_count": 11,
+  "capability_count": 18,
+  "destinations": {
+    "cap.erp.industry-analysis": {
+      "promoted_to": "equity-industry-analysis",
+      "router_view": "equity-research-best-practices/references/capabilities/equity-industry-analysis.md"
+    },
+    "cap.erp.key-factors": {
+      "promoted_to": "equity-key-factors",
+      "router_view": "equity-research-best-practices/references/capabilities/equity-key-factors.md"
+    },
+    "cap.erp.source-and-interview": {
+      "promoted_to": "equity-source-and-interview",
+      "router_view": "equity-research-best-practices/references/capabilities/equity-source-and-interview.md"
+    },
+    "cap.erp.financial-forensics": {
+      "promoted_to": "equity-financial-forensics",
+      "router_view": "equity-research-best-practices/references/capabilities/equity-financial-forensics.md"
+    },
+    "cap.erp.forecast-modeling": {
+      "promoted_to": "equity-forecast-modeling",
+      "router_view": "equity-research-best-practices/references/capabilities/equity-forecast-modeling.md"
+    },
+    "cap.erp.valuation": {
+      "promoted_to": "equity-valuation",
+      "router_view": "equity-research-best-practices/references/capabilities/equity-valuation.md"
+    },
+    "cap.erp.recommendation": {
+      "promoted_to": "equity-recommendation",
+      "router_view": "equity-research-best-practices/references/capabilities/equity-recommendation.md"
+    },
+    "cap.erp.bias-audit": {
+      "promoted_to": "equity-bias-audit",
+      "router_view": "equity-research-best-practices/references/capabilities/equity-bias-audit.md"
+    },
+    "cap.erp.report-writing": {
+      "promoted_to": "equity-report-writing",
+      "router_view": "equity-research-best-practices/references/capabilities/equity-report-writing.md"
+    },
+    "cap.erp.ethics-review": {
+      "promoted_to": "equity-ethics-review",
+      "router_view": "equity-research-best-practices/references/capabilities/equity-ethics-review.md"
+    },
+    "cap.erp.coverage-scoping": {
+      "served_by": "equity-research-best-practices",
+      "card": "equity-research-best-practices/references/capabilities/analyst-coverage-scoping.md"
+    },
+    "cap.erp.time-allocation": {
+      "served_by": "equity-research-best-practices",
+      "card": "equity-research-best-practices/references/capabilities/analyst-time-allocation.md"
+    },
+    "cap.erp.stakeholder-influence": {
+      "served_by": "equity-research-best-practices",
+      "card": "equity-research-best-practices/references/capabilities/analyst-stakeholder-influence.md"
+    },
+    "cap.erp.information-center": {
+      "served_by": "equity-research-best-practices",
+      "card": "equity-research-best-practices/references/capabilities/research-information-center.md"
+    },
+    "cap.erp.sellside-screening": {
+      "served_by": "equity-research-best-practices",
+      "card": "equity-research-best-practices/references/capabilities/sellside-research-screening.md"
+    },
+    "cap.erp.thinking-discipline": {
+      "served_by": "equity-research-best-practices",
+      "card": "equity-research-best-practices/references/capabilities/analyst-thinking-discipline.md"
+    },
+    "cap.erp.regression-forecasting": {
+      "served_by": "equity-research-best-practices",
+      "card": "equity-research-best-practices/references/capabilities/regression-forecasting.md"
+    },
+    "cap.erp.primary-survey-design": {
+      "served_by": "equity-research-best-practices",
+      "card": "equity-research-best-practices/references/capabilities/primary-survey-design.md"
+    }
+  }
+}

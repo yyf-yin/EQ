@@ -1,0 +1,61 @@
+{
+  "skill": "growth-quality-ladder",
+  "version": "0.2.0",
+  "source_book": "价值：公司金融的四大基石（修订本） — Tim Koller / Richard Dobbs / Bill Huyett",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "这家公司 30% 的增速主要靠抢竞争对手的份额，这种增长值不值钱？会不会引发价格战？",
+      "expected_behavior": "激活，拆增长来源、受损者与反击，比较新增回报、资本需要和持续性；阶梯用于比较假设，不凭标签直接给价值排序。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "公司说要保持 25% 的增速到 2030 年，这个目标靠谱吗？历史上大公司能维持多久？",
+      "expected_behavior": "激活，算收入、份额、产能与资金的天花板，区分实际/名义和内生/并表增长；5.4% 等历史样本不能当当地通用上限。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "这个行业是不是已经内卷了？增长天花板在哪，第二增长曲线还有没有空间？",
+      "expected_behavior": "激活，判定当前增长在阶梯上的位置，并检查新 S 曲线储备",
+      "notes": "正面：内卷 / 第二增长曲线是显式触发词"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "这家公司 ROIC 6%、增速 20%、WACC 9%，这种增长是创造价值还是毁灭价值？",
+      "expected_behavior": "不激活本 skill，应激活 roic-growth-value-core —— 问的是 ROIC 与 WACC 的分界线，不是增长来自哪一类来源",
+      "notes": "跨 skill 混淆诱饵：'增长创造价值吗'句式在两个 skill 间高度重叠，判据是有无给出 ROIC/WACC"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "这家公司凭什么能长期拿走行业里的大部分利润？",
+      "expected_behavior": "不激活本 skill，应激活 roic-competitive-advantage-decomposition —— 问的是高回报的来源与持续性",
+      "notes": "跨 skill 混淆诱饵：同属行业结构问题，但落点是 ROIC 来源而非增长来源"
+    },
+    {
+      "id": "should-not-trigger-03",
+      "type": "should_not_trigger",
+      "prompt": "帮我拉一下这个行业过去五年的市场规模和增速数据，做个表。",
+      "expected_behavior": "不激活任何本书 skill —— 纯数据查询",
+      "notes": "诱饵：含市场规模与增速关键词"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "一家刚成立两年的新品类公司，今年增速 300%，帮我判断一下它的增长质量。",
+      "expected_behavior": "激活，在早期品类用范围与渗透/供给情景判断增长质量，参数未知标记缺口；不因 S 曲线未知拒绝分析。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "3 条 should_trigger + 3 条 should_not_trigger（含 ≥1 条同书兄弟 skill 混淆诱饵）+ 1 条 edge_case。should_not_trigger 容错为 0。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

@@ -1,0 +1,59 @@
+{
+  "suite_id": "trigger-roic-growth-value-core",
+  "target": "roic-growth-value-core",
+  "split_seed": 42,
+  "train_ratio": 0.6,
+  "trigger_cases": [
+    {
+      "case_id": "roic-growth-value-core::should-trigger-01",
+      "prompt": "这家制造业公司过去三年收入复合增速 22%，但 ROIC 只有 6.5%，WACC 大概 9%。这种增长到底是在创造价值还是毁灭价值？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "roic-growth-value-core::should-trigger-02",
+      "prompt": "NOPLAT 12 亿，ROIC 18%，规划未来五年收入增速 10%，WACC 9%，帮我用关键价值驱动公式估个值。",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "roic-growth-value-core::should-trigger-03",
+      "prompt": "这家公司披露的 ROE 是 21%，我想知道它真实的资本回报率该怎么从 ROE 换算到 ROIC？另外它这个增速对应的投资率是多少？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "roic-growth-value-core::should-not-trigger-01",
+      "prompt": "这家公司现在交易在 35 倍 PE，股价里已经隐含了多少增长预期？是不是已经 price in 了？",
+      "expected": "sibling",
+      "sibling_target": "implied-expectations-reverse-dcf",
+      "runs": 1
+    },
+    {
+      "case_id": "roic-growth-value-core::should-not-trigger-02",
+      "prompt": "这家公司 30% 的收入增长主要来自渠道压货和降价抢份额，这个增长的质量怎么样，天花板在哪？",
+      "expected": "sibling",
+      "sibling_target": "growth-quality-ladder",
+      "runs": 1
+    },
+    {
+      "case_id": "roic-growth-value-core::should-not-trigger-03",
+      "prompt": "帮我用 Python 写一个三阶段 DCF 模型的脚本，输入自由现金流和折现率，输出每股内在价值。",
+      "expected": "should_not_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "roic-growth-value-core::edge-01",
+      "prompt": "某城商行 ROIC 11%、贷款增速 6%，它的增长在创造价值吗？这个 ROIC 该怎么算？",
+      "expected": "edge_case",
+      "sibling_target": null,
+      "runs": 1
+    }
+  ],
+  "version": "0.2.0",
+  "evaluation_status": "not_run_after_revision"
+}

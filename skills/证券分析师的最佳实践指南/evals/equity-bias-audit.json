@@ -1,0 +1,54 @@
+{
+  "skill": "equity-bias-audit",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "帮我检查一下我的判断有没有带偏见",
+      "expected_behavior": "激活，检查锚定、确认、损失厌恶等相关偏差；列反证、假设更新和判断依据，不强制穷举全部偏差。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "这只票亏了 15%，公司逻辑没变，该不该止损？",
+      "expected_behavior": "激活，复核当前价值、原假设、风险约束及用户既有退出规则；跌幅 15% 不自动触发卖出，不替用户执行交易。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "基本面显示低估 30%，但技术面看不到趋势，怎么办？",
+      "expected_behavior": "激活，核对估值假设与价格趋势的替代解释；技术面只作可选风险/择时信息，不强制等待确认才能交付基本面分析。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "该不该推荐这只票？",
+      "expected_behavior": "不应激活，应激活 equity-recommendation",
+      "notes": "跨 skill 混淆诱饵：生成结论属推荐卡"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "帮我算目标价",
+      "expected_behavior": "不应激活，应激活 equity-valuation",
+      "notes": "跨 skill 混淆诱饵：目标价属估值卡"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "股价连跌三周，要不要改评级？",
+      "expected_behavior": "激活，区分新信息、预期变化和价格信号；用当前收益风险与证据更新观点，不因上涨自动禁止或支持加仓。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

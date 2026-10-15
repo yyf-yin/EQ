@@ -1,0 +1,33 @@
+{
+  "skill": "equity-research-best-practices",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "我该跟多少只股票才合适？",
+      "expected_behavior": "应激活路由入口并加载 analyst-coverage-scoping 能力卡",
+      "notes": "覆盖率上限属未晋级能力，必须经路由入口可达（不变量 2 的验证）"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "每天几十份卖方研报看不完，怎么筛？",
+      "expected_behavior": "应激活路由入口并加载 sellside-research-screening 能力卡",
+      "notes": "第二个未晋级能力的可达性验证"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "帮我给这家公司估个值",
+      "expected_behavior": "不应由路由入口处理，应由晋级 Skill equity-valuation 直接接管",
+      "notes": "晋级 Skill 与路由入口的互斥负例：已晋级的能力不得退回路由"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。 本用例验证未晋级能力经来源路由入口可达。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

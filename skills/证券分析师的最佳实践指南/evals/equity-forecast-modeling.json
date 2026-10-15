@@ -1,0 +1,54 @@
+{
+  "skill": "equity-forecast-modeling",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "帮我建立这家公司的财务预测模型",
+      "expected_behavior": "激活，构造经营驱动、输入/计算/输出和必要报表勾稽；历史频率按任务选择，不强制两年季度化、固定行号或耗时比。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "做三情景分析，基准/乐观/悲观概率怎么配？",
+      "expected_behavior": "激活，构造内部自洽的条件情景；概率有依据才赋值并合计为 1，不默认 50/25/25 或二元 50/50。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "模型算出明年收入 +25%，同行普遍 +5%，这预测站得住吗？",
+      "expected_behavior": "激活，解释量价、份额、利润率等差异，校准市场预测时点及口径，给证据与反证；缺第二来源标记置信度，不机械否定。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "这家公司的账有没有做假？",
+      "expected_behavior": "不应激活，应激活 equity-financial-forensics",
+      "notes": "跨 skill 混淆诱饵：真实性审查属检疫卡，且应在本卡之前执行"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "目标价应该定多少？",
+      "expected_behavior": "不应激活，应激活 equity-valuation",
+      "notes": "跨 skill 混淆诱饵：目标价属估值卡"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "历史数据填充能不能外包给实习生？",
+      "expected_behavior": "激活，历史数据整理可委托/自动化，但核查来源、口径、勾稽和版本；预测同样可辅助构建，关键假设与结果需要复核。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

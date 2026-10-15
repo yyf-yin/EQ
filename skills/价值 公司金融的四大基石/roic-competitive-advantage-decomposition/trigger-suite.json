@@ -1,0 +1,59 @@
+{
+  "suite_id": "trigger-roic-competitive-advantage-decomposition",
+  "target": "roic-competitive-advantage-decomposition",
+  "split_seed": 42,
+  "train_ratio": 0.6,
+  "trigger_cases": [
+    {
+      "case_id": "roic-competitive-advantage-decomposition::should-trigger-01",
+      "prompt": "这家消费品公司毛利率常年比同行高 15 个点，它的护城河到底是什么？这个优势还能持续多久？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "roic-competitive-advantage-decomposition::should-trigger-02",
+      "prompt": "这家公司高毛利是靠品牌溢价还是靠成本优势？怎么分辨真假品牌溢价？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "roic-competitive-advantage-decomposition::should-trigger-03",
+      "prompt": "算这家公司 ROIC 的时候，账上 30 亿商誉要不要算进投入资本？两种口径差多少？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "roic-competitive-advantage-decomposition::should-not-trigger-01",
+      "prompt": "这个新兴品类未来五年能涨到多大？行业增速能维持多久？",
+      "expected": "sibling",
+      "sibling_target": "growth-quality-ladder",
+      "runs": 1
+    },
+    {
+      "case_id": "roic-competitive-advantage-decomposition::should-not-trigger-02",
+      "prompt": "同行业这几家公司 PE 从 12 倍到 40 倍，为什么差异这么大？",
+      "expected": "sibling",
+      "sibling_target": "valuation-multiple-traps",
+      "runs": 1
+    },
+    {
+      "case_id": "roic-competitive-advantage-decomposition::should-not-trigger-03",
+      "prompt": "帮我查一下这家公司近三年的毛利率，以及和同行的对比数据，做成表格。",
+      "expected": "should_not_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "roic-competitive-advantage-decomposition::edge-01",
+      "prompt": "某券商 ROE 长期高于行业平均，它的护城河在哪？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    }
+  ],
+  "version": "0.2.0",
+  "evaluation_status": "not_run_after_revision"
+}

@@ -1,0 +1,54 @@
+{
+  "skill": "equity-industry-analysis",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "我想进入光伏行业做研究，该从哪开始分析？",
+      "expected_behavior": "激活，固定行业边界并建立供需、单位经济性、产业链和证据框架；历史短时保留当前供需与情景，标记长期周期不可用。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "怎么判断一个行业现在处于周期的什么位置？",
+      "expected_behavior": "激活，用库存、利用率、价格、订单、产能与财务历史综合定位；不强制两个完整周期，不用历史不足拒绝分析。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "帮我拆解动力电池产业链上下游的议价能力",
+      "expected_behavior": "应激活，走第四步产业链分析：先找现成的产业链图，没有则自建，并标注各环节议价能力",
+      "notes": "产业链拆解由本卡独占"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "帮我算一下这家光伏公司下季度的 EPS",
+      "expected_behavior": "不应激活，应激活 equity-forecast-modeling",
+      "notes": "跨 skill 混淆诱饵：单家公司的财务预测属建模卡，不是行业卡"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "上证指数明天会涨吗？",
+      "expected_behavior": "不应激活，明确说明超出本书范围（纯行情/宏观方向性预测不属本书能力域）",
+      "notes": "范围外诱饵：宏观与指数择时"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "分析一下 AI 算力行业值不值得投资",
+      "expected_behavior": "可激活：先用本卡完成行业全景，但'值不值得投资'需再转 equity-valuation 与 equity-recommendation；不得由本卡单独给出投资结论",
+      "notes": "边界：行业分析只是输入，投资结论不在本卡契约内"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

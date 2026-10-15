@@ -1,0 +1,59 @@
+{
+  "suite_id": "trigger-implied-expectations-reverse-dcf",
+  "target": "implied-expectations-reverse-dcf",
+  "split_seed": 42,
+  "train_ratio": 0.6,
+  "trigger_cases": [
+    {
+      "case_id": "implied-expectations-reverse-dcf::should-trigger-01",
+      "prompt": "这家公司现在 40 倍 PE，市场给的这个价格到底隐含了未来多少年的增长？要多高的增速才撑得住？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "implied-expectations-reverse-dcf::should-trigger-02",
+      "prompt": "这家公司基本面很好，ROIC 25%，护城河也扎实，但我现在买是不是已经晚了？好公司等于好投资吗？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "implied-expectations-reverse-dcf::should-trigger-03",
+      "prompt": "这个板块过去一年跌了 40%，市场是不是过度悲观了？当前价格隐含的预期是多少，还能不能买？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "implied-expectations-reverse-dcf::should-not-trigger-01",
+      "prompt": "已知 ROIC 15%、增速 8%、WACC 9%、NOPLAT 20 亿，帮我算一下它的企业价值。",
+      "expected": "sibling",
+      "sibling_target": "roic-growth-value-core",
+      "runs": 1
+    },
+    {
+      "case_id": "implied-expectations-reverse-dcf::should-not-trigger-02",
+      "prompt": "这只股票过去三年涨了三倍，回报主要来自盈利增长还是估值扩张？帮我拆一下。",
+      "expected": "sibling",
+      "sibling_target": "value-four-cornerstones",
+      "runs": 1
+    },
+    {
+      "case_id": "implied-expectations-reverse-dcf::should-not-trigger-03",
+      "prompt": "今天这只票为什么突然跳水？盘口和大单有什么异动？",
+      "expected": "should_not_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "implied-expectations-reverse-dcf::edge-01",
+      "prompt": "这家公司股价三天跌了 12%，是不是说明市场已经把坏消息 price in 了？",
+      "expected": "edge_case",
+      "sibling_target": null,
+      "runs": 1
+    }
+  ],
+  "version": "0.2.0",
+  "evaluation_status": "not_run_after_revision"
+}

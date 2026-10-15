@@ -1,0 +1,32 @@
+import {test,expect} from '@playwright/test'
+
+test('人工核验在桌面和手机可操作，反馈等待核验且刷新保留',async({page})=>{
+ const id='human-demo',now=new Date().toISOString();let submitted=false
+ await page.addInitScript(id=>localStorage.setItem('cdr-run',id),id)
+ await page.route('**/api/startup',route=>route.fulfill({json:{session_id:'human-fixture',selected_run_id:null}}))
+ await page.route(`**/api/research/${id}`,route=>route.fulfill({json:{run_id:id,company_input:'人工核验演示',company_name:'测试股份',mode:'real',status:'waiting_human',stage:'数据核验',error:null,limitations:[],created_at:now,updated_at:now}}))
+ await page.route(`**/api/research/${id}/events?after=0`,route=>route.fulfill({contentType:'text/event-stream',body:'event: done\ndata: {}\n\n'}))
+ await page.route(`**/api/research/${id}/human-intervention`,route=>route.fulfill({json:{can_submit:true,sources:[{source_id:'s1',title:'公司年报'}],feedback:[],issues:[{issue_id:'i1',signature:'a'.repeat(64),identity:{metric_code:'revenue',period:'2024A',scope:'consolidated',unit:'CNY_million'},reason:'关键收入需要确认',blocking:true,kind:'conflict',status:submitted?'submitted':'open',phase:'awaiting_human',feedback_error:'',candidates:[{fact_id:'f1',value:'100',unit:'CNY_million',accounting_basis:'reported',source_id:'s1',evidence_id:'e1',title:'公司年报',quote:'测试股份2024年度合并营业收入100百万元',locator:'第12页',source_url:'https://cninfo.com.cn/report.pdf'}]}]}}))
+ await page.route(`**/api/research/${id}/human-intervention/i1`,async route=>{
+  expect(route.request().postDataJSON()).toMatchObject({action:'select',signature:'a'.repeat(64),fact_id:'f1',reason:'采用合并年报原文'})
+  submitted=true;await route.fulfill({status:202,json:{feedback_id:'feedback',status:'pending',resumed:true}})
+ })
+ await page.goto('/')
+ await expect(page.getByText(/等待人工数据核验/).first()).toBeVisible()
+ const panel=page.getByRole('region',{name:'人工数据核验'})
+ await expect(panel).toBeVisible()
+ await panel.locator('summary').first().click()
+ await expect(panel.getByText('测试股份2024年度合并营业收入100百万元')).toBeVisible()
+ await panel.scrollIntoViewIfNeeded()
+ await page.screenshot({path:'test-results/human-desktop.png',fullPage:false})
+ await page.setViewportSize({width:390,height:844})
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await panel.getByLabel('依据与处理理由').fill('采用合并年报原文')
+ await panel.getByRole('button',{name:'提交并核验'}).click()
+ await expect(panel.getByText('反馈已保存，等待核验结果。')).toBeVisible()
+ await expect(panel.getByRole('button',{name:'提交并核验'})).toBeDisabled()
+ await page.screenshot({path:'test-results/human-mobile.png',fullPage:false})
+ await page.reload()
+ await expect(page.getByText('反馈已保存，等待核验结果。')).toBeVisible()
+ expect(await page.evaluate(()=>localStorage.getItem('cdr-run'))).toBe(id)
+})

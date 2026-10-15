@@ -1,0 +1,61 @@
+{
+  "skill": "roic-growth-value-core",
+  "version": "0.2.0",
+  "source_book": "价值：公司金融的四大基石（修订本） — Tim Koller / Richard Dobbs / Bill Huyett",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "这家制造业公司过去三年收入复合增速 22%，但 ROIC 只有 6.5%，WACC 大概 9%。这种增长到底是在创造价值还是毁灭价值？",
+      "expected_behavior": "激活，区分平均 ROIC 与预期新增回报、收入增长与经营利润增长；当前平均回报低于 WACC 不足以否决新增投资，用条件情景评估。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "NOPLAT 12 亿，ROIC 18%，规划未来五年收入增速 10%，WACC 9%，帮我用关键价值驱动公式估个值。",
+      "expected_behavior": "激活，识别五年增长 10% 高于 WACC 9%，不能作永续值直接代入；采用显式五年预测并补 g<WACC 的终值、R 与时间口径。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "这家公司披露的 ROE 是 21%，我想知道它真实的资本回报率该怎么从 ROE 换算到 ROIC？另外它这个增速对应的投资率是多少？",
+      "expected_behavior": "激活，说明单独 ROE 不足以换算 ROIC，需经营利润、融资、税、资本等桥接数据；IR=g/R 需稳定新增回报等条件。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "这家公司现在交易在 35 倍 PE，股价里已经隐含了多少增长预期？是不是已经 price in 了？",
+      "expected_behavior": "不激活本 skill，应激活 implied-expectations-reverse-dcf —— 这是从价格反推预期，不是从基本面正向估值",
+      "notes": "跨 skill 混淆诱饵：同为估值问题，但方向相反（反推 vs 正向）"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "这家公司 30% 的收入增长主要来自渠道压货和降价抢份额，这个增长的质量怎么样，天花板在哪？",
+      "expected_behavior": "不激活本 skill，应激活 growth-quality-ladder —— 问的是增长的来源与可持续性，不是 ROIC 与 WACC 的相对关系",
+      "notes": "跨 skill 混淆诱饵：'增长'是共同关键词，但落点是增长质量阶梯"
+    },
+    {
+      "id": "should-not-trigger-03",
+      "type": "should_not_trigger",
+      "prompt": "帮我用 Python 写一个三阶段 DCF 模型的脚本，输入自由现金流和折现率，输出每股内在价值。",
+      "expected_behavior": "不激活任何本书 skill —— 这是工程实现请求，不是估值方法论问题",
+      "notes": "诱饵：含 DCF / 折现率 / 内在价值等关键词，但意图是写代码"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "某城商行 ROIC 11%、贷款增速 6%，它的增长在创造价值吗？这个 ROIC 该怎么算？",
+      "expected_behavior": "不使用非金融 ROIC 稳态估值，说明银行需专属股权与监管资本框架；不声称金融机构没有任何可用资本回报指标。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "3 条 should_trigger + 3 条 should_not_trigger（含 ≥1 条同书兄弟 skill 混淆诱饵）+ 1 条 edge_case。should_not_trigger 容错为 0。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

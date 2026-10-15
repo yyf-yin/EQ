@@ -1,0 +1,7 @@
+{"case_id": "growth-quality-ladder::should-not-trigger-02", "run": 1, "selected_skill": "roic-competitive-advantage-decomposition"}
+{"case_id": "growth-quality-ladder::should-trigger-01", "run": 1, "selected_skill": "growth-quality-ladder"}
+{"case_id": "growth-quality-ladder::should-not-trigger-03", "run": 1, "selected_skill": "none"}
+{"case_id": "growth-quality-ladder::should-trigger-02", "run": 1, "selected_skill": "growth-quality-ladder"}
+{"case_id": "growth-quality-ladder::edge-01", "run": 1, "selected_skill": "none"}
+{"case_id": "growth-quality-ladder::should-trigger-03", "run": 1, "selected_skill": "growth-quality-ladder"}
+{"case_id": "growth-quality-ladder::should-not-trigger-01", "run": 1, "selected_skill": "roic-growth-value-core"}

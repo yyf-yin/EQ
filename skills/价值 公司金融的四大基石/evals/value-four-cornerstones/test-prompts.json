@@ -1,0 +1,89 @@
+{
+  "skill": "value-four-cornerstones",
+  "version": "0.2.0",
+  "source_book": "价值：公司金融的四大基石（修订本） — Tim Koller / Richard Dobbs / Bill Huyett",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "这只股票过去五年涨了 400%，回报到底来自盈利增长、估值扩张还是分红回购？帮我拆一下。",
+      "expected_behavior": "激活路由入口并落到 trs-driver-decomposition 能力卡，做 TRS 归因分解",
+      "notes": "正面：路由能力 R2（TRS 归因）"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "最近市场整体估值抬升，主要是利率下行驱动的还是盈利改善驱动的？",
+      "expected_behavior": "激活路由入口并落到 market-valuation-drivers 能力卡，分解市场层面的估值驱动",
+      "notes": "正面：路由能力 R1（市场估值驱动）"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "这个赛道现在的估值和情绪，算不算泡沫？和典型的金融危机有什么本质区别？",
+      "expected_behavior": "激活路由入口并落到 bubble-vs-crisis-diagnosis 能力卡，用泡沫 vs 危机的判据区分",
+      "notes": "正面：路由能力 R4（泡沫诊断）"
+    },
+    {
+      "id": "should-trigger-04",
+      "type": "should_trigger",
+      "prompt": "这家公司这个季度业绩大超预期，我要不要因此上调对它的长期看法？",
+      "expected_behavior": "激活路由入口并落到 earnings-expectations-relevance 能力卡，判断超预期应改变短期预期还是长期预期",
+      "notes": "正面：路由能力 R5（盈余预期相关性）"
+    },
+    {
+      "id": "should-trigger-05",
+      "type": "should_trigger",
+      "prompt": "这家公司的主要股东结构是怎样的？被动指数基金占比高还是主动内在投资者占比高？这会不会影响它的估值定价？",
+      "expected_behavior": "激活路由至 investor-typology-pricing-power，根据可观察策略、持仓和交易数据分析行为与替代解释；不凭类型名称断言定价权。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-06",
+      "type": "should_trigger",
+      "prompt": "集团要把一块业务卖掉，什么样的人买最合适？剥离是不是比继续持有对股东更好？",
+      "expected_behavior": "激活路由入口并落到 best-owner-and-divestiture 能力卡，用最佳所有者判据评估剥离",
+      "notes": "正面：路由能力 R6（最佳所有者与剥离）"
+    },
+    {
+      "id": "should-trigger-07",
+      "type": "should_trigger",
+      "prompt": "这家公司净负债率 70%，如果经济下行它扛得住吗？它的财务弹性和风险承受边界在哪？",
+      "expected_behavior": "激活路由入口并落到 capital-structure-resilience 能力卡，用压力情景下的债务承受能力检验资本结构",
+      "notes": "正面：路由能力 R8（资本结构与财务弹性）"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "这家公司 ROIC 6%、增速 20%、WACC 9%，增长是在创造价值还是毁灭价值？",
+      "expected_behavior": "不激活路由入口，应直接激活 roic-growth-value-core —— 该能力已晋级为独立 Skill，路由入口 description 已声明请勿绕行",
+      "notes": "跨 skill 互斥近邻负例（硬性要求）：晋级 Skill 与路由入口不得双触发"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "这家公司当前股价隐含了什么样的增长预期？",
+      "expected_behavior": "不激活路由入口，应直接激活 implied-expectations-reverse-dcf —— 已晋级为独立 Skill",
+      "notes": "跨 skill 互斥近邻负例：同上"
+    },
+    {
+      "id": "should-not-trigger-03",
+      "type": "should_not_trigger",
+      "prompt": "帮我看看这只票的 MACD 和均线，现在能不能进场？",
+      "expected_behavior": "不激活任何本书 skill —— 技术分析与量化择时在适用范围外",
+      "notes": "诱饵：行情判断类问题，但方法族完全不同"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "帮我算一下这家银行的合理估值区间。",
+      "expected_behavior": "不激活 —— 金融机构估值明确在适用范围外（本书样本为非金融公司）",
+      "notes": "边界：估值问题命中，但主体是金融机构"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "3 条 should_trigger + 3 条 should_not_trigger（含 ≥1 条同书兄弟 skill 混淆诱饵）+ 1 条 edge_case。should_not_trigger 容错为 0。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

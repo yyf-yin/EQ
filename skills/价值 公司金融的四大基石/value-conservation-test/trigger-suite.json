@@ -1,0 +1,59 @@
+{
+  "suite_id": "trigger-value-conservation-test",
+  "target": "value-conservation-test",
+  "split_seed": 42,
+  "train_ratio": 0.6,
+  "trigger_cases": [
+    {
+      "case_id": "value-conservation-test::should-trigger-01",
+      "prompt": "公司宣布 50 亿回购，这是不是利好？回购这个动作本身创造价值吗？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-conservation-test::should-trigger-02",
+      "prompt": "公司要分拆一块业务单独上市，市场说能 SOTP 重估释放价值，这个说法成立吗？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-conservation-test::should-trigger-03",
+      "prompt": "这次会计政策变更让利润表好看多了，会影响公司价值吗？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-conservation-test::should-not-trigger-01",
+      "prompt": "公司花 80 亿收购一家同行，溢价 40%，管理层说协同效应每年 10 亿，这笔收购划算吗？",
+      "expected": "sibling",
+      "sibling_target": "ma-value-creation-assessment",
+      "runs": 1
+    },
+    {
+      "case_id": "value-conservation-test::should-not-trigger-02",
+      "prompt": "帮我查一下这次回购的具体方案、价格区间和时间表。",
+      "expected": "should_not_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "value-conservation-test::should-not-trigger-03",
+      "prompt": "公司要发 30 亿可转债，摊薄影响怎么算？会不会影响它后续的财务弹性？",
+      "expected": "sibling",
+      "sibling_target": "value-four-cornerstones",
+      "runs": 1
+    },
+    {
+      "case_id": "value-conservation-test::edge-01",
+      "prompt": "公司宣布 10 送 10 高送转，股价会不会涨？",
+      "expected": "edge_case",
+      "sibling_target": null,
+      "runs": 1
+    }
+  ],
+  "version": "0.2.0",
+  "evaluation_status": "not_run_after_revision"
+}

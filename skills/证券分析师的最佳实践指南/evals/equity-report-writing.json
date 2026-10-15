@@ -1,0 +1,54 @@
+{
+  "skill": "equity-report-writing",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "帮我写一份这家公司的研究报告",
+      "expected_behavior": "激活，先识别行业报告、公司深度或投资报告，按问题组织结论、机制、证据、反证及缺口；行业/经营报告不强制评级或独家观点。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "这份报告写了一万字，怎么砍？",
+      "expected_behavior": "激活，删重复与低增量内容，保留口径、来源、反证和风险；内容按研究问题而非是否围绕股价筛选。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "做个 PPT 向客户推这只票",
+      "expected_behavior": "激活，按受众与任务组织主张、证据、图表和风险，注明数据来源；不将每页五行或同事预审当固定发布门。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "这个推荐结论本身成不成立？",
+      "expected_behavior": "不应激活，应激活 equity-recommendation",
+      "notes": "跨 skill 混淆诱饵：先有成立的结论再谈表达"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "这样发合规吗？",
+      "expected_behavior": "不应激活，应激活 equity-ethics-review",
+      "notes": "跨 skill 混淆诱饵：合规裁定属道德卡"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "我的研究明明是对的，客户就是不采纳，问题出在哪？",
+      "expected_behavior": "激活，诊断研究证据与表达匹配；客户不采纳不证明论点正确或错误，也不为说服淡化不确定性。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-06",
+  "checks": "passed",
+  "counts": {
+    "skill_entrypoints": 19,
+    "capability_cards": 34,
+    "synced_promoted_cards": 17,
+    "json_files": 60,
+    "relative_links": 207,
+    "existing_trigger_cases": 123,
+    "acceptance_behavior_cases": 20,
+    "acceptance_arithmetic_cases": 8
+  },
+  "errors": [],
+  "model_trigger_evaluation": "not_run",
+  "agent_behavior_evaluation": "not_run",
+  "arithmetic_scope": "Expected answers only; no skill/model execution",
+  "frontmatter_scope": "Unambiguous JSON-string/plain-name subset, not a general YAML parser",
+  "official_quick_validate": "not_run_missing_PyYAML"
+}

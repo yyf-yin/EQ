@@ -1,0 +1,10 @@
+{
+ "r001": "ma-value-creation-assessment::should-not-trigger-02",
+ "r002": "value-four-cornerstones::should-trigger-05",
+ "r003": "value-four-cornerstones::should-trigger-06",
+ "r004": "value-four-cornerstones::should-trigger-07",
+ "f001": "roic-growth-value-core::should-trigger-01",
+ "f002": "roic-growth-value-core::should-trigger-02",
+ "f003": "roic-growth-value-core::should-trigger-03",
+ "f004": "roic-growth-value-core::should-not-trigger-01"
+}

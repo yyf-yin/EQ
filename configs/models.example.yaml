@@ -1,0 +1,55 @@
+models:
+  reasoning:
+    protocol: openai
+    base_url: "" # 填到 /v1，Gateway 自动追加 /chat/completions
+    model: ""
+    api_key_env: CDR_OPENAI_API_KEY
+    # 可选：环境变量中填写密钥文件路径；文件内容仅为 API Key。
+    # api_key_file_env: CDR_OPENAI_API_KEY_FILE
+    max_tokens: 8000
+    structured_mode: tool # native / tool / json，按服务商能力选择
+  writing:
+    protocol: anthropic
+    base_url: "" # 填到 /v1，Gateway 自动追加 /messages
+    model: ""
+    api_key_env: CDR_ANTHROPIC_API_KEY
+    max_tokens: 8000
+    structured_mode: tool
+    anthropic_version: "2023-06-01"
+routes:
+  default: reasoning
+  resolver: reasoning
+  brief: reasoning
+  research_planner: reasoning
+  calculation_planner: reasoning
+  supervisor: reasoning
+  researcher: reasoning
+  compression: reasoning
+  financial_analyzer: reasoning
+  assumption_planner: reasoning
+  writer: writing
+  core_writer: writing
+  reflection: writing
+  critical_reviewer: reasoning
+  evidence_reviewer: reasoning
+  editorial_reviewer: writing
+
+# 容量按实际模型/服务配置；UTF-8 字节上界估算，不是供应商精确 tokenizer。
+# 输入估算 + 输出预留不得超过 context_capacity；真实预算另见 .env.example。
+role_limits:
+  default:
+    input_capacity: 120000
+    context_capacity: 136000
+    output_reserve: 10000
+    timeout: 45
+    retries: 2
+    concurrency: 3
+    block_call_budget: 40
+  researcher:
+    input_capacity: 20000
+    context_capacity: 32000
+    output_reserve: 10000
+    max_output_tokens: 8000
+    timeout: 60
+    retries: 2
+    concurrency: 2

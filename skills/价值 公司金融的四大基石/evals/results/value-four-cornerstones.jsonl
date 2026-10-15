@@ -1,0 +1,11 @@
+{"case_id": "value-four-cornerstones::should-trigger-02", "run": 1, "selected_skill": "value-four-cornerstones"}
+{"case_id": "value-four-cornerstones::should-not-trigger-03", "run": 1, "selected_skill": "none"}
+{"case_id": "value-four-cornerstones::should-trigger-03", "run": 1, "selected_skill": "value-four-cornerstones"}
+{"case_id": "value-four-cornerstones::edge-01", "run": 1, "selected_skill": "none"}
+{"case_id": "value-four-cornerstones::should-trigger-04", "run": 1, "selected_skill": "value-four-cornerstones"}
+{"case_id": "value-four-cornerstones::should-not-trigger-01", "run": 1, "selected_skill": "roic-growth-value-core"}
+{"case_id": "value-four-cornerstones::should-trigger-01", "run": 1, "selected_skill": "value-four-cornerstones"}
+{"case_id": "value-four-cornerstones::should-not-trigger-02", "run": 1, "selected_skill": "implied-expectations-reverse-dcf"}
+{"case_id": "value-four-cornerstones::should-trigger-05", "run": 1, "selected_skill": "value-four-cornerstones"}
+{"case_id": "value-four-cornerstones::should-trigger-06", "run": 1, "selected_skill": "value-four-cornerstones"}
+{"case_id": "value-four-cornerstones::should-trigger-07", "run": 1, "selected_skill": "value-four-cornerstones"}

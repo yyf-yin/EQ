@@ -1,0 +1,1368 @@
+[
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "700.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "420.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "net_income",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "105.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ebit",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "140.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "tax_rate",
+    "period": "2022A",
+    "unit": "ratio",
+    "value": "0.25",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "equity",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "210.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "assets",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "350.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "liabilities",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "140.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cash",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "70.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "receivables",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "70.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "inventory",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "42.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ppe",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "140.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "other_assets",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "28.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "payables",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "42.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "debt",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "70.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "other_liabilities",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "28.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "current_assets",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "182.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "current_liabilities",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "70.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "operating_cashflow",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "112.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "capex",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "21.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "shares",
+    "period": "2022A",
+    "unit": "million_shares",
+    "value": "100",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "price",
+    "period": "2022A",
+    "unit": "CNY/share",
+    "value": "20",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "depreciation",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "14.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ebitda",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "154.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_equity",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "199.5",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_assets",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "332.5",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_inventory",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "39.9",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_receivables",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "66.5",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_invested_capital",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "210.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "parent_net_income",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "101.5",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "adjusted_parent_net_income",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "98.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "420.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "设备"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "252.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "设备"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "280.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "服务"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2022A",
+    "unit": "CNY_million",
+    "value": "168.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "服务"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "800.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "480.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "net_income",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "120.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ebit",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "160.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "tax_rate",
+    "period": "2023A",
+    "unit": "ratio",
+    "value": "0.25",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "equity",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "240.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "assets",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "400.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "liabilities",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "160.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cash",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "80.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "receivables",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "80.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "inventory",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "48.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ppe",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "160.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "other_assets",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "32.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "payables",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "48.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "debt",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "80.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "other_liabilities",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "32.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "current_assets",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "208.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "current_liabilities",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "80.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "operating_cashflow",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "128.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "capex",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "24.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "shares",
+    "period": "2023A",
+    "unit": "million_shares",
+    "value": "100",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "price",
+    "period": "2023A",
+    "unit": "CNY/share",
+    "value": "20",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "depreciation",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "16.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ebitda",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "176.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_equity",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "228.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_assets",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "380.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_inventory",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "45.6",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_receivables",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "76.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_invested_capital",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "240.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "parent_net_income",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "116.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "adjusted_parent_net_income",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "112.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "480.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "设备"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "288.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "设备"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "320.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "服务"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2023A",
+    "unit": "CNY_million",
+    "value": "192.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "服务"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "900.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "540.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "net_income",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "135.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ebit",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "180.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "tax_rate",
+    "period": "2024A",
+    "unit": "ratio",
+    "value": "0.25",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "equity",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "270.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "assets",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "450.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "liabilities",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "180.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cash",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "90.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "receivables",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "90.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "inventory",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "54.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ppe",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "180.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "other_assets",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "36.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "payables",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "54.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "debt",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "90.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "other_liabilities",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "36.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "current_assets",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "234.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "current_liabilities",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "90.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "operating_cashflow",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "144.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "capex",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "27.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "shares",
+    "period": "2024A",
+    "unit": "million_shares",
+    "value": "100",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "price",
+    "period": "2024A",
+    "unit": "CNY/share",
+    "value": "20",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "depreciation",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "18.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ebitda",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "198.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_equity",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "256.5",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_assets",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "427.5",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_inventory",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "51.3",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_receivables",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "85.5",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_invested_capital",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "270.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "parent_net_income",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "130.5",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "adjusted_parent_net_income",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "126.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "540.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "设备"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "324.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "设备"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "360.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "服务"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2024A",
+    "unit": "CNY_million",
+    "value": "216.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "服务"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "1000.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "600.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "net_income",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "150.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ebit",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "200.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "tax_rate",
+    "period": "2025A",
+    "unit": "ratio",
+    "value": "0.25",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "equity",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "300.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "assets",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "500.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "liabilities",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "200.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cash",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "100.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "receivables",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "100.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "inventory",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "60.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ppe",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "200.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "other_assets",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "40.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "payables",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "60.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "debt",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "100.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "other_liabilities",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "40.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "current_assets",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "260.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "current_liabilities",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "100.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "operating_cashflow",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "160.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "capex",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "30.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "shares",
+    "period": "2025A",
+    "unit": "million_shares",
+    "value": "100",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "price",
+    "period": "2025A",
+    "unit": "CNY/share",
+    "value": "20",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "depreciation",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "20.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "ebitda",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "220.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_equity",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "285.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_assets",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "475.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_inventory",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "57.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_receivables",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "95.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "average_invested_capital",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "300.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "parent_net_income",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "145.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "adjusted_parent_net_income",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "140.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "600.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "设备"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "360.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "设备"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "400.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "服务"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2025A",
+    "unit": "CNY_million",
+    "value": "240.0",
+    "actual_or_forecast": "actual",
+    "scope": "segment",
+    "segment_id": "服务"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2025H1",
+    "unit": "CNY_million",
+    "value": "450.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2025H1",
+    "unit": "CNY_million",
+    "value": "270.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "parent_net_income",
+    "period": "2025H1",
+    "unit": "CNY_million",
+    "value": "65.25",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "adjusted_parent_net_income",
+    "period": "2025H1",
+    "unit": "CNY_million",
+    "value": "63.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "operating_cashflow",
+    "period": "2025H1",
+    "unit": "CNY_million",
+    "value": "72.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "revenue",
+    "period": "2026H1",
+    "unit": "CNY_million",
+    "value": "500.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "cost",
+    "period": "2026H1",
+    "unit": "CNY_million",
+    "value": "300.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "parent_net_income",
+    "period": "2026H1",
+    "unit": "CNY_million",
+    "value": "72.5",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "adjusted_parent_net_income",
+    "period": "2026H1",
+    "unit": "CNY_million",
+    "value": "70.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  },
+  {
+    "company_id": "DEMO",
+    "metric_code": "operating_cashflow",
+    "period": "2026H1",
+    "unit": "CNY_million",
+    "value": "80.0",
+    "actual_or_forecast": "actual",
+    "scope": "consolidated"
+  }
+]

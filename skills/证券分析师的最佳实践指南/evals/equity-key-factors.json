@@ -1,0 +1,54 @@
+{
+  "skill": "equity-key-factors",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "什么因素会驱动这只股票？",
+      "expected_behavior": "激活，经营重要性与投资计价程度分别判断；股票任务分析市场预期和潜在催化，数量及重要性阈值按机制选择，不机械过滤到 2–4 个。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "我该盯哪些指标来跟踪这家公司？",
+      "expected_behavior": "激活，建立因素、问题、指标、证据、更新事件/频率、反证和状态的矩阵；联系人可缺，不声称已经启动持续监测。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "公司刚公告了大额回购，这是不是关键因素？",
+      "expected_behavior": "激活，检查剥离对现金、盈利、资本和风险的经营影响；公告已知或已计价不取消经营重要性，投资模式另评预期差。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "帮我给这家公司估值，给个目标价",
+      "expected_behavior": "不应激活，应激活 equity-valuation",
+      "notes": "跨 skill 混淆诱饵：估值计算属估值卡"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "这个行业的供需格局和产业链是什么样的？",
+      "expected_behavior": "不应激活，应激活 equity-industry-analysis",
+      "notes": "跨 skill 混淆诱饵：行业层面全景属行业卡，本卡消费其产出"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "这只票我已经跟踪两年、模型很熟了，今年该从哪儿重新开始？",
+      "expected_behavior": "激活，重检驱动机制、反证和资料时效；独立第二源不足时保留重要待验证因素，不能因取证困难删除因素。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

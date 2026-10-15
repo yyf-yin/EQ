@@ -1,0 +1,54 @@
+{
+  "skill": "equity-valuation",
+  "version": "0.2.0",
+  "source_book": "证券分析师的最佳实践指南 — James J. Valentine",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "给这家公司估个值，该用什么方法？",
+      "expected_behavior": "激活，按商业模式与资本结构选方法，匹配 FCFF/WACC 与 FCFE/Ke，做价值桥接和可得交叉检验；不强制十年数据或双方法。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "目标价应该定多少？",
+      "expected_behavior": "激活，给估值期限、假设、敏感性及目标价区间；用户未要求交易方案时不强制退出门槛。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "帮我建一个可比公司表",
+      "expected_behavior": "激活，对齐同行业务、增长、ROIC、风险、会计与预测期，标注自有/市场预测及数据日期；缺市场预测仍可交付受限表。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "预测一下这家公司明年的收入和利润",
+      "expected_behavior": "不应激活，应激活 equity-forecast-modeling",
+      "notes": "跨 skill 混淆诱饵：现金流预测属建模卡"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "该不该给这只票买入评级？",
+      "expected_behavior": "不应激活，应激活 equity-recommendation",
+      "notes": "跨 skill 混淆诱饵：评级结论属推荐卡"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "股价已经到目标价的 92% 了，要不要上调目标价？",
+      "expected_behavior": "应激活：触发渐进主义红灯——只有关键因素本身变化且有新定量依据时才允许调整，且须交叉引用 equity-ethics-review",
+      "notes": "边界：这既是估值纪律问题也是职业道德问题"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "诱饵容错为 0：全部 should_not_trigger 必须通过。至少 1 条为同书兄弟 skill 的跨 skill 混淆测试。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

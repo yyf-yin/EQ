@@ -1,0 +1,439 @@
+{
+  "version": "0.2.0",
+  "date": "2026-10-06",
+  "status": "agent_behavior_not_run",
+  "purpose": "跨书边界与研究行为验收；内含算术期望校核，不代表 agent 测试通过",
+  "cases": [
+    {
+      "id": "operating-report",
+      "skills": [
+        "equity-report-writing",
+        "equity-key-factors"
+      ],
+      "prompt": "研究一家具备公开年报的民营公司经营前景，没有可交易股价、不要求股票推荐。",
+      "expect": [
+        "交付公司经营分析与证据、反证、缺口",
+        "保留重要宏观/政策驱动"
+      ],
+      "forbid": [
+        "因无股价、评级、催化或独家观点停止研究"
+      ]
+    },
+    {
+      "id": "new-industry",
+      "skills": [
+        "equity-industry-analysis",
+        "growth-quality-ladder"
+      ],
+      "prompt": "新行业只有两年历史，当前需求 100、有效产能 120，研究供需和增长质量。",
+      "expect": [
+        "分析当前供需并列情景",
+        "长期周期不可用单列"
+      ],
+      "forbid": [
+        "跳过供需",
+        "硬凑两周期或三家退市公司"
+      ]
+    },
+    {
+      "id": "independent-evidence",
+      "skills": [
+        "equity-key-factors",
+        "equity-source-and-interview"
+      ],
+      "prompt": "已披露政策对成本有重大影响，只有正式政策文本可用，三家媒体转载同一消息。",
+      "expect": [
+        "政策文本可作为事实来源",
+        "保留驱动并列影响待验证",
+        "转载不视为独立三源"
+      ],
+      "forbid": [
+        "缺第二源删除因素",
+        "已公告所以不重要"
+      ]
+    },
+    {
+      "id": "fcff-bridge",
+      "skills": [
+        "equity-valuation",
+        "implied-expectations-reverse-dcf"
+      ],
+      "prompt": "单位亿：FCFF 模型经营价值 100，超额现金 10，债务 30，少数股东价值 5，无其他项目，总股本 5 亿股。求普通股价值与每股价值。",
+      "expect": [
+        "普通股价值 75 亿、每股 15",
+        "FCFF 配 WACC；反向经营价值目标须桥接"
+      ],
+      "forbid": [
+        "100 直接当市值",
+        "用流通股数",
+        "现金重复计入"
+      ],
+      "calculation": {
+        "kind": "bridge",
+        "input": {
+          "operating": 100,
+          "nonoperating": 10,
+          "debt": 30,
+          "nci": 5,
+          "shares": 5
+        },
+        "expected": {
+          "equity": 75,
+          "per_share": 15
+        }
+      }
+    },
+    {
+      "id": "ebita",
+      "skills": [
+        "valuation-multiple-traps"
+      ],
+      "prompt": "EBIT=100，折旧=20，并购无形资产摊销=10，无其他摊销。计算 EBITA 和 EBITDA。",
+      "expect": [
+        "EBITA 110、EBITDA 130",
+        "EBITA 保留折旧"
+      ],
+      "forbid": [
+        "EBITA 不加回并购无形摊销"
+      ],
+      "calculation": {
+        "kind": "ebita",
+        "input": {
+          "ebit": 100,
+          "depreciation": 20,
+          "amortization": 10
+        },
+        "expected": {
+          "ebita": 110,
+          "ebitda": 130
+        }
+      }
+    },
+    {
+      "id": "illegal-terminal",
+      "skills": [
+        "roic-growth-value-core",
+        "implied-expectations-reverse-dcf"
+      ],
+      "prompt": "NOPLAT_1=12 亿，R=18%，未来五年增长 10%，WACC=9%。能否直接永续估值？",
+      "expect": [
+        "不能永续代入 g>=WACC",
+        "显式预测高增长并补合法终值"
+      ],
+      "forbid": [
+        "输出负的永续价值作为估值结果"
+      ]
+    },
+    {
+      "id": "marginal-return",
+      "skills": [
+        "roic-growth-value-core",
+        "equity-forecast-modeling"
+      ],
+      "prompt": "存量平均 ROIC 6%、WACC 9%，有证据预计新项目回报 15%、项目风险与资本成本匹配。是否应因平均 ROIC 低否决项目？",
+      "expect": [
+        "存量与新增回报分开",
+        "评估现金流、融资和执行约束"
+      ],
+      "forbid": [
+        "仅用平均 ROIC 判新增投资毁值"
+      ]
+    },
+    {
+      "id": "neutral-growth",
+      "skills": [
+        "roic-growth-value-core"
+      ],
+      "prompt": "固定 NOPLAT_1=10，稳定 R=WACC=10%，分别用 g=0 和 g=5% 估经营价值。",
+      "expect": [
+        "两情景经营价值均为 100",
+        "解释稳定新增投资回报等于资本成本的条件"
+      ],
+      "forbid": [
+        "当作股权 PE"
+      ],
+      "calculation": {
+        "kind": "steady",
+        "input": {
+          "noplat1": 10,
+          "return": 0.1,
+          "wacc": 0.1,
+          "growths": [
+            0,
+            0.05
+          ]
+        },
+        "expected": {
+          "values": [
+            100,
+            100
+          ]
+        }
+      }
+    },
+    {
+      "id": "ma-no-double-count",
+      "skills": [
+        "ma-value-creation-assessment"
+      ],
+      "prompt": "单位亿：目标独立价值 10，对价 13，毛协同现值 5，已在净协同中扣整合成本 1，另有未计交易成本 0.2。现金收购净价值多少？",
+      "expect": [
+        "净协同 4、买方净价值 0.8",
+        "成本只扣一次"
+      ],
+      "forbid": [
+        "再次扣已含整合成本"
+      ],
+      "calculation": {
+        "kind": "ma",
+        "input": {
+          "standalone": 10,
+          "price": 13,
+          "gross_synergy": 5,
+          "included_cost": 1,
+          "additional_cost": 0.2
+        },
+        "expected": {
+          "net_synergy": 4,
+          "buyer_gain": 0.8
+        }
+      }
+    },
+    {
+      "id": "ma-percent-units",
+      "skills": [
+        "ma-value-creation-assessment"
+      ],
+      "prompt": "收入不变，营业利润率从 6% 到 9%；另一家从 30% 到 45%，其成本率从 70% 到 55%。区分百分点、利润增幅与成本相对降幅。",
+      "expect": [
+        "分别提高 3 和 15 个百分点",
+        "利润均增长 50%，成本相对降幅约 21.43%",
+        "不能自动说价值增长 50%"
+      ],
+      "forbid": [
+        "利润增长 3%/15%",
+        "成本下降 15%"
+      ],
+      "calculation": {
+        "kind": "margin",
+        "input": {
+          "margins": [
+            [
+              0.06,
+              0.09
+            ],
+            [
+              0.3,
+              0.45
+            ]
+          ],
+          "costs": [
+            0.7,
+            0.55
+          ]
+        },
+        "expected": {
+          "points": [
+            3,
+            15
+          ],
+          "profit_growth": [
+            0.5,
+            0.5
+          ],
+          "cost_reduction": 0.2142857142857143
+        }
+      }
+    },
+    {
+      "id": "negative-cfo",
+      "skills": [
+        "equity-financial-forensics"
+      ],
+      "prompt": "季节性扩产公司净利润 10、CFO=-2，管理层无已知融资/激励压力；如何审查？",
+      "expect": [
+        "不跳过报表审查",
+        "桥接营运资金、税和非现金项目",
+        "比率符号及局限解释"
+      ],
+      "forbid": [
+        "无动机所以跳过",
+        "负比率即造假",
+        "按异常个数自动折价"
+      ]
+    },
+    {
+      "id": "probability-unknown",
+      "skills": [
+        "equity-forecast-modeling"
+      ],
+      "prompt": "项目只有获批或未获批两种结果，没有可靠成功概率资料。建立情景。",
+      "expect": [
+        "条件情景与证据缺口",
+        "若试算概率标明是假设"
+      ],
+      "forbid": [
+        "无依据默认 50/50",
+        "强制基准 50%"
+      ]
+    },
+    {
+      "id": "regression-leakage",
+      "skills": [
+        "equity-research-best-practices"
+      ],
+      "prompt": "月度模型样本内 R²=95%，随机打散验证，解释变量采用一年后修订值。能否用于预测？",
+      "expect": [
+        "定位时序与数据版本泄漏",
+        "按时间留出/滚动验证并比较朴素基准"
+      ],
+      "forbid": [
+        "R²>80% 即批准",
+        "p<0.05 即有因果"
+      ]
+    },
+    {
+      "id": "interview-silence",
+      "skills": [
+        "equity-source-and-interview",
+        "equity-ethics-review"
+      ],
+      "prompt": "管理层对我猜测的未披露重大业绩没有反驳。能写管理层确认并私发客户吗？",
+      "expect": [
+        "未反驳不等于确认",
+        "审查信息性质与限制",
+        "只能在合法依据上记录自己的推断"
+      ],
+      "forbid": [
+        "改变措辞即可使用受限信息",
+        "未经授权发送客户"
+      ]
+    },
+    {
+      "id": "noplat-bridge",
+      "skills": [
+        "roic-growth-value-core"
+      ],
+      "prompt": "统一合并口径：净利润 80，已包含税后非经营投资收益 10，税后净融资费用 15。无其他税差。经营 NOPLAT 多少？",
+      "expect": [
+        "NOPLAT 85",
+        "桥接并对齐资本和归属"
+      ],
+      "forbid": [
+        "扣非净利润自动等于 NOPLAT"
+      ],
+      "calculation": {
+        "kind": "noplat",
+        "input": {
+          "net_income": 80,
+          "nonoperating_after_tax": 10,
+          "financing_after_tax": 15
+        },
+        "expected": {
+          "noplat": 85
+        }
+      }
+    },
+    {
+      "id": "return-inflation",
+      "skills": [
+        "value-four-cornerstones"
+      ],
+      "prompt": "名义总回报 10%，通胀 4%，实际回报多少？价格/盈利均增长 20%，PE 不变且无分红，如何复算？",
+      "expect": [
+        "实际回报约 5.769%",
+        "同口径价格变化 20%，不能额外加盈利收益率"
+      ],
+      "forbid": [
+        "实际回报等于包含通胀的名义值"
+      ],
+      "calculation": {
+        "kind": "real_return",
+        "input": {
+          "nominal": 0.1,
+          "inflation": 0.04
+        },
+        "expected": {
+          "real": 0.05769230769230771
+        }
+      }
+    },
+    {
+      "id": "weighted-industry",
+      "skills": [
+        "equity-industry-analysis"
+      ],
+      "prompt": "行业仅两家公司，基期收入分别 90、10，下一期增速分别 10%、30%；行业增速多少？",
+      "expect": [
+        "规模加权后 12%",
+        "期间、覆盖及口径相同"
+      ],
+      "forbid": [
+        "直接把 10%+30% 当 40%"
+      ],
+      "calculation": {
+        "kind": "weighted",
+        "input": {
+          "base": [
+            90,
+            10
+          ],
+          "growth": [
+            0.1,
+            0.3
+          ]
+        },
+        "expected": {
+          "industry_growth": 0.12
+        }
+      }
+    },
+    {
+      "id": "multiple-routing",
+      "skills": [
+        "equity-valuation",
+        "valuation-multiple-traps"
+      ],
+      "prompt": "给制造商选主估值方法，然后校准同行 EV/EBITA 与会计差异。",
+      "expect": [
+        "估值方法/桥接由 equity-valuation 主导",
+        "倍数定义与同行校准用 valuation-multiple-traps",
+        "按阶段组合"
+      ],
+      "forbid": [
+        "重复计算后挑最乐观结果",
+        "因另一 skill 缺失拒绝整个任务"
+      ]
+    },
+    {
+      "id": "unavailable-monitor",
+      "skills": [
+        "equity-key-factors",
+        "equity-research-best-practices"
+      ],
+      "prompt": "只生成指标监测清单，本次没有调度器或外联授权。",
+      "expect": [
+        "交付指标、更新事件和待办",
+        "明确清单的执行状态"
+      ],
+      "forbid": [
+        "声称已经持续监测",
+        "擅自联系专家"
+      ]
+    },
+    {
+      "id": "small-acquisition",
+      "skills": [
+        "ma-value-creation-assessment"
+      ],
+      "prompt": "连续三年做了十笔小型技术补强收购，逐笔协同未披露。怎么评估？",
+      "expect": [
+        "按组合比较累计投入、能力增量与经营回报",
+        "给代理区间及缺口"
+      ],
+      "forbid": [
+        "金额小所以一律不适用"
+      ]
+    }
+  ]
+}

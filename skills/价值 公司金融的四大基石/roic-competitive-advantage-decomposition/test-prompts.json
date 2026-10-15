@@ -1,0 +1,61 @@
+{
+  "skill": "roic-competitive-advantage-decomposition",
+  "version": "0.2.0",
+  "source_book": "价值：公司金融的四大基石（修订本） — Tim Koller / Richard Dobbs / Bill Huyett",
+  "darwin_compatible": true,
+  "test_cases": [
+    {
+      "id": "should-trigger-01",
+      "type": "should_trigger",
+      "prompt": "这家消费品公司毛利率常年比同行高 15 个点，它的护城河到底是什么？这个优势还能持续多久？",
+      "expected_behavior": "激活，先对齐税后经营利润率与资本周转，核查价格/成本/资本效率、周期和会计替代解释；九类来源作检查清单，不强制唯一归类。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-02",
+      "type": "should_trigger",
+      "prompt": "这家公司高毛利是靠品牌溢价还是靠成本优势？怎么分辨真假品牌溢价？",
+      "expected_behavior": "激活，用 ROIC=税后经营利润率×资本周转，并结合单位价差、客户证据和投入区分优势；（价格−成本）/资本 不直接等于总公司 ROIC。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    },
+    {
+      "id": "should-trigger-03",
+      "type": "should_trigger",
+      "prompt": "算这家公司 ROIC 的时候，账上 30 亿商誉要不要算进投入资本？两种口径差多少？",
+      "expected_behavior": "激活，必须同时给出含商誉与不含商誉两个口径的 ROIC 并解释差异",
+      "notes": "正面：商誉口径是本 skill 的显式触发点"
+    },
+    {
+      "id": "should-not-trigger-01",
+      "type": "should_not_trigger",
+      "prompt": "这个新兴品类未来五年能涨到多大？行业增速能维持多久？",
+      "expected_behavior": "不激活本 skill，应激活 growth-quality-ladder —— 问的是市场规模与增长天花板，不是高 ROIC 的来源",
+      "notes": "跨 skill 混淆诱饵：同为行业研究高频问题"
+    },
+    {
+      "id": "should-not-trigger-02",
+      "type": "should_not_trigger",
+      "prompt": "同行业这几家公司 PE 从 12 倍到 40 倍，为什么差异这么大？",
+      "expected_behavior": "不激活本 skill，应激活 valuation-multiple-traps —— 问的是倍数差异的归因，不是竞争优势来源",
+      "notes": "跨 skill 混淆诱饵：'为什么这家比同行高'句式相似，但被比较的对象是估值而非回报率"
+    },
+    {
+      "id": "should-not-trigger-03",
+      "type": "should_not_trigger",
+      "prompt": "帮我查一下这家公司近三年的毛利率，以及和同行的对比数据，做成表格。",
+      "expected_behavior": "不激活任何本书 skill —— 纯数据查询与制表",
+      "notes": "诱饵：含毛利率与同行对比关键词，但无分析诉求"
+    },
+    {
+      "id": "edge-01",
+      "type": "edge_case",
+      "prompt": "某券商 ROE 长期高于行业平均，它的护城河在哪？",
+      "expected_behavior": "可用于定性优势机制，提示金融机构改用 ROE、资本充足与业务专属框架；不套非金融投入资本公式或历史分位。",
+      "notes": "2026-10-06：按行业/公司研究适配后的执行规则修订，当前版本未复跑模型。"
+    }
+  ],
+  "minimum_pass_rate": 0.8,
+  "notes": "3 条 should_trigger + 3 条 should_not_trigger（含 ≥1 条同书兄弟 skill 混淆诱饵）+ 1 条 edge_case。should_not_trigger 容错为 0。",
+  "evaluation_status": "not_run_after_revision",
+  "review_date": "2026-10-06"
+}

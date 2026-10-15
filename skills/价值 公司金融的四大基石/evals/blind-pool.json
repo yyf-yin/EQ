@@ -1,0 +1,242 @@
+[
+  {
+    "case_id": "roic-growth-value-core::should-trigger-01",
+    "prompt": "这家制造业公司过去三年收入复合增速 22%，但 ROIC 只有 6.5%，WACC 大概 9%。这种增长到底是在创造价值还是毁灭价值？"
+  },
+  {
+    "case_id": "roic-growth-value-core::should-trigger-02",
+    "prompt": "NOPLAT 12 亿，ROIC 18%，规划未来五年收入增速 10%，WACC 9%，帮我用关键价值驱动公式估个值。"
+  },
+  {
+    "case_id": "roic-growth-value-core::should-trigger-03",
+    "prompt": "这家公司披露的 ROE 是 21%，我想知道它真实的资本回报率该怎么从 ROE 换算到 ROIC？另外它这个增速对应的投资率是多少？"
+  },
+  {
+    "case_id": "roic-growth-value-core::should-not-trigger-01",
+    "prompt": "这家公司现在交易在 35 倍 PE，股价里已经隐含了多少增长预期？是不是已经 price in 了？"
+  },
+  {
+    "case_id": "roic-growth-value-core::should-not-trigger-02",
+    "prompt": "这家公司 30% 的收入增长主要来自渠道压货和降价抢份额，这个增长的质量怎么样，天花板在哪？"
+  },
+  {
+    "case_id": "roic-growth-value-core::should-not-trigger-03",
+    "prompt": "帮我用 Python 写一个三阶段 DCF 模型的脚本，输入自由现金流和折现率，输出每股内在价值。"
+  },
+  {
+    "case_id": "roic-growth-value-core::edge-01",
+    "prompt": "某城商行 ROIC 11%、贷款增速 6%，它的增长在创造价值吗？这个 ROIC 该怎么算？"
+  },
+  {
+    "case_id": "implied-expectations-reverse-dcf::should-trigger-01",
+    "prompt": "这家公司现在 40 倍 PE，市场给的这个价格到底隐含了未来多少年的增长？要多高的增速才撑得住？"
+  },
+  {
+    "case_id": "implied-expectations-reverse-dcf::should-trigger-02",
+    "prompt": "这家公司基本面很好，ROIC 25%，护城河也扎实，但我现在买是不是已经晚了？好公司等于好投资吗？"
+  },
+  {
+    "case_id": "implied-expectations-reverse-dcf::should-trigger-03",
+    "prompt": "这个板块过去一年跌了 40%，市场是不是过度悲观了？当前价格隐含的预期是多少，还能不能买？"
+  },
+  {
+    "case_id": "implied-expectations-reverse-dcf::should-not-trigger-01",
+    "prompt": "已知 ROIC 15%、增速 8%、WACC 9%、NOPLAT 20 亿，帮我算一下它的企业价值。"
+  },
+  {
+    "case_id": "implied-expectations-reverse-dcf::should-not-trigger-02",
+    "prompt": "这只股票过去三年涨了三倍，回报主要来自盈利增长还是估值扩张？帮我拆一下。"
+  },
+  {
+    "case_id": "implied-expectations-reverse-dcf::should-not-trigger-03",
+    "prompt": "今天这只票为什么突然跳水？盘口和大单有什么异动？"
+  },
+  {
+    "case_id": "implied-expectations-reverse-dcf::edge-01",
+    "prompt": "这家公司股价三天跌了 12%，是不是说明市场已经把坏消息 price in 了？"
+  },
+  {
+    "case_id": "roic-competitive-advantage-decomposition::should-trigger-01",
+    "prompt": "这家消费品公司毛利率常年比同行高 15 个点，它的护城河到底是什么？这个优势还能持续多久？"
+  },
+  {
+    "case_id": "roic-competitive-advantage-decomposition::should-trigger-02",
+    "prompt": "这家公司高毛利是靠品牌溢价还是靠成本优势？怎么分辨真假品牌溢价？"
+  },
+  {
+    "case_id": "roic-competitive-advantage-decomposition::should-trigger-03",
+    "prompt": "算这家公司 ROIC 的时候，账上 30 亿商誉要不要算进投入资本？两种口径差多少？"
+  },
+  {
+    "case_id": "roic-competitive-advantage-decomposition::should-not-trigger-01",
+    "prompt": "这个新兴品类未来五年能涨到多大？行业增速能维持多久？"
+  },
+  {
+    "case_id": "roic-competitive-advantage-decomposition::should-not-trigger-02",
+    "prompt": "同行业这几家公司 PE 从 12 倍到 40 倍，为什么差异这么大？"
+  },
+  {
+    "case_id": "roic-competitive-advantage-decomposition::should-not-trigger-03",
+    "prompt": "帮我查一下这家公司近三年的毛利率，以及和同行的对比数据，做成表格。"
+  },
+  {
+    "case_id": "roic-competitive-advantage-decomposition::edge-01",
+    "prompt": "某券商 ROE 长期高于行业平均，它的护城河在哪？"
+  },
+  {
+    "case_id": "growth-quality-ladder::should-trigger-01",
+    "prompt": "这家公司 30% 的增速主要靠抢竞争对手的份额，这种增长值不值钱？会不会引发价格战？"
+  },
+  {
+    "case_id": "growth-quality-ladder::should-trigger-02",
+    "prompt": "公司说要保持 25% 的增速到 2030 年，这个目标靠谱吗？历史上大公司能维持多久？"
+  },
+  {
+    "case_id": "growth-quality-ladder::should-trigger-03",
+    "prompt": "这个行业是不是已经内卷了？增长天花板在哪，第二增长曲线还有没有空间？"
+  },
+  {
+    "case_id": "growth-quality-ladder::should-not-trigger-01",
+    "prompt": "这家公司 ROIC 6%、增速 20%、WACC 9%，这种增长是创造价值还是毁灭价值？"
+  },
+  {
+    "case_id": "growth-quality-ladder::should-not-trigger-02",
+    "prompt": "这家公司凭什么能长期拿走行业里的大部分利润？"
+  },
+  {
+    "case_id": "growth-quality-ladder::should-not-trigger-03",
+    "prompt": "帮我拉一下这个行业过去五年的市场规模和增速数据，做个表。"
+  },
+  {
+    "case_id": "growth-quality-ladder::edge-01",
+    "prompt": "一家刚成立两年的新品类公司，今年增速 300%，帮我判断一下它的增长质量。"
+  },
+  {
+    "case_id": "valuation-multiple-traps::should-trigger-01",
+    "prompt": "做可比公司估值，PE、PB、EV/EBITDA 到底该用哪个？这几家该怎么选？"
+  },
+  {
+    "case_id": "valuation-multiple-traps::should-trigger-02",
+    "prompt": "这家公司 PE 比同行低 40%，是错杀还是它本来就该便宜？"
+  },
+  {
+    "case_id": "valuation-multiple-traps::should-trigger-03",
+    "prompt": "周期股在盈利高点的时候 PE 特别低，这时候用 PE 估值是不是有问题？该怎么调整？"
+  },
+  {
+    "case_id": "valuation-multiple-traps::should-not-trigger-01",
+    "prompt": "当前 30 倍 PE 隐含了什么样的增长预期？"
+  },
+  {
+    "case_id": "valuation-multiple-traps::should-not-trigger-02",
+    "prompt": "帮我用关键价值驱动公式算一下这家公司的内在价值，参数我都整理好了。"
+  },
+  {
+    "case_id": "valuation-multiple-traps::should-not-trigger-03",
+    "prompt": "A 股白酒板块现在的平均 PE 是多少？"
+  },
+  {
+    "case_id": "valuation-multiple-traps::edge-01",
+    "prompt": "这家公司现在亏损，PE 是负的，用 PS 给它估值可以吗？"
+  },
+  {
+    "case_id": "value-conservation-test::should-trigger-01",
+    "prompt": "公司宣布 50 亿回购，这是不是利好？回购这个动作本身创造价值吗？"
+  },
+  {
+    "case_id": "value-conservation-test::should-trigger-02",
+    "prompt": "公司要分拆一块业务单独上市，市场说能 SOTP 重估释放价值，这个说法成立吗？"
+  },
+  {
+    "case_id": "value-conservation-test::should-trigger-03",
+    "prompt": "这次会计政策变更让利润表好看多了，会影响公司价值吗？"
+  },
+  {
+    "case_id": "value-conservation-test::should-not-trigger-01",
+    "prompt": "公司花 80 亿收购一家同行，溢价 40%，管理层说协同效应每年 10 亿，这笔收购划算吗？"
+  },
+  {
+    "case_id": "value-conservation-test::should-not-trigger-02",
+    "prompt": "帮我查一下这次回购的具体方案、价格区间和时间表。"
+  },
+  {
+    "case_id": "value-conservation-test::should-not-trigger-03",
+    "prompt": "公司要发 30 亿可转债，摊薄影响怎么算？会不会影响它后续的财务弹性？"
+  },
+  {
+    "case_id": "value-conservation-test::edge-01",
+    "prompt": "公司宣布 10 送 10 高送转，股价会不会涨？"
+  },
+  {
+    "case_id": "ma-value-creation-assessment::should-trigger-01",
+    "prompt": "公司溢价 60% 收购一家同行，管理层说协同效应每年 8 亿，这笔收购对收购方股东来说是赚还是亏？"
+  },
+  {
+    "case_id": "ma-value-creation-assessment::should-trigger-02",
+    "prompt": "这笔收购完成后 EPS 是增厚的，是不是就说明这笔交易是好交易？"
+  },
+  {
+    "case_id": "ma-value-creation-assessment::should-trigger-03",
+    "prompt": "为什么实证研究里大部分收购方的股东回报是负的？什么样的收购才真正创造价值？"
+  },
+  {
+    "case_id": "ma-value-creation-assessment::should-not-trigger-01",
+    "prompt": "公司宣布 50 亿回购，回购这个动作本身创造价值吗？"
+  },
+  {
+    "case_id": "ma-value-creation-assessment::should-not-trigger-02",
+    "prompt": "给收购标的做可比公司估值，用 PE 还是 EV/EBITA 更合适？同行业并购交易 15 倍 PE 的估值中枢该怎么看才不踩坑？"
+  },
+  {
+    "case_id": "ma-value-creation-assessment::should-not-trigger-03",
+    "prompt": "这笔交易的金额、股权比例和预计交割时间是什么？"
+  },
+  {
+    "case_id": "ma-value-creation-assessment::edge-01",
+    "prompt": "公司花 2 亿做了一笔技术补强型小收购，需要做完整的价值创造评估吗？"
+  },
+  {
+    "case_id": "value-four-cornerstones::should-trigger-01",
+    "prompt": "这只股票过去五年涨了 400%，回报到底来自盈利增长、估值扩张还是分红回购？帮我拆一下。"
+  },
+  {
+    "case_id": "value-four-cornerstones::should-trigger-02",
+    "prompt": "最近市场整体估值抬升，主要是利率下行驱动的还是盈利改善驱动的？"
+  },
+  {
+    "case_id": "value-four-cornerstones::should-trigger-03",
+    "prompt": "这个赛道现在的估值和情绪，算不算泡沫？和典型的金融危机有什么本质区别？"
+  },
+  {
+    "case_id": "value-four-cornerstones::should-trigger-04",
+    "prompt": "这家公司这个季度业绩大超预期，我要不要因此上调对它的长期看法？"
+  },
+  {
+    "case_id": "value-four-cornerstones::should-trigger-05",
+    "prompt": "这家公司的主要股东结构是怎样的？被动指数基金占比高还是主动内在投资者占比高？这会不会影响它的估值定价？"
+  },
+  {
+    "case_id": "value-four-cornerstones::should-trigger-06",
+    "prompt": "集团要把一块业务卖掉，什么样的人买最合适？剥离是不是比继续持有对股东更好？"
+  },
+  {
+    "case_id": "value-four-cornerstones::should-trigger-07",
+    "prompt": "这家公司净负债率 70%，如果经济下行它扛得住吗？它的财务弹性和风险承受边界在哪？"
+  },
+  {
+    "case_id": "value-four-cornerstones::should-not-trigger-01",
+    "prompt": "这家公司 ROIC 6%、增速 20%、WACC 9%，增长是在创造价值还是毁灭价值？"
+  },
+  {
+    "case_id": "value-four-cornerstones::should-not-trigger-02",
+    "prompt": "这家公司当前股价隐含了什么样的增长预期？"
+  },
+  {
+    "case_id": "value-four-cornerstones::should-not-trigger-03",
+    "prompt": "帮我看看这只票的 MACD 和均线，现在能不能进场？"
+  },
+  {
+    "case_id": "value-four-cornerstones::edge-01",
+    "prompt": "帮我算一下这家银行的合理估值区间。"
+  }
+]

@@ -1,0 +1,11 @@
+{"case_id": "c003", "run": 1, "selected_skill": "roic-growth-value-core", "reason": "问 ROE 换算 ROIC 与投资率，命中核心触发词"}
+{"case_id": "c008", "run": 1, "selected_skill": "implied-expectations-reverse-dcf", "reason": "问当前价格隐含多少增长，reverse DCF"}
+{"case_id": "c013", "run": 1, "selected_skill": "none", "reason": "日内波动与盘口异动，属技术分析"}
+{"case_id": "c018", "run": 1, "selected_skill": "growth-quality-ladder", "reason": "问行业增速维持多久与增长天花板"}
+{"case_id": "c023", "run": 1, "selected_skill": "growth-quality-ladder", "reason": "增长目标靠谱吗，命中增长质量阶梯"}
+{"case_id": "c028", "run": 1, "selected_skill": "none", "reason": "成立两年新品类，属极早期不适用"}
+{"case_id": "c033", "run": 1, "selected_skill": "roic-growth-value-core", "reason": "关键价值驱动公式算内在价值"}
+{"case_id": "c038", "run": 1, "selected_skill": "value-conservation-test", "reason": "会计政策变更是否影响价值"}
+{"case_id": "c043", "run": 1, "selected_skill": "ma-value-creation-assessment", "reason": "溢价收购协同效应与股东得失"}
+{"case_id": "c048", "run": 1, "selected_skill": "none", "reason": "交易金额等纯事实查询，不适用"}
+{"case_id": "c053", "run": 1, "selected_skill": "value-four-cornerstones", "reason": "超预期财报是否改变看法，入口覆盖"}

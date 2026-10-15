@@ -1,0 +1,42 @@
+[
+ {
+  "case_id": "r001",
+  "prompt": "给收购标的做可比公司估值，用 PE 还是 EV/EBITA 更合适？同行业并购交易 15 倍 PE 的估值中枢该怎么看才不踩坑？",
+  "_real": "ma-value-creation-assessment::should-not-trigger-02"
+ },
+ {
+  "case_id": "r002",
+  "prompt": "这家公司的主要股东结构是怎样的？被动指数基金占比高还是主动内在投资者占比高？这会不会影响它的估值定价？",
+  "_real": "value-four-cornerstones::should-trigger-05"
+ },
+ {
+  "case_id": "r003",
+  "prompt": "集团要把一块业务卖掉，什么样的人买最合适？剥离是不是比继续持有对股东更好？",
+  "_real": "value-four-cornerstones::should-trigger-06"
+ },
+ {
+  "case_id": "r004",
+  "prompt": "这家公司净负债率 70%，如果经济下行它扛得住吗？它的财务弹性和风险承受边界在哪？",
+  "_real": "value-four-cornerstones::should-trigger-07"
+ },
+ {
+  "case_id": "f001",
+  "prompt": "这家制造业公司过去三年收入复合增速 22%，但 ROIC 只有 6.5%，WACC 大概 9%。这种增长到底是在创造价值还是毁灭价值？",
+  "_real": "roic-growth-value-core::should-trigger-01"
+ },
+ {
+  "case_id": "f002",
+  "prompt": "NOPLAT 12 亿，ROIC 18%，规划未来五年收入增速 10%，WACC 9%，帮我用关键价值驱动公式估个值。",
+  "_real": "roic-growth-value-core::should-trigger-02"
+ },
+ {
+  "case_id": "f003",
+  "prompt": "这家公司披露的 ROE 是 21%，我想知道它真实的资本回报率该怎么从 ROE 换算到 ROIC？另外它这个增速对应的投资率是多少？",
+  "_real": "roic-growth-value-core::should-trigger-03"
+ },
+ {
+  "case_id": "f004",
+  "prompt": "这家公司现在交易在 35 倍 PE，股价里已经隐含了多少增长预期？是不是已经 price in 了？",
+  "_real": "roic-growth-value-core::should-not-trigger-01"
+ }
+]

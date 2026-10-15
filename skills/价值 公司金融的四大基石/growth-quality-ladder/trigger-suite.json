@@ -1,0 +1,59 @@
+{
+  "suite_id": "trigger-growth-quality-ladder",
+  "target": "growth-quality-ladder",
+  "split_seed": 42,
+  "train_ratio": 0.6,
+  "trigger_cases": [
+    {
+      "case_id": "growth-quality-ladder::should-trigger-01",
+      "prompt": "这家公司 30% 的增速主要靠抢竞争对手的份额，这种增长值不值钱？会不会引发价格战？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "growth-quality-ladder::should-trigger-02",
+      "prompt": "公司说要保持 25% 的增速到 2030 年，这个目标靠谱吗？历史上大公司能维持多久？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "growth-quality-ladder::should-trigger-03",
+      "prompt": "这个行业是不是已经内卷了？增长天花板在哪，第二增长曲线还有没有空间？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "growth-quality-ladder::should-not-trigger-01",
+      "prompt": "这家公司 ROIC 6%、增速 20%、WACC 9%，这种增长是创造价值还是毁灭价值？",
+      "expected": "sibling",
+      "sibling_target": "roic-growth-value-core",
+      "runs": 1
+    },
+    {
+      "case_id": "growth-quality-ladder::should-not-trigger-02",
+      "prompt": "这家公司凭什么能长期拿走行业里的大部分利润？",
+      "expected": "sibling",
+      "sibling_target": "roic-competitive-advantage-decomposition",
+      "runs": 1
+    },
+    {
+      "case_id": "growth-quality-ladder::should-not-trigger-03",
+      "prompt": "帮我拉一下这个行业过去五年的市场规模和增速数据，做个表。",
+      "expected": "should_not_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "growth-quality-ladder::edge-01",
+      "prompt": "一家刚成立两年的新品类公司，今年增速 300%，帮我判断一下它的增长质量。",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    }
+  ],
+  "version": "0.2.0",
+  "evaluation_status": "not_run_after_revision"
+}

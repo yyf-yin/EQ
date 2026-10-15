@@ -1,0 +1,378 @@
+{
+ "roic-growth-value-core": [
+  {
+   "case_id": "roic-growth-value-core::should-trigger-01",
+   "run": 1,
+   "selected_skill": "roic-growth-value-core",
+   "reason": "给出 ROIC 与 WACC 相对大小，问增长是否创造价值"
+  },
+  {
+   "case_id": "roic-growth-value-core::should-not-trigger-03",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "纯代码实现请求，非价值方法论问题"
+  },
+  {
+   "case_id": "roic-growth-value-core::should-trigger-02",
+   "run": 1,
+   "selected_skill": "roic-growth-value-core",
+   "reason": "给出NOPLAT/ROIC/g/WACC求关键价值驱动公式估值"
+  },
+  {
+   "case_id": "roic-growth-value-core::edge-01",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "城商行属金融机构，核心与入口均声明不适用"
+  },
+  {
+   "case_id": "roic-growth-value-core::should-trigger-03",
+   "run": 1,
+   "selected_skill": "roic-growth-value-core",
+   "reason": "问 ROE 换算 ROIC 与投资率，命中核心触发词"
+  },
+  {
+   "case_id": "roic-growth-value-core::should-not-trigger-01",
+   "run": 1,
+   "selected_skill": "implied-expectations-reverse-dcf",
+   "reason": "问股价隐含多少增长预期、是否 price in"
+  },
+  {
+   "case_id": "roic-growth-value-core::should-not-trigger-02",
+   "run": 1,
+   "selected_skill": "growth-quality-ladder",
+   "reason": "问增长质量来源与天花板，属增长阶梯"
+  }
+ ],
+ "implied-expectations-reverse-dcf": [
+  {
+   "case_id": "implied-expectations-reverse-dcf::should-not-trigger-01",
+   "run": 1,
+   "selected_skill": "roic-growth-value-core",
+   "reason": "用关键价值驱动公式由 ROIC、g、WACC 算企业价值"
+  },
+  {
+   "case_id": "implied-expectations-reverse-dcf::should-not-trigger-02",
+   "run": 1,
+   "selected_skill": "value-four-cornerstones",
+   "reason": "复盘历史回报归因属TRS分解，未晋级为独立skill"
+  },
+  {
+   "case_id": "implied-expectations-reverse-dcf::should-trigger-01",
+   "run": 1,
+   "selected_skill": "implied-expectations-reverse-dcf",
+   "reason": "问当前价格隐含多少增长，reverse DCF"
+  },
+  {
+   "case_id": "implied-expectations-reverse-dcf::should-not-trigger-03",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "日内波动与盘口异动，属技术分析"
+  },
+  {
+   "case_id": "implied-expectations-reverse-dcf::should-trigger-02",
+   "run": 1,
+   "selected_skill": "implied-expectations-reverse-dcf",
+   "reason": "好公司是否等于好投资、现在买是否透支"
+  },
+  {
+   "case_id": "implied-expectations-reverse-dcf::edge-01",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "三日级股价波动解释，属不适用条款"
+  },
+  {
+   "case_id": "implied-expectations-reverse-dcf::should-trigger-03",
+   "run": 1,
+   "selected_skill": "implied-expectations-reverse-dcf",
+   "reason": "问价格隐含预期与是否过度悲观"
+  }
+ ],
+ "roic-competitive-advantage-decomposition": [
+  {
+   "case_id": "roic-competitive-advantage-decomposition::should-trigger-02",
+   "run": 1,
+   "selected_skill": "roic-competitive-advantage-decomposition",
+   "reason": "分辨高毛利来源与真假品牌溢价"
+  },
+  {
+   "case_id": "roic-competitive-advantage-decomposition::edge-01",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "券商属金融机构，护城河拆解明确不适用"
+  },
+  {
+   "case_id": "roic-competitive-advantage-decomposition::should-trigger-03",
+   "run": 1,
+   "selected_skill": "roic-competitive-advantage-decomposition",
+   "reason": "明确触发商誉是否计入ROIC且需双口径对比"
+  },
+  {
+   "case_id": "roic-competitive-advantage-decomposition::should-not-trigger-01",
+   "run": 1,
+   "selected_skill": "growth-quality-ladder",
+   "reason": "问行业增速维持多久与增长天花板"
+  },
+  {
+   "case_id": "roic-competitive-advantage-decomposition::should-not-trigger-02",
+   "run": 1,
+   "selected_skill": "valuation-multiple-traps",
+   "reason": "同行 PE 差异与折溢价归因"
+  },
+  {
+   "case_id": "roic-competitive-advantage-decomposition::should-trigger-01",
+   "run": 1,
+   "selected_skill": "roic-competitive-advantage-decomposition",
+   "reason": "问高毛利护城河来源及持续性"
+  },
+  {
+   "case_id": "roic-competitive-advantage-decomposition::should-not-trigger-03",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "纯数据查询做表，无估值判断需求"
+  }
+ ],
+ "growth-quality-ladder": [
+  {
+   "case_id": "growth-quality-ladder::should-not-trigger-02",
+   "run": 1,
+   "selected_skill": "roic-competitive-advantage-decomposition",
+   "reason": "问高 ROIC 来源及为何优于同行"
+  },
+  {
+   "case_id": "growth-quality-ladder::should-trigger-01",
+   "run": 1,
+   "selected_skill": "growth-quality-ladder",
+   "reason": "抢份额增长的价值含量与价格战判定"
+  },
+  {
+   "case_id": "growth-quality-ladder::should-not-trigger-03",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "纯行业规模与增速数据拉取，属事实查询"
+  },
+  {
+   "case_id": "growth-quality-ladder::should-trigger-02",
+   "run": 1,
+   "selected_skill": "growth-quality-ladder",
+   "reason": "增长目标靠谱吗，命中增长质量阶梯"
+  },
+  {
+   "case_id": "growth-quality-ladder::edge-01",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "成立两年新品类，属极早期不适用"
+  },
+  {
+   "case_id": "growth-quality-ladder::should-trigger-03",
+   "run": 1,
+   "selected_skill": "growth-quality-ladder",
+   "reason": "内卷、增长天花板、第二增长曲线"
+  },
+  {
+   "case_id": "growth-quality-ladder::should-not-trigger-01",
+   "run": 1,
+   "selected_skill": "roic-growth-value-core",
+   "reason": "给ROIC、g、WACC问增长创值与否"
+  }
+ ],
+ "valuation-multiple-traps": [
+  {
+   "case_id": "valuation-multiple-traps::should-trigger-03",
+   "run": 1,
+   "selected_skill": "valuation-multiple-traps",
+   "reason": "周期股估值该用哪个倍数及如何调整"
+  },
+  {
+   "case_id": "valuation-multiple-traps::should-not-trigger-01",
+   "run": 1,
+   "selected_skill": "implied-expectations-reverse-dcf",
+   "reason": "当前PE反推隐含增长预期"
+  },
+  {
+   "case_id": "valuation-multiple-traps::should-not-trigger-02",
+   "run": 1,
+   "selected_skill": "roic-growth-value-core",
+   "reason": "关键价值驱动公式算内在价值"
+  },
+  {
+   "case_id": "valuation-multiple-traps::should-trigger-01",
+   "run": 1,
+   "selected_skill": "valuation-multiple-traps",
+   "reason": "可比公司估值该用哪个倍数"
+  },
+  {
+   "case_id": "valuation-multiple-traps::should-not-trigger-03",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "只要行业平均 PE 数值的事实查询"
+  },
+  {
+   "case_id": "valuation-multiple-traps::should-trigger-02",
+   "run": 1,
+   "selected_skill": "valuation-multiple-traps",
+   "reason": "问同行折价是错杀还是应便宜"
+  },
+  {
+   "case_id": "valuation-multiple-traps::edge-01",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "亏损公司估值，落在倍数陷阱不适用条款"
+  }
+ ],
+ "value-conservation-test": [
+  {
+   "case_id": "value-conservation-test::should-trigger-01",
+   "run": 1,
+   "selected_skill": "value-conservation-test",
+   "reason": "回购是否利好、是否创造价值"
+  },
+  {
+   "case_id": "value-conservation-test::should-not-trigger-03",
+   "run": 1,
+   "selected_skill": "value-four-cornerstones",
+   "reason": "可转债摊薄与财务弹性属资本结构能力"
+  },
+  {
+   "case_id": "value-conservation-test::should-trigger-02",
+   "run": 1,
+   "selected_skill": "value-conservation-test",
+   "reason": "分拆释放价值说法成立性检验"
+  },
+  {
+   "case_id": "value-conservation-test::edge-01",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "预测高送转股价短期反应，属不适用条款"
+  },
+  {
+   "case_id": "value-conservation-test::should-trigger-03",
+   "run": 1,
+   "selected_skill": "value-conservation-test",
+   "reason": "会计政策变更是否影响价值"
+  },
+  {
+   "case_id": "value-conservation-test::should-not-trigger-01",
+   "run": 1,
+   "selected_skill": "ma-value-creation-assessment",
+   "reason": "收购溢价与协同效应是否值"
+  },
+  {
+   "case_id": "value-conservation-test::should-not-trigger-02",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "查回购方案事实，非价值守恒判断"
+  }
+ ],
+ "ma-value-creation-assessment": [
+  {
+   "case_id": "ma-value-creation-assessment::should-not-trigger-01",
+   "run": 1,
+   "selected_skill": "value-conservation-test",
+   "reason": "回购动作本身是否创造价值"
+  },
+  {
+   "case_id": "ma-value-creation-assessment::should-trigger-01",
+   "run": 1,
+   "selected_skill": "ma-value-creation-assessment",
+   "reason": "溢价收购协同效应与股东得失"
+  },
+  {
+   "case_id": "ma-value-creation-assessment::should-not-trigger-03",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "交易金额等纯事实查询，不适用"
+  },
+  {
+   "case_id": "ma-value-creation-assessment::should-trigger-02",
+   "run": 1,
+   "selected_skill": "ma-value-creation-assessment",
+   "reason": "EPS 增厚是否代表并购是好交易"
+  },
+  {
+   "case_id": "ma-value-creation-assessment::edge-01",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "极小规模补强收购逐个评估不适用"
+  },
+  {
+   "case_id": "ma-value-creation-assessment::should-trigger-03",
+   "run": 1,
+   "selected_skill": "ma-value-creation-assessment",
+   "reason": "问并购何时真正创造价值"
+  },
+  {
+   "case_id": "ma-value-creation-assessment::should-not-trigger-02",
+   "run": 1,
+   "selected_skill": "valuation-multiple-traps",
+   "reason": "问可比估值选 PE 还是 EV/EBITA 及估值中枢，属倍数选择"
+  }
+ ],
+ "value-four-cornerstones": [
+  {
+   "case_id": "value-four-cornerstones::should-trigger-02",
+   "run": 1,
+   "selected_skill": "value-four-cornerstones",
+   "reason": "判断市场估值由利率还是盈利驱动"
+  },
+  {
+   "case_id": "value-four-cornerstones::should-not-trigger-03",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "MACD 与均线属技术分析，明确不适用"
+  },
+  {
+   "case_id": "value-four-cornerstones::should-trigger-03",
+   "run": 1,
+   "selected_skill": "value-four-cornerstones",
+   "reason": "泡沫诊断能力，无对应独立skill"
+  },
+  {
+   "case_id": "value-four-cornerstones::edge-01",
+   "run": 1,
+   "selected_skill": "none",
+   "reason": "银行估值属金融机构，入口明确排除"
+  },
+  {
+   "case_id": "value-four-cornerstones::should-trigger-04",
+   "run": 1,
+   "selected_skill": "value-four-cornerstones",
+   "reason": "超预期财报是否改变看法，入口覆盖"
+  },
+  {
+   "case_id": "value-four-cornerstones::should-not-trigger-01",
+   "run": 1,
+   "selected_skill": "roic-growth-value-core",
+   "reason": "ROIC 低于 WACC 时增长是否毁灭价值"
+  },
+  {
+   "case_id": "value-four-cornerstones::should-trigger-01",
+   "run": 1,
+   "selected_skill": "value-four-cornerstones",
+   "reason": "TRS归因未晋级独立skill，走路由入口"
+  },
+  {
+   "case_id": "value-four-cornerstones::should-not-trigger-02",
+   "run": 1,
+   "selected_skill": "implied-expectations-reverse-dcf",
+   "reason": "问股价隐含的增长预期"
+  },
+  {
+   "case_id": "value-four-cornerstones::should-trigger-05",
+   "run": 1,
+   "selected_skill": "value-four-cornerstones",
+   "reason": "投资者结构属母入口 16 能力之一，无独立 skill"
+  },
+  {
+   "case_id": "value-four-cornerstones::should-trigger-06",
+   "run": 1,
+   "selected_skill": "value-four-cornerstones",
+   "reason": "最佳所有者与剥离属母入口能力，无独立 skill"
+  },
+  {
+   "case_id": "value-four-cornerstones::should-trigger-07",
+   "run": 1,
+   "selected_skill": "value-four-cornerstones",
+   "reason": "风险承受边界与财务弹性属母入口能力"
+  }
+ ]
+}

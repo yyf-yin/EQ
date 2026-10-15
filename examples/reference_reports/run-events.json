@@ -1,0 +1,677 @@
+[
+  {
+    "event_id": 455,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:14:59.223787+00:00",
+    "stage": "公司识别",
+    "task_name": "resolve_company",
+    "status": "running",
+    "display_message": "模拟运行 · 核对上市公司身份"
+  },
+  {
+    "event_id": 456,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.199991+00:00",
+    "stage": "公司识别",
+    "task_name": "resolve_company",
+    "status": "completed",
+    "display_message": "核对上市公司身份已完成"
+  },
+  {
+    "event_id": 457,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.205299+00:00",
+    "stage": "公司识别",
+    "task_name": "公司识别",
+    "status": "completed",
+    "display_message": "公司识别阶段任务已完成"
+  },
+  {
+    "event_id": 458,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.210413+00:00",
+    "stage": "研究规划",
+    "task_name": "research_brief",
+    "status": "running",
+    "display_message": "模拟运行 · 确定研究范围"
+  },
+  {
+    "event_id": 459,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.222206+00:00",
+    "stage": "研究规划",
+    "task_name": "research_brief",
+    "status": "completed",
+    "display_message": "确定研究范围已完成"
+  },
+  {
+    "event_id": 460,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.227346+00:00",
+    "stage": "研究规划",
+    "task_name": "research_plan",
+    "status": "running",
+    "display_message": "模拟运行 · 规划业务与行业研究"
+  },
+  {
+    "event_id": 461,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.268101+00:00",
+    "stage": "研究规划",
+    "task_name": "research_plan",
+    "status": "completed",
+    "display_message": "规划业务与行业研究已完成"
+  },
+  {
+    "event_id": 462,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.272585+00:00",
+    "stage": "研究规划",
+    "task_name": "calculation_plan",
+    "status": "running",
+    "display_message": "模拟运行 · 选择财务指标与预测模型"
+  },
+  {
+    "event_id": 463,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.284530+00:00",
+    "stage": "研究规划",
+    "task_name": "calculation_plan",
+    "status": "completed",
+    "display_message": "选择财务指标与预测模型已完成"
+  },
+  {
+    "event_id": 464,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.289771+00:00",
+    "stage": "研究规划",
+    "task_name": "dependencies",
+    "status": "running",
+    "display_message": "模拟运行 · 检查公式所需数据"
+  },
+  {
+    "event_id": 465,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.305395+00:00",
+    "stage": "研究规划",
+    "task_name": "dependencies",
+    "status": "completed",
+    "display_message": "检查公式所需数据已完成"
+  },
+  {
+    "event_id": 466,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.310900+00:00",
+    "stage": "研究规划",
+    "task_name": "研究规划",
+    "status": "completed",
+    "display_message": "研究规划阶段任务已完成"
+  },
+  {
+    "event_id": 467,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:01.315900+00:00",
+    "stage": "数据收集",
+    "task_name": "supervisor",
+    "status": "running",
+    "display_message": "模拟运行 · 收集公司、业务与财务资料"
+  },
+  {
+    "event_id": 468,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.796981+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-0",
+    "status": "running",
+    "display_message": "检索资料：公司概况与竞争力，轮次 1"
+  },
+  {
+    "event_id": 469,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.805091+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-0",
+    "status": "running",
+    "display_message": "缺口检查：公司概况与竞争力，已保留 1 项证据"
+  },
+  {
+    "event_id": 470,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.806539+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-1",
+    "status": "running",
+    "display_message": "检索资料：历史财务及现金质量，轮次 1"
+  },
+  {
+    "event_id": 471,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.821188+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-1",
+    "status": "running",
+    "display_message": "缺口检查：历史财务及现金质量，已保留 0 项证据"
+  },
+  {
+    "event_id": 472,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.823189+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-0",
+    "status": "completed",
+    "display_message": "研究摘要完成：公司概况与竞争力"
+  },
+  {
+    "event_id": 473,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.836789+00:00",
+    "stage": "业务研究",
+    "task_name": "demo-2_business",
+    "status": "running",
+    "display_message": "业务与行业研究：设备业务及行业"
+  },
+  {
+    "event_id": 474,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.842794+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-2",
+    "status": "running",
+    "display_message": "检索资料：设备业务及行业，轮次 1"
+  },
+  {
+    "event_id": 475,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.848090+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-1",
+    "status": "completed",
+    "display_message": "研究摘要完成：历史财务及现金质量"
+  },
+  {
+    "event_id": 476,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.854237+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-2",
+    "status": "running",
+    "display_message": "缺口检查：设备业务及行业，已保留 1 项证据"
+  },
+  {
+    "event_id": 477,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.864906+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-2",
+    "status": "completed",
+    "display_message": "研究摘要完成：设备业务及行业"
+  },
+  {
+    "event_id": 478,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.870370+00:00",
+    "stage": "业务研究",
+    "task_name": "业务研究",
+    "status": "completed",
+    "display_message": "业务与行业研究已完成：设备业务及行业"
+  },
+  {
+    "event_id": 479,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.983142+00:00",
+    "stage": "业务研究",
+    "task_name": "demo-3_business",
+    "status": "running",
+    "display_message": "业务与行业研究：服务业务及行业"
+  },
+  {
+    "event_id": 480,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.989538+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-3",
+    "status": "running",
+    "display_message": "检索资料：服务业务及行业，轮次 1"
+  },
+  {
+    "event_id": 481,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.996034+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-3",
+    "status": "running",
+    "display_message": "缺口检查：服务业务及行业，已保留 1 项证据"
+  },
+  {
+    "event_id": 482,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:02.999120+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-4",
+    "status": "running",
+    "display_message": "检索资料：预测与估值依据，轮次 1"
+  },
+  {
+    "event_id": 483,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.014638+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-4",
+    "status": "running",
+    "display_message": "缺口检查：预测与估值依据，已保留 1 项证据"
+  },
+  {
+    "event_id": 484,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.014638+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-3",
+    "status": "completed",
+    "display_message": "研究摘要完成：服务业务及行业"
+  },
+  {
+    "event_id": 485,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.029023+00:00",
+    "stage": "业务研究",
+    "task_name": "业务研究",
+    "status": "completed",
+    "display_message": "业务与行业研究已完成：服务业务及行业"
+  },
+  {
+    "event_id": 486,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.036029+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-5",
+    "status": "running",
+    "display_message": "检索资料：经营与财务风险，轮次 1"
+  },
+  {
+    "event_id": 487,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.041390+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-4",
+    "status": "completed",
+    "display_message": "研究摘要完成：预测与估值依据"
+  },
+  {
+    "event_id": 488,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.047122+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-5",
+    "status": "running",
+    "display_message": "缺口检查：经营与财务风险，已保留 1 项证据"
+  },
+  {
+    "event_id": 489,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.062082+00:00",
+    "stage": "数据收集",
+    "task_name": "demo-5",
+    "status": "completed",
+    "display_message": "研究摘要完成：经营与财务风险"
+  },
+  {
+    "event_id": 490,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.140187+00:00",
+    "stage": "数据收集",
+    "task_name": "supervisor",
+    "status": "completed",
+    "display_message": "收集公司、业务与财务资料已完成"
+  },
+  {
+    "event_id": 491,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.145857+00:00",
+    "stage": "数据收集",
+    "task_name": "数据收集",
+    "status": "completed",
+    "display_message": "数据收集阶段任务已完成"
+  },
+  {
+    "event_id": 492,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.150260+00:00",
+    "stage": "数据收集",
+    "task_name": "data_gaps",
+    "status": "running",
+    "display_message": "模拟运行 · 检查数据缺口"
+  },
+  {
+    "event_id": 493,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.162208+00:00",
+    "stage": "数据收集",
+    "task_name": "data_gaps",
+    "status": "completed",
+    "display_message": "检查数据缺口已完成"
+  },
+  {
+    "event_id": 494,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.169138+00:00",
+    "stage": "财务分析",
+    "task_name": "financial_analysis",
+    "status": "running",
+    "display_message": "模拟运行 · 分析历史财务与现金质量"
+  },
+  {
+    "event_id": 495,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.182237+00:00",
+    "stage": "财务分析",
+    "task_name": "financial_analysis",
+    "status": "completed",
+    "display_message": "分析历史财务与现金质量已完成"
+  },
+  {
+    "event_id": 496,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.186746+00:00",
+    "stage": "财务分析",
+    "task_name": "财务分析",
+    "status": "completed",
+    "display_message": "财务分析阶段任务已完成"
+  },
+  {
+    "event_id": 497,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.195787+00:00",
+    "stage": "盈利预测",
+    "task_name": "assumptions",
+    "status": "running",
+    "display_message": "模拟运行 · 制定有依据的预测假设"
+  },
+  {
+    "event_id": 498,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.207112+00:00",
+    "stage": "盈利预测",
+    "task_name": "assumptions",
+    "status": "completed",
+    "display_message": "制定有依据的预测假设已完成"
+  },
+  {
+    "event_id": 499,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:03.213650+00:00",
+    "stage": "盈利预测",
+    "task_name": "calculate",
+    "status": "running",
+    "display_message": "模拟运行 · 计算预测与估值"
+  },
+  {
+    "event_id": 500,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.693402+00:00",
+    "stage": "盈利预测",
+    "task_name": "calculate",
+    "status": "completed",
+    "display_message": "计算预测与估值已完成"
+  },
+  {
+    "event_id": 501,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.700161+00:00",
+    "stage": "盈利预测",
+    "task_name": "validate",
+    "status": "running",
+    "display_message": "模拟运行 · 复算财务结果"
+  },
+  {
+    "event_id": 502,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.718880+00:00",
+    "stage": "盈利预测",
+    "task_name": "validate",
+    "status": "completed",
+    "display_message": "复算财务结果已完成"
+  },
+  {
+    "event_id": 503,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.724172+00:00",
+    "stage": "盈利预测",
+    "task_name": "盈利预测",
+    "status": "completed",
+    "display_message": "盈利预测阶段任务已完成"
+  },
+  {
+    "event_id": 504,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.729240+00:00",
+    "stage": "报告写作",
+    "task_name": "write_sections",
+    "status": "running",
+    "display_message": "模拟运行 · 编写各研究章节"
+  },
+  {
+    "event_id": 505,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.757335+00:00",
+    "stage": "报告写作",
+    "task_name": "write_sections",
+    "status": "completed",
+    "display_message": "编写各研究章节已完成"
+  },
+  {
+    "event_id": 506,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.764340+00:00",
+    "stage": "报告写作",
+    "task_name": "core_conclusion",
+    "status": "running",
+    "display_message": "模拟运行 · 提炼核心观点"
+  },
+  {
+    "event_id": 507,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.786739+00:00",
+    "stage": "报告写作",
+    "task_name": "core_conclusion",
+    "status": "completed",
+    "display_message": "提炼核心观点已完成"
+  },
+  {
+    "event_id": 508,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.793154+00:00",
+    "stage": "报告写作",
+    "task_name": "assemble",
+    "status": "running",
+    "display_message": "模拟运行 · 组装目录、表格与引用"
+  },
+  {
+    "event_id": 509,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.819283+00:00",
+    "stage": "报告写作",
+    "task_name": "assemble",
+    "status": "completed",
+    "display_message": "组装目录、表格与引用已完成"
+  },
+  {
+    "event_id": 510,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.826786+00:00",
+    "stage": "报告写作",
+    "task_name": "报告写作",
+    "status": "completed",
+    "display_message": "报告写作阶段任务已完成"
+  },
+  {
+    "event_id": 511,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.831795+00:00",
+    "stage": "最终审核",
+    "task_name": "final_review",
+    "status": "running",
+    "display_message": "模拟运行 · 独立审核报告"
+  },
+  {
+    "event_id": 512,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.870824+00:00",
+    "stage": "最终审核",
+    "task_name": "review_critical",
+    "status": "running",
+    "display_message": "独立审核：研究逻辑"
+  },
+  {
+    "event_id": 513,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.877845+00:00",
+    "stage": "最终审核",
+    "task_name": "review_critical",
+    "status": "completed",
+    "display_message": "研究逻辑审核完成，发现 0 项问题"
+  },
+  {
+    "event_id": 514,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.882851+00:00",
+    "stage": "最终审核",
+    "task_name": "review_editorial",
+    "status": "running",
+    "display_message": "独立审核：语言与完整性"
+  },
+  {
+    "event_id": 515,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.890537+00:00",
+    "stage": "最终审核",
+    "task_name": "review_editorial",
+    "status": "completed",
+    "display_message": "语言与完整性审核完成，发现 0 项问题"
+  },
+  {
+    "event_id": 516,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.895537+00:00",
+    "stage": "最终审核",
+    "task_name": "review_evidence",
+    "status": "running",
+    "display_message": "独立审核：来源与时效"
+  },
+  {
+    "event_id": 517,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.902053+00:00",
+    "stage": "最终审核",
+    "task_name": "review_evidence",
+    "status": "completed",
+    "display_message": "来源与时效审核完成，发现 0 项问题"
+  },
+  {
+    "event_id": 518,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.907055+00:00",
+    "stage": "最终审核",
+    "task_name": "review_financial",
+    "status": "running",
+    "display_message": "独立审核：财务与三表"
+  },
+  {
+    "event_id": 519,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.918622+00:00",
+    "stage": "最终审核",
+    "task_name": "review_financial",
+    "status": "completed",
+    "display_message": "财务与三表审核完成，发现 0 项问题"
+  },
+  {
+    "event_id": 520,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.924626+00:00",
+    "stage": "最终审核",
+    "task_name": "review_structural",
+    "status": "running",
+    "display_message": "独立审核：报告结构"
+  },
+  {
+    "event_id": 521,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.931142+00:00",
+    "stage": "最终审核",
+    "task_name": "review_structural",
+    "status": "completed",
+    "display_message": "报告结构审核完成，发现 0 项问题"
+  },
+  {
+    "event_id": 522,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.980414+00:00",
+    "stage": "最终审核",
+    "task_name": "final_review",
+    "status": "completed",
+    "display_message": "独立审核报告已完成"
+  },
+  {
+    "event_id": 523,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.985404+00:00",
+    "stage": "最终审核",
+    "task_name": "最终审核",
+    "status": "completed",
+    "display_message": "最终审核阶段任务已完成"
+  },
+  {
+    "event_id": 524,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:05.991151+00:00",
+    "stage": "文档生成",
+    "task_name": "render",
+    "status": "running",
+    "display_message": "模拟运行 · 生成阅读与下载文件"
+  },
+  {
+    "event_id": 525,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:06.597366+00:00",
+    "stage": "文档生成",
+    "task_name": "render",
+    "status": "completed",
+    "display_message": "生成阅读与下载文件已完成"
+  },
+  {
+    "event_id": 526,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:06.603373+00:00",
+    "stage": "文档生成",
+    "task_name": "文档生成",
+    "status": "completed",
+    "display_message": "文档生成阶段任务已完成"
+  },
+  {
+    "event_id": 527,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:06.608799+00:00",
+    "stage": "文档生成",
+    "task_name": "deliver",
+    "status": "running",
+    "display_message": "模拟运行 · 交付研究报告"
+  },
+  {
+    "event_id": 528,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:06.630438+00:00",
+    "stage": "文档生成",
+    "task_name": "deliver",
+    "status": "completed",
+    "display_message": "交付研究报告已完成"
+  },
+  {
+    "event_id": 529,
+    "run_id": "ca4dfbf8a33a476d9ea3a3b7b82023b4",
+    "timestamp": "2026-10-09T04:15:06.671929+00:00",
+    "stage": "文档生成",
+    "task_name": "delivery",
+    "status": "limited",
+    "display_message": "模拟报告已生成，可阅读和下载"
+  }
+]

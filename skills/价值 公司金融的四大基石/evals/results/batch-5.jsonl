@@ -1,0 +1,11 @@
+{"case_id": "c005", "run": 1, "selected_skill": "growth-quality-ladder", "reason": "问增长质量来源与天花板，属增长阶梯"}
+{"case_id": "c010", "run": 1, "selected_skill": "implied-expectations-reverse-dcf", "reason": "问价格隐含预期与是否过度悲观"}
+{"case_id": "c015", "run": 1, "selected_skill": "roic-competitive-advantage-decomposition", "reason": "问高毛利护城河来源及持续性"}
+{"case_id": "c020", "run": 1, "selected_skill": "none", "reason": "纯数据查询做表，无估值判断需求"}
+{"case_id": "c025", "run": 1, "selected_skill": "roic-growth-value-core", "reason": "给ROIC、g、WACC问增长创值与否"}
+{"case_id": "c030", "run": 1, "selected_skill": "valuation-multiple-traps", "reason": "问同行折价是错杀还是应便宜"}
+{"case_id": "c035", "run": 1, "selected_skill": "none", "reason": "亏损公司估值，落在倍数陷阱不适用条款"}
+{"case_id": "c040", "run": 1, "selected_skill": "none", "reason": "查回购方案事实，非价值守恒判断"}
+{"case_id": "c045", "run": 1, "selected_skill": "ma-value-creation-assessment", "reason": "问并购何时真正创造价值"}
+{"case_id": "c050", "run": 1, "selected_skill": "value-four-cornerstones", "reason": "TRS归因未晋级独立skill，走路由入口"}
+{"case_id": "c055", "run": 1, "selected_skill": "implied-expectations-reverse-dcf", "reason": "问股价隐含的增长预期"}

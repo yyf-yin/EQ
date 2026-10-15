@@ -1,0 +1,7 @@
+{"case_id": "valuation-multiple-traps::should-trigger-03", "run": 1, "selected_skill": "valuation-multiple-traps"}
+{"case_id": "valuation-multiple-traps::should-not-trigger-01", "run": 1, "selected_skill": "implied-expectations-reverse-dcf"}
+{"case_id": "valuation-multiple-traps::should-not-trigger-02", "run": 1, "selected_skill": "roic-growth-value-core"}
+{"case_id": "valuation-multiple-traps::should-trigger-01", "run": 1, "selected_skill": "valuation-multiple-traps"}
+{"case_id": "valuation-multiple-traps::should-not-trigger-03", "run": 1, "selected_skill": "none"}
+{"case_id": "valuation-multiple-traps::should-trigger-02", "run": 1, "selected_skill": "valuation-multiple-traps"}
+{"case_id": "valuation-multiple-traps::edge-01", "run": 1, "selected_skill": "none"}

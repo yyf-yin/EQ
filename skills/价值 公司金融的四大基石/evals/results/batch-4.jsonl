@@ -1,0 +1,11 @@
+{"case_id": "c004", "run": 1, "selected_skill": "implied-expectations-reverse-dcf", "reason": "问股价隐含多少增长预期、是否 price in"}
+{"case_id": "c009", "run": 1, "selected_skill": "implied-expectations-reverse-dcf", "reason": "好公司是否等于好投资、现在买是否透支"}
+{"case_id": "c014", "run": 1, "selected_skill": "none", "reason": "三日级股价波动解释，属不适用条款"}
+{"case_id": "c019", "run": 1, "selected_skill": "valuation-multiple-traps", "reason": "同行 PE 差异与折溢价归因"}
+{"case_id": "c024", "run": 1, "selected_skill": "growth-quality-ladder", "reason": "内卷、增长天花板、第二增长曲线"}
+{"case_id": "c029", "run": 1, "selected_skill": "valuation-multiple-traps", "reason": "可比公司估值该用哪个倍数"}
+{"case_id": "c034", "run": 1, "selected_skill": "none", "reason": "只要行业平均 PE 数值的事实查询"}
+{"case_id": "c039", "run": 1, "selected_skill": "ma-value-creation-assessment", "reason": "收购溢价与协同效应是否值"}
+{"case_id": "c044", "run": 1, "selected_skill": "ma-value-creation-assessment", "reason": "EPS 增厚是否代表并购是好交易"}
+{"case_id": "c049", "run": 1, "selected_skill": "none", "reason": "极小规模补强收购逐个评估不适用"}
+{"case_id": "c054", "run": 1, "selected_skill": "roic-growth-value-core", "reason": "ROIC 低于 WACC 时增长是否毁灭价值"}

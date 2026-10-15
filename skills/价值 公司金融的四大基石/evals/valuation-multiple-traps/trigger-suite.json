@@ -1,0 +1,59 @@
+{
+  "suite_id": "trigger-valuation-multiple-traps",
+  "target": "valuation-multiple-traps",
+  "split_seed": 42,
+  "train_ratio": 0.6,
+  "trigger_cases": [
+    {
+      "case_id": "valuation-multiple-traps::should-trigger-01",
+      "prompt": "做可比公司估值，PE、PB、EV/EBITDA 到底该用哪个？这几家该怎么选？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "valuation-multiple-traps::should-trigger-02",
+      "prompt": "这家公司 PE 比同行低 40%，是错杀还是它本来就该便宜？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "valuation-multiple-traps::should-trigger-03",
+      "prompt": "周期股在盈利高点的时候 PE 特别低，这时候用 PE 估值是不是有问题？该怎么调整？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "valuation-multiple-traps::should-not-trigger-01",
+      "prompt": "当前 30 倍 PE 隐含了什么样的增长预期？",
+      "expected": "sibling",
+      "sibling_target": "implied-expectations-reverse-dcf",
+      "runs": 1
+    },
+    {
+      "case_id": "valuation-multiple-traps::should-not-trigger-02",
+      "prompt": "帮我用关键价值驱动公式算一下这家公司的内在价值，参数我都整理好了。",
+      "expected": "sibling",
+      "sibling_target": "roic-growth-value-core",
+      "runs": 1
+    },
+    {
+      "case_id": "valuation-multiple-traps::should-not-trigger-03",
+      "prompt": "A 股白酒板块现在的平均 PE 是多少？",
+      "expected": "should_not_trigger",
+      "sibling_target": null,
+      "runs": 1
+    },
+    {
+      "case_id": "valuation-multiple-traps::edge-01",
+      "prompt": "这家公司现在亏损，PE 是负的，用 PS 给它估值可以吗？",
+      "expected": "should_trigger",
+      "sibling_target": null,
+      "runs": 1
+    }
+  ],
+  "version": "0.2.0",
+  "evaluation_status": "not_run_after_revision"
+}

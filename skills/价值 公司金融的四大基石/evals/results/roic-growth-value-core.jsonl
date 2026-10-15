@@ -1,0 +1,7 @@
+{"case_id": "roic-growth-value-core::should-trigger-01", "run": 1, "selected_skill": "roic-growth-value-core"}
+{"case_id": "roic-growth-value-core::should-not-trigger-03", "run": 1, "selected_skill": "none"}
+{"case_id": "roic-growth-value-core::should-trigger-02", "run": 1, "selected_skill": "roic-growth-value-core"}
+{"case_id": "roic-growth-value-core::edge-01", "run": 1, "selected_skill": "none"}
+{"case_id": "roic-growth-value-core::should-trigger-03", "run": 1, "selected_skill": "roic-growth-value-core"}
+{"case_id": "roic-growth-value-core::should-not-trigger-01", "run": 1, "selected_skill": "implied-expectations-reverse-dcf"}
+{"case_id": "roic-growth-value-core::should-not-trigger-02", "run": 1, "selected_skill": "growth-quality-ladder"}

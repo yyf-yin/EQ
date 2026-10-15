@@ -1,0 +1,73 @@
+{
+  "generated_by": "cangjie-tools v2.5.0",
+  "bundle_id": "bundle.value-four-cornerstones",
+  "router_entrypoint": "value-four-cornerstones",
+  "entrypoint_count": 8,
+  "capability_count": 16,
+  "destinations": {
+    "cap.value.roic-growth-core": {
+      "promoted_to": "roic-growth-value-core",
+      "router_view": "value-four-cornerstones/references/capabilities/roic-growth-value-core.md"
+    },
+    "cap.value.implied-expectations": {
+      "promoted_to": "implied-expectations-reverse-dcf",
+      "router_view": "value-four-cornerstones/references/capabilities/implied-expectations-reverse-dcf.md"
+    },
+    "cap.value.roic-decomposition": {
+      "promoted_to": "roic-competitive-advantage-decomposition",
+      "router_view": "value-four-cornerstones/references/capabilities/roic-competitive-advantage-decomposition.md"
+    },
+    "cap.value.growth-quality": {
+      "promoted_to": "growth-quality-ladder",
+      "router_view": "value-four-cornerstones/references/capabilities/growth-quality-ladder.md"
+    },
+    "cap.value.multiple-analysis": {
+      "promoted_to": "valuation-multiple-traps",
+      "router_view": "value-four-cornerstones/references/capabilities/valuation-multiple-traps.md"
+    },
+    "cap.value.value-conservation-test": {
+      "promoted_to": "value-conservation-test",
+      "router_view": "value-four-cornerstones/references/capabilities/value-conservation-test.md"
+    },
+    "cap.value.ma-value-creation": {
+      "promoted_to": "ma-value-creation-assessment",
+      "router_view": "value-four-cornerstones/references/capabilities/ma-value-creation-assessment.md"
+    },
+    "cap.value.market-valuation-drivers": {
+      "served_by": "value-four-cornerstones",
+      "card": "value-four-cornerstones/references/capabilities/market-valuation-drivers.md"
+    },
+    "cap.value.trs-decomposition": {
+      "served_by": "value-four-cornerstones",
+      "card": "value-four-cornerstones/references/capabilities/trs-driver-decomposition.md"
+    },
+    "cap.value.investor-typology": {
+      "served_by": "value-four-cornerstones",
+      "card": "value-four-cornerstones/references/capabilities/investor-typology-pricing-power.md"
+    },
+    "cap.value.bubble-diagnosis": {
+      "served_by": "value-four-cornerstones",
+      "card": "value-four-cornerstones/references/capabilities/bubble-vs-crisis-diagnosis.md"
+    },
+    "cap.value.earnings-expectations": {
+      "served_by": "value-four-cornerstones",
+      "card": "value-four-cornerstones/references/capabilities/earnings-expectations-relevance.md"
+    },
+    "cap.value.best-owner-portfolio": {
+      "served_by": "value-four-cornerstones",
+      "card": "value-four-cornerstones/references/capabilities/best-owner-and-divestiture.md"
+    },
+    "cap.value.risk-boundary": {
+      "served_by": "value-four-cornerstones",
+      "card": "value-four-cornerstones/references/capabilities/risk-total-vs-price.md"
+    },
+    "cap.value.capital-structure": {
+      "served_by": "value-four-cornerstones",
+      "card": "value-four-cornerstones/references/capabilities/capital-structure-resilience.md"
+    },
+    "cap.value.performance-health": {
+      "served_by": "value-four-cornerstones",
+      "card": "value-four-cornerstones/references/capabilities/performance-health-metrics.md"
+    }
+  }
+}

@@ -10,6 +10,7 @@ Guidance goes into the system message on purpose: it is stable per role and
 block template, which keeps the request prefix identical across calls and lets
 provider prefix caching work. Missing skill files are skipped silently.
 """
+
 import os
 import re
 from functools import lru_cache
@@ -53,10 +54,12 @@ BLOCK_METHODS = {
 ROLES = {'financial_analyzer', 'writer', 'core_writer', 'critical_reviewer', 'assumption_planner'}
 MAX_CHARS_PER_METHOD = 1600
 
-PREAMBLE = ('\n\n## 研究方法（来自本地方法库）\n'
-            '以下方法用于组织分析思路和检查遗漏。输出仍只遵守上文 schema、引用与数值规则：'
-            '方法中提到的指标或计算，输入未提供时作为限制或待验证项说明，不自行计算、不编造数字；'
-            '方法中的数量或阈值只是参考，不是必须满足的门槛。\n')
+PREAMBLE = (
+    '\n\n## 研究方法（来自本地方法库）\n'
+    '以下方法用于组织分析思路和检查遗漏。输出仍只遵守上文 schema、引用与数值规则：'
+    '方法中提到的指标或计算，输入未提供时作为限制或待验证项说明，不自行计算、不编造数字；'
+    '方法中的数量或阈值只是参考，不是必须满足的门槛。\n'
+)
 
 
 def skills_dir() -> Path:

@@ -22,7 +22,9 @@ class ResearchRun(Schema):
     company_input: str
     company_name: str = ""
     mode: Literal["mock", "real"]
-    status: Literal["queued", "running", "pausing", "completed", "limited", "blocked", "failed", "interrupted", "waiting_human"] = "queued"
+    status: Literal[
+        "queued", "running", "pausing", "completed", "limited", "blocked", "failed", "interrupted", "waiting_human"
+    ] = "queued"
     stage: str = "等待开始"
     created_at: str = Field(default_factory=now)
     updated_at: str = Field(default_factory=now)
@@ -166,7 +168,7 @@ class FinancialFact(Schema):
     raw_value: str | None = None
     raw_unit: str | None = None
     locked_at: str | None = None
-    value_origin: Literal['reported','derived'] = 'reported'
+    value_origin: Literal['reported', 'derived'] = 'reported'
     derivation_id: str | None = None
 
 

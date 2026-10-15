@@ -47,7 +47,11 @@ class Store:
     def active_runs(self) -> list[ResearchRun]:
         with self.connect() as db:
             rows = db.execute("SELECT payload FROM runs").fetchall()
-        return [r for row in rows if (r := ResearchRun.model_validate_json(row[0])).status in {"queued", "running", "pausing"}]
+        return [
+            r
+            for row in rows
+            if (r := ResearchRun.model_validate_json(row[0])).status in {"queued", "running", "pausing"}
+        ]
 
     def transition_run(self, run_id: str, expected: set[str], **changes) -> ResearchRun | None:
         """Compare and update under a database write lock; never overwrite a newer run."""
@@ -76,64 +80,97 @@ class Store:
         if table not in {'execution_units', 'execution_meta', 'execution_attempts'}:
             raise ValueError('Invalid execution table')
         with self.lock, self.connect() as db:
-            db.execute(f'INSERT OR REPLACE INTO {table} VALUES(?,?,?)',
-                       (run_id, key, json.dumps(value, ensure_ascii=False, default=str)))
+            db.execute(
+                f'INSERT OR REPLACE INTO {table} VALUES(?,?,?)',
+                (run_id, key, json.dumps(value, ensure_ascii=False, default=str)),
+            )
 
     def execution_list(self, run_id: str, table: str = 'execution_units') -> list[dict]:
         if table not in {'execution_units', 'execution_meta', 'execution_attempts'}:
             raise ValueError('Invalid execution table')
         with self.connect() as db:
-            return [json.loads(row[0]) for row in db.execute(f'SELECT payload FROM {table} WHERE run_id=? ORDER BY rowid', (run_id,))]
+            return [
+                json.loads(row[0])
+                for row in db.execute(f'SELECT payload FROM {table} WHERE run_id=? ORDER BY rowid', (run_id,))
+            ]
 
     def execution_states(self, run_id: str) -> list[dict]:
         with self.connect() as db:
-            return [{'kind':kind,'state':state} for kind,state in db.execute(
-                "SELECT json_extract(payload,'$.kind'),json_extract(payload,'$.state') FROM execution_units WHERE run_id=?", (run_id,))]
+            return [
+                {'kind': kind, 'state': state}
+                for kind, state in db.execute(
+                    "SELECT json_extract(payload,'$.kind'),json_extract(payload,'$.state') FROM execution_units WHERE run_id=?",
+                    (run_id,),
+                )
+            ]
 
     def isolation_state(self, run_id: str) -> dict:
         with self.connect() as db:
             db.execute('BEGIN')
-            row = db.execute("SELECT payload FROM execution_meta WHERE run_id=? AND id='data-isolation'", (run_id,)).fetchone()
-            has_reuse = bool(db.execute("SELECT 1 FROM records WHERE run_id=? AND kind='reuse' LIMIT 1", (run_id,)).fetchone())
-            has_progress = any(db.execute(f'SELECT 1 FROM {table} WHERE {key}=? LIMIT 1', (run_id,)).fetchone()
-                               for table, key in [('records', 'run_id'), ('checkpoints', 'run_id'),
-                                                  ('execution_units', 'run_id'), ('reports', 'run_id')])
+            row = db.execute(
+                "SELECT payload FROM execution_meta WHERE run_id=? AND id='data-isolation'", (run_id,)
+            ).fetchone()
+            has_reuse = bool(
+                db.execute("SELECT 1 FROM records WHERE run_id=? AND kind='reuse' LIMIT 1", (run_id,)).fetchone()
+            )
+            has_progress = any(
+                db.execute(f'SELECT 1 FROM {table} WHERE {key}=? LIMIT 1', (run_id,)).fetchone()
+                for table, key in [
+                    ('records', 'run_id'),
+                    ('checkpoints', 'run_id'),
+                    ('execution_units', 'run_id'),
+                    ('reports', 'run_id'),
+                ]
+            )
         return {'policy': json.loads(row[0]) if row else None, 'has_reuse': has_reuse, 'has_progress': has_progress}
 
     def checkpoint_info(self, run_id: str) -> dict | None:
         with self.connect() as db:
-            row=db.execute("SELECT node,json_extract(payload,'$.rules_version') FROM checkpoints WHERE run_id=?",(run_id,)).fetchone()
-        return {'node':row[0],'rules_version':row[1]} if row else None
+            row = db.execute(
+                "SELECT node,json_extract(payload,'$.rules_version') FROM checkpoints WHERE run_id=?", (run_id,)
+            ).fetchone()
+        return {'node': row[0], 'rules_version': row[1]} if row else None
 
     def adjust_budget(self, run_id: str, value: dict, defaults: dict) -> None:
         with self.lock, self.connect() as db:
             db.execute('BEGIN IMMEDIATE')
-            row=db.execute('SELECT payload FROM runs WHERE id=?',(run_id,)).fetchone()
-            if not row or ResearchRun.model_validate_json(row[0]).status not in {'interrupted','failed','blocked'}:
+            row = db.execute('SELECT payload FROM runs WHERE id=?', (run_id,)).fetchone()
+            if not row or ResearchRun.model_validate_json(row[0]).status not in {'interrupted', 'failed', 'blocked'}:
                 raise ValueError('任务已开始执行，无法调整预算')
-            row=db.execute("SELECT payload FROM execution_meta WHERE run_id=? AND id='budget'",(run_id,)).fetchone()
-            old=json.loads(row[0]) if row else defaults
-            if any(value[k]<old[k] for k in old):
+            row = db.execute("SELECT payload FROM execution_meta WHERE run_id=? AND id='budget'", (run_id,)).fetchone()
+            old = json.loads(row[0]) if row else defaults
+            if any(value[k] < old[k] for k in old):
                 raise ValueError('只能增加总预算，已有消耗不会清零')
-            db.execute('INSERT OR REPLACE INTO execution_meta VALUES(?,?,?)',(run_id,'budget',json.dumps(value)))
-            if value['block_call_budget']>old['block_call_budget']:
-                db.execute('INSERT OR REPLACE INTO execution_meta VALUES(?,?,?)',(run_id,'budget_override','{"enabled":true}'))
-            adjustment={'before':old,'after':value,'updated_at':now()}
-            db.execute('INSERT INTO records VALUES(?,?,?,?)',(run_id,'budget_adjustment',uid(),json.dumps(adjustment)))
+            db.execute('INSERT OR REPLACE INTO execution_meta VALUES(?,?,?)', (run_id, 'budget', json.dumps(value)))
+            if value['block_call_budget'] > old['block_call_budget']:
+                db.execute(
+                    'INSERT OR REPLACE INTO execution_meta VALUES(?,?,?)',
+                    (run_id, 'budget_override', '{"enabled":true}'),
+                )
+            adjustment = {'before': old, 'after': value, 'updated_at': now()}
+            db.execute(
+                'INSERT INTO records VALUES(?,?,?,?)', (run_id, 'budget_adjustment', uid(), json.dumps(adjustment))
+            )
 
-    def emit(self, run_id: str, stage: str, task: str, status: str, message: str, once_key: str | None = None) -> ResearchEvent:
+    def emit(
+        self, run_id: str, stage: str, task: str, status: str, message: str, once_key: str | None = None
+    ) -> ResearchEvent:
         event = ResearchEvent(run_id=run_id, stage=stage, task_name=task, status=status, display_message=message)
         with self.lock, self.connect() as db:
             if once_key:
                 db.execute('BEGIN IMMEDIATE')
-                row = db.execute('SELECT payload FROM execution_meta WHERE run_id=? AND id=?', (run_id,'event-'+once_key)).fetchone()
+                row = db.execute(
+                    'SELECT payload FROM execution_meta WHERE run_id=? AND id=?', (run_id, 'event-' + once_key)
+                ).fetchone()
                 if row:
                     return ResearchEvent.model_validate_json(row[0])
             cursor = db.execute("INSERT INTO events(run_id,payload) VALUES(?,?)", (run_id, event.model_dump_json()))
             event.event_id = cursor.lastrowid
             db.execute("UPDATE events SET payload=? WHERE id=?", (event.model_dump_json(), event.event_id))
             if once_key:
-                db.execute('INSERT INTO execution_meta VALUES(?,?,?)', (run_id,'event-'+once_key,event.model_dump_json()))
+                db.execute(
+                    'INSERT INTO execution_meta VALUES(?,?,?)', (run_id, 'event-' + once_key, event.model_dump_json())
+                )
             row = db.execute("SELECT payload FROM runs WHERE id=?", (run_id,)).fetchone()
             if row:
                 run = ResearchRun.model_validate_json(row[0])
@@ -143,7 +180,9 @@ class Store:
 
     def events(self, run_id: str, after: int = 0) -> list[ResearchEvent]:
         with self.connect() as db:
-            rows = db.execute("SELECT payload FROM events WHERE run_id=? AND id>? ORDER BY id", (run_id, after)).fetchall()
+            rows = db.execute(
+                "SELECT payload FROM events WHERE run_id=? AND id>? ORDER BY id", (run_id, after)
+            ).fetchall()
         return [ResearchEvent.model_validate_json(row[0]) for row in rows]
 
     def save_report(self, run_id: str, report: ReportDocument) -> None:
@@ -157,7 +196,10 @@ class Store:
 
     def checkpoint(self, run_id: str, node: str, state: dict[str, Any]) -> None:
         with self.connect() as db:
-            db.execute("INSERT OR REPLACE INTO checkpoints VALUES(?,?,?)", (run_id, node, json.dumps(state, ensure_ascii=False, default=str)))
+            db.execute(
+                "INSERT OR REPLACE INTO checkpoints VALUES(?,?,?)",
+                (run_id, node, json.dumps(state, ensure_ascii=False, default=str)),
+            )
 
     def load_checkpoint(self, run_id: str) -> tuple[str, dict] | None:
         with self.connect() as db:
@@ -167,27 +209,53 @@ class Store:
     def record(self, run_id: str, kind: str, record_id: str, payload: dict, *, identity_fields=None) -> dict:
         if identity_fields is None:
             identity_fields = {
-                'source': ('content','kind','source_url','local_path','locator'),
-                'evidence': ('source_id','quote','actual_or_forecast','locator'),
-                'fact': ('company_id','metric_code','period','unit','value','actual_or_forecast','scope','segment_id',
-                         'currency','accounting_basis','source_id','evidence_id','locator','version','supersedes',
-                         'slot_id','raw_value','raw_unit','locked_at','value_origin','derivation_id'),
+                'source': ('content', 'kind', 'source_url', 'local_path', 'locator'),
+                'evidence': ('source_id', 'quote', 'actual_or_forecast', 'locator'),
+                'fact': (
+                    'company_id',
+                    'metric_code',
+                    'period',
+                    'unit',
+                    'value',
+                    'actual_or_forecast',
+                    'scope',
+                    'segment_id',
+                    'currency',
+                    'accounting_basis',
+                    'source_id',
+                    'evidence_id',
+                    'locator',
+                    'version',
+                    'supersedes',
+                    'slot_id',
+                    'raw_value',
+                    'raw_unit',
+                    'locked_at',
+                    'value_origin',
+                    'derivation_id',
+                ),
             }.get(kind, ())
         with self.lock, self.connect() as db:
             if kind == 'data_slot':
-                row = db.execute('SELECT payload FROM records WHERE run_id=? AND kind=? AND id=?', (run_id,kind,record_id)).fetchone()
+                row = db.execute(
+                    'SELECT payload FROM records WHERE run_id=? AND kind=? AND id=?', (run_id, kind, record_id)
+                ).fetchone()
                 if row:
                     old = json.loads(row[0])
-                    if old.get('state') in {'locked','not_disclosed','not_applicable','source_missing'}:
+                    if old.get('state') in {'locked', 'not_disclosed', 'not_applicable', 'source_missing'}:
                         if old != payload:
                             from .financials.formulas import FinancialError
-                            raise FinancialError('固定表终态槽只读，拒绝覆盖：'+record_id)
+
+                            raise FinancialError('固定表终态槽只读，拒绝覆盖：' + record_id)
                         return old
             if identity_fields:
                 from decimal import Decimal
                 from .financials.formulas import FinancialError
+
                 db.execute('BEGIN IMMEDIATE')
-                row = db.execute('SELECT payload FROM records WHERE run_id=? AND kind=? AND id=?', (run_id,kind,record_id)).fetchone()
+                row = db.execute(
+                    'SELECT payload FROM records WHERE run_id=? AND kind=? AND id=?', (run_id, kind, record_id)
+                ).fetchone()
                 if row:
                     old = json.loads(row[0])
                     for field in identity_fields:
@@ -200,14 +268,28 @@ class Store:
                         # Search metadata is not document identity. Pin the first
                         # version used by this run and retain later observations.
                         from .framework import digest
-                        differences = {field: {'saved':old.get(field), 'observed':payload.get(field)}
-                                       for field in ('title','publication_date') if old.get(field) != payload.get(field)}
+
+                        differences = {
+                            field: {'saved': old.get(field), 'observed': payload.get(field)}
+                            for field in ('title', 'publication_date')
+                            if old.get(field) != payload.get(field)
+                        }
                         if differences:
-                            observation = {'source_id':record_id, 'differences':differences}
-                            db.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?)',
-                                       (run_id, 'source_metadata', digest(observation), json.dumps(observation, ensure_ascii=False)))
+                            observation = {'source_id': record_id, 'differences': differences}
+                            db.execute(
+                                'INSERT OR IGNORE INTO records VALUES(?,?,?,?)',
+                                (
+                                    run_id,
+                                    'source_metadata',
+                                    digest(observation),
+                                    json.dumps(observation, ensure_ascii=False),
+                                ),
+                            )
                         return old
-            db.execute("INSERT OR REPLACE INTO records VALUES(?,?,?,?)", (run_id, kind, record_id, json.dumps(payload, ensure_ascii=False, default=str)))
+            db.execute(
+                "INSERT OR REPLACE INTO records VALUES(?,?,?,?)",
+                (run_id, kind, record_id, json.dumps(payload, ensure_ascii=False, default=str)),
+            )
         return payload
 
     def cached(self, key: str) -> Any | None:
@@ -216,30 +298,44 @@ class Store:
         if not row:
             return None
         from datetime import datetime, timezone, timedelta
-        if datetime.now(timezone.utc) - datetime.fromisoformat(row[1]) > timedelta(hours=getattr(self,'cache_ttl_hours',6)):
+
+        if datetime.now(timezone.utc) - datetime.fromisoformat(row[1]) > timedelta(
+            hours=getattr(self, 'cache_ttl_hours', 6)
+        ):
             return None
         return json.loads(row[0])
 
     def records(self, run_id: str, kind: str) -> list[dict]:
         with self.connect() as db:
-            rows=db.execute('SELECT payload FROM records WHERE run_id=? AND kind=?',(run_id,kind)).fetchall()
+            rows = db.execute('SELECT payload FROM records WHERE run_id=? AND kind=?', (run_id, kind)).fetchall()
         return [json.loads(row[0]) for row in rows]
 
     def runtime_summary(self, run_id: str) -> dict:
         """Small, read-only status projection; never expose prompts or source bodies."""
         with self.connect() as db:
             db.execute('BEGIN')
-            counts = dict(db.execute('''
+            counts = dict(
+                db.execute(
+                    '''
                 SELECT kind, COUNT(*) FROM (
                     SELECT kind,id FROM records WHERE run_id=?
                     UNION
                     SELECT kind,id FROM work_product_materials WHERE run_id=?
                 ) GROUP BY kind
-            ''', (run_id, run_id)))
-            calls = [json.loads(row[0]) for row in db.execute(
-                "SELECT payload FROM records WHERE run_id=? AND kind='call' ORDER BY rowid", (run_id,))]
+            ''',
+                    (run_id, run_id),
+                )
+            )
+            calls = [
+                json.loads(row[0])
+                for row in db.execute(
+                    "SELECT payload FROM records WHERE run_id=? AND kind='call' ORDER BY rowid", (run_id,)
+                )
+            ]
         finished = [c for c in calls if c.get('result') != 'running']
-        cache_calls = [c for c in calls if c.get('cache_hit_tokens') is not None and c.get('cache_miss_tokens') is not None]
+        cache_calls = [
+            c for c in calls if c.get('cache_hit_tokens') is not None and c.get('cache_miss_tokens') is not None
+        ]
         cache_input = sum(c['cache_hit_tokens'] + c['cache_miss_tokens'] for c in cache_calls)
         cache_hits = sum(c['cache_hit_tokens'] for c in cache_calls)
         return {
@@ -257,10 +353,29 @@ class Store:
                 'cache_hit_tokens': cache_hits,
                 'cache_hit_ratio': cache_hits / cache_input if cache_input else None,
             },
-            'recent_calls': [{k: c[k] for k in ('call_id', 'role', 'model', 'block_id', 'attempt',
-                              'result', 'started_at', 'duration_seconds', 'input_tokens', 'output_tokens',
-                              'cache_hit_tokens', 'cache_miss_tokens', 'response_model', 'reasoning_tokens') if k in c}
-                             for c in sorted(reversed(calls), key=lambda c: c.get('started_at', ''), reverse=True)[:8]],
+            'recent_calls': [
+                {
+                    k: c[k]
+                    for k in (
+                        'call_id',
+                        'role',
+                        'model',
+                        'block_id',
+                        'attempt',
+                        'result',
+                        'started_at',
+                        'duration_seconds',
+                        'input_tokens',
+                        'output_tokens',
+                        'cache_hit_tokens',
+                        'cache_miss_tokens',
+                        'response_model',
+                        'reasoning_tokens',
+                    )
+                    if k in c
+                }
+                for c in sorted(reversed(calls), key=lambda c: c.get('started_at', ''), reverse=True)[:8]
+            ],
         }
 
     def work_product_state(self, run_id: str) -> dict:
@@ -270,12 +385,14 @@ class Store:
         never changes the research run, checkpoint, report or approval records.
         """
         state = {'records': {}, 'reviews': [], 'events': [], 'unavailable': []}
+
         def read(payload, label):
             try:
                 return json.loads(payload)
             except (ValueError, TypeError):
                 state['unavailable'].append({'artifact': label, 'reason': '已保存记录无法解析'})
                 return None
+
         with self.connect() as db:
             db.execute('BEGIN')
             row = db.execute('SELECT payload FROM runs WHERE id=?', (run_id,)).fetchone()
@@ -287,7 +404,9 @@ class Store:
             state['context'] = read(row[1], 'checkpoint') if row else {}
             row = db.execute('SELECT payload FROM reports WHERE run_id=?', (run_id,)).fetchone()
             state['report'] = read(row[0], 'report') if row else None
-            for kind, record_id, payload in db.execute('SELECT kind,id,payload FROM records WHERE run_id=? ORDER BY kind,id', (run_id,)):
+            for kind, record_id, payload in db.execute(
+                'SELECT kind,id,payload FROM records WHERE run_id=? ORDER BY kind,id', (run_id,)
+            ):
                 value = read(payload, f'{kind}/{record_id}')
                 if value is not None:
                     state['records'].setdefault(kind, []).append(value)
@@ -295,12 +414,16 @@ class Store:
                 value = read(payload, f'event/{event_id}')
                 if value is not None:
                     state['events'].append(value)
-            for review_id, payload in db.execute('SELECT id,payload FROM work_product_reviews WHERE run_id=? ORDER BY rowid', (run_id,)):
+            for review_id, payload in db.execute(
+                'SELECT id,payload FROM work_product_reviews WHERE run_id=? ORDER BY rowid', (run_id,)
+            ):
                 value = read(payload, f'review/{review_id}')
                 if value is not None:
                     state['reviews'].append(value)
             state['partial'] = {}
-            for kind, material_id, payload in db.execute('SELECT kind,id,payload FROM work_product_materials WHERE run_id=? ORDER BY kind,id', (run_id,)):
+            for kind, material_id, payload in db.execute(
+                'SELECT kind,id,payload FROM work_product_materials WHERE run_id=? ORDER BY kind,id', (run_id,)
+            ):
                 value = read(payload, f'partial/{kind}/{material_id}')
                 if value is not None:
                     state['partial'].setdefault(kind, []).append(value)
@@ -308,26 +431,41 @@ class Store:
 
     def save_work_product_snapshot(self, run_id: str, snapshot_id: str, payload: dict) -> dict:
         with self.connect() as db:
-            db.execute('INSERT OR IGNORE INTO work_product_snapshots VALUES(?,?,?)',
-                       (run_id, snapshot_id, json.dumps(payload, ensure_ascii=False)))
-            row = db.execute('SELECT payload FROM work_product_snapshots WHERE run_id=? AND id=?', (run_id, snapshot_id)).fetchone()
+            db.execute(
+                'INSERT OR IGNORE INTO work_product_snapshots VALUES(?,?,?)',
+                (run_id, snapshot_id, json.dumps(payload, ensure_ascii=False)),
+            )
+            row = db.execute(
+                'SELECT payload FROM work_product_snapshots WHERE run_id=? AND id=?', (run_id, snapshot_id)
+            ).fetchone()
         return json.loads(row[0])
 
     def work_product_snapshot(self, run_id: str, snapshot_id: str) -> dict | None:
         with self.connect() as db:
-            row = db.execute('SELECT payload FROM work_product_snapshots WHERE run_id=? AND id=?', (run_id, snapshot_id)).fetchone()
+            row = db.execute(
+                'SELECT payload FROM work_product_snapshots WHERE run_id=? AND id=?', (run_id, snapshot_id)
+            ).fetchone()
         return json.loads(row[0]) if row else None
 
     def save_work_product_review(self, run_id: str, review_id: str, payload: dict) -> None:
         with self.connect() as db:
-            db.execute('INSERT OR REPLACE INTO work_product_reviews VALUES(?,?,?)',
-                       (run_id, review_id, json.dumps(payload, ensure_ascii=False)))
+            db.execute(
+                'INSERT OR REPLACE INTO work_product_reviews VALUES(?,?,?)',
+                (run_id, review_id, json.dumps(payload, ensure_ascii=False)),
+            )
 
     def save_work_product_materials(self, run_id: str, materials: list[tuple[str, str, dict]]) -> None:
         with self.connect() as db:
-            db.executemany('INSERT OR REPLACE INTO work_product_materials VALUES(?,?,?,?)',
-                           [(run_id, kind, material_id, json.dumps(value, ensure_ascii=False)) for kind, material_id, value in materials])
+            db.executemany(
+                'INSERT OR REPLACE INTO work_product_materials VALUES(?,?,?,?)',
+                [
+                    (run_id, kind, material_id, json.dumps(value, ensure_ascii=False))
+                    for kind, material_id, value in materials
+                ],
+            )
 
     def cache(self, key: str, value: Any) -> None:
         with self.connect() as db:
-            db.execute("INSERT OR REPLACE INTO cache VALUES(?,?,?)", (key, json.dumps(value, ensure_ascii=False), now()))
+            db.execute(
+                "INSERT OR REPLACE INTO cache VALUES(?,?,?)", (key, json.dumps(value, ensure_ascii=False), now())
+            )

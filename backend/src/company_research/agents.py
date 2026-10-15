@@ -194,6 +194,10 @@ def request_messages(role, context):
                  'material_planner' if context.get('material_plan_contract') else
                  'material_assessor' if context.get('material_contract') else role)
     prompt=REFERENCE_PLANNER_PROMPT if role=='reference_planner' else (PROMPTS/f'{prompt_role}.txt').read_text(encoding='utf-8')
+    if prompt_role==role:
+        from .methods import guidance
+        block=(context.get('block') or {}).get('block_id') or (context.get('section') or {}).get('block_id') or (context.get('task') or {}).get('block_id')
+        prompt+=guidance(role,block)
     return [{'role':'system','content':prompt},{'role':'user','content':json.dumps(context,ensure_ascii=False,default=str)}]
 
 

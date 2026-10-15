@@ -231,7 +231,9 @@ class Gateway:
         self.concurrency=concurrency;self.role_semaphores={}
         self.retries, self.timeout = retries, timeout
         self.usage: dict[str, dict[str, int]] = {}
-        self.role_limits={k:RoleLimits.model_validate(v) for k,v in (role_limits or {}).items()}
+        # Role entries inherit unspecified fields from the 'default' entry.
+        base=dict((role_limits or {}).get('default') or {})
+        self.role_limits={k:RoleLimits.model_validate(v if k=='default' else base|dict(v or {})) for k,v in (role_limits or {}).items()}
         self.global_call_budget,self.global_token_budget,self.block_call_budget=global_call_budget,global_token_budget,block_call_budget
         self.enforce_call_budgets=enforce_call_budgets
         self.calls=0;self.reserved_tokens=0;self.block_calls={};self.call_records=[]

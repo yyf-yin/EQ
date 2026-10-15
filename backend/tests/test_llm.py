@@ -179,3 +179,10 @@ async def test_gateway_reuses_one_pooled_client(monkeypatch):
     await g.aclose()
     assert g.http_client() is not first
     await g.aclose()
+
+
+def test_role_limits_inherit_default_entry():
+    g=Gateway({},{},role_limits={'default':{'input_capacity':90000,'context_capacity':150000,'timeout':120},'writer':{'timeout':300,'temperature':0.4}})
+    w=g.limits('writer')
+    assert (w.input_capacity,w.context_capacity,w.timeout,w.temperature)==(90000,150000,300,0.4)
+    assert g.limits('unlisted').timeout==120

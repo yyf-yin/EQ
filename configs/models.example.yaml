@@ -1,55 +1,95 @@
+# 模型路由示例。复制为 configs/models.yaml 后填写；密钥只放 .env 或密钥文件。
+# 换模型时通常只需改 models 段的 base_url/model 与 role_limits 中的容量，
+# 不需要改代码。详细说明见 docs/LLM_CONFIGURATION.md。
 models:
-  reasoning:
+  # 当前测试用：DeepSeek（OpenAI 兼容协议，自动前缀缓存）
+  deepseek_flash:
     protocol: openai
-    base_url: "" # 填到 /v1，Gateway 自动追加 /chat/completions
-    model: ""
-    api_key_env: CDR_OPENAI_API_KEY
-    # 可选：环境变量中填写密钥文件路径；文件内容仅为 API Key。
-    # api_key_file_env: CDR_OPENAI_API_KEY_FILE
-    max_tokens: 8000
-    structured_mode: tool # native / tool / json，按服务商能力选择
-  writing:
-    protocol: anthropic
-    base_url: "" # 填到 /v1，Gateway 自动追加 /messages
-    model: ""
-    api_key_env: CDR_ANTHROPIC_API_KEY
-    max_tokens: 8000
-    structured_mode: tool
-    anthropic_version: "2023-06-01"
-routes:
-  default: reasoning
-  resolver: reasoning
-  brief: reasoning
-  research_planner: reasoning
-  calculation_planner: reasoning
-  supervisor: reasoning
-  researcher: reasoning
-  compression: reasoning
-  financial_analyzer: reasoning
-  assumption_planner: reasoning
-  writer: writing
-  core_writer: writing
-  reflection: writing
-  critical_reviewer: reasoning
-  evidence_reviewer: reasoning
-  editorial_reviewer: writing
+    base_url: "https://api.deepseek.com/v1"   # 填到 /v1，Gateway 自动追加 /chat/completions
+    model: ""                                  # 例如 deepseek-flash
+    api_key_env: CDR_DEEPSEEK_API_KEY
+    api_key_file_env: CDR_DEEPSEEK_API_KEY_FILE
+    max_tokens: 32000
+    structured_mode: json                       # native / tool / json，按服务商能力选择
+    # 可选：模型级采样默认值，不填则沿用服务商默认
+    # temperature: 0.3
+    # 可选：服务商特有参数，原样并入请求体（例如关闭/开启思考模式）
+    # extra_body: {thinking: {type: disabled}}
 
-# 容量按实际模型/服务配置；UTF-8 字节上界估算，不是供应商精确 tokenizer。
-# 输入估算 + 输出预留不得超过 context_capacity；真实预算另见 .env.example。
+  # 流程跑通后换更大模型时，新增一个条目并把 routes 指过去即可，例如：
+  # writing_large:
+  #   protocol: anthropic                      # 或 openai（OpenAI 兼容服务）
+  #   base_url: ""                             # 填到 /v1，Gateway 自动追加 /messages
+  #   model: ""
+  #   api_key_env: CDR_ANTHROPIC_API_KEY
+  #   max_tokens: 16000
+  #   structured_mode: tool
+  #   anthropic_version: "2023-06-01"
+  #   prompt_cache: true                       # Anthropic 显式缓存 system+schema 前缀
+  #   # extra_body: {thinking: {type: enabled, budget_tokens: 4000}}  # 开启思考时不要设 temperature
+
+routes:
+  default: deepseek_flash
+  resolver: deepseek_flash
+  brief: deepseek_flash
+  research_planner: deepseek_flash
+  calculation_planner: deepseek_flash
+  supervisor: deepseek_flash
+  researcher: deepseek_flash        # 资料提取：量最大，优先用便宜快速的模型
+  compression: deepseek_flash
+  financial_analyzer: deepseek_flash  # 分析与写作：换大模型收益最高
+  assumption_planner: deepseek_flash
+  writer: deepseek_flash
+  core_writer: deepseek_flash
+  reflection: deepseek_flash
+  critical_reviewer: deepseek_flash
+  evidence_reviewer: deepseek_flash
+  editorial_reviewer: deepseek_flash
+
+# 容量单位为估算 token：中日韩字符按 CDR_TOKENS_PER_CJK（默认 1.0）计，
+# 其他字符按 CDR_CHARS_PER_TOKEN（默认 3）个字符计 1 token。
+# 输入估算 + 输出预留不得超过 context_capacity，请按所用模型的上下文窗口设置。
+# temperature 可按角色覆盖模型默认值：提取/审核建议 0，写作可略高。
 role_limits:
   default:
-    input_capacity: 120000
-    context_capacity: 136000
+    input_capacity: 100000
+    context_capacity: 160000
     output_reserve: 10000
-    timeout: 45
-    retries: 2
+    timeout: 120
+    retries: 3
     concurrency: 3
-    block_call_budget: 40
+    block_call_budget: 250
   researcher:
-    input_capacity: 20000
-    context_capacity: 32000
+    input_capacity: 36000
+    context_capacity: 68000
     output_reserve: 10000
-    max_output_tokens: 8000
-    timeout: 60
-    retries: 2
+    max_output_tokens: 32000
+    timeout: 180
+    retries: 3
+    concurrency: 3
+    temperature: 0
+  financial_analyzer:
+    timeout: 240
+    retries: 3
+    concurrency: 3
+    temperature: 0.2
+  writer:
+    timeout: 300
+    retries: 3
+    concurrency: 3
+    temperature: 0.4
+  core_writer:
+    timeout: 300
+    retries: 3
     concurrency: 2
+    temperature: 0.4
+  critical_reviewer:
+    timeout: 240
+    retries: 3
+    concurrency: 3
+    temperature: 0
+  evidence_reviewer:
+    timeout: 240
+    retries: 3
+    concurrency: 3
+    temperature: 0

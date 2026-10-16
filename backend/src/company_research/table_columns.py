@@ -9,7 +9,15 @@ from .reporting_periods import period_columns, previous_period
 def financial_columns(header, report, stock=False):
     text = re.sub(r'\s+', '', unicodedata.normalize('NFKC', header))
     # Preserve the position of growth columns; they are never financial inputs.
-    growth = r'(?:本(?:报告)?期|本年)(?:末)?比上年(?:同期)?(?:末)?(?:增减|增长)(?:\(%\))?|(?:变动|增减|增长)比例(?:\(%\))?'
+    # Growth/change and share-of-total columns are kept as None placeholders.
+    # A share column restates its period label ("本期期末数占总资产的比例"),
+    # so it is matched whole before period labels are read.
+    own = r'(?:本(?:报告)?期(?:期末|末)?|本年(?:末)?|上年(?:度)?(?:同期|期末|末)?|上期(?:期末|末)?)(?:金额|数|余额)?'
+    growth = (
+        r'(?:本(?:报告)?期|本年)(?:末)?比上年(?:度)?(?:同期)?(?:期)?(?:末)?(?:增减|增长|变动)(?:\(%\))?'
+        r'|(?:' + own + r'较' + own + r')?(?:变动|增减|增长)(?:比例|幅度)(?:\(%\))?'
+        r'|' + own + r'占[一-鿿]{1,8}?比例(?:\(%\))?'
+    )
     parts = re.split('(' + growth + ')', text)
     columns = []
     for part in parts:
@@ -19,7 +27,8 @@ def financial_columns(header, report, stock=False):
         explicit = period_columns(part, default_year=report[:4] if report else None,
                                   default_suffix='A' if stock else report[4:] if report else 'A')
         relative = (
-            r'上年同期(?:发生额|金额|数)?|上年(?:度)?末|上年度|上期(?:发生额|金额|数)?|本报告期(?:末)?'
+            r'上年同期(?:发生额|金额|数)?|上年(?:度)?期末(?:余额|金额|数)?|上年(?:度)?末|上年度|上期(?:发生额|金额|数)?'
+            r'|本(?:报告)?期期末(?:余额|金额|数)?|本报告期(?:末)?'
             r'|本期(?:发生额|金额|数|末)?|期末(?:余额|数)|期初(?:余额|数)'
         )
         if explicit and not (re.search(relative, part) and not re.search(r'20\d{2}', part)):
@@ -29,7 +38,7 @@ def financial_columns(header, report, stock=False):
                 label = match[0]
                 if label.startswith(('本', '期末')):
                     columns.append(report)
-                elif label in {'上年末', '上年度末', '上年度'} or label.startswith('期初'):
+                elif re.match(r'上年(?:度)?(?:期)?末|上年度$', label) or label.startswith('期初'):
                     columns.append(str(int(report[:4]) - 1) + 'A')
                 else:
                     columns.append(previous_period(report))

@@ -339,6 +339,21 @@ async def ask_bounded(gateway, role, schema, context, depth=0, max_splits=2):
             for k, v in lists.items():
                 mid = (len(v) + 1) // 2
                 part[k] = v[:mid] if half == 0 else v[mid:]
+            # Halving facts and evidence independently separates a fact from its
+            # source quote; carry each fact's evidence into the fact's half.
+            if isinstance(context.get('evidence'), list):
+                wanted = {
+                    f.get('evidence_id')
+                    for key in ('facts', 'financial_facts')
+                    for f in part.get(key) or []
+                    if isinstance(f, dict)
+                }
+                present = {e.get('evidence_id') for e in part['evidence'] if isinstance(e, dict)}
+                part['evidence'] = part['evidence'] + [
+                    e
+                    for e in context['evidence']
+                    if isinstance(e, dict) and e.get('evidence_id') in wanted - present
+                ]
             part['partial_context'] = True
             instruction = '本轮为拆分资料包；仅分析已传内容，明确未覆盖项，不能声称全公司证据充分。'
             part['instructions'] = list(context.get('instructions', []))

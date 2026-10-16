@@ -104,6 +104,23 @@ NODE_LABELS = {
 }
 
 
+def analyzer_view(content):
+    """Block analyzer input. Only evidence[].evidence_id and calculations[].result_id
+    are citable; other IDs (a fact's evidence, upstream citations, comparison IDs)
+    are removed so the model cannot cite outside the selected data. Page lists in
+    locators are dropped; quotes stay verbatim."""
+    hidden = {'locator', 'evidence_id', 'slot_id', 'derivation_id', 'supersedes'}
+    data = {k: v for k, v in content.items() if k != 'financial_facts'}
+    data['facts'] = [{k: v for k, v in f.items() if k not in hidden} for f in content['financial_facts']]
+    data['evidence'] = [{k: v for k, v in e.items() if k != 'locator'} for e in content['evidence']]
+    data['upstream'] = [
+        {k: v for k, v in a.items() if k not in {'evidence_ids', 'calculation_ids', 'counter_evidence_ids'}}
+        for a in content.get('upstream', [])
+    ]
+    data['comparisons'] = [{k: v for k, v in r.items() if k != 'comparison_id'} for r in content.get('comparisons', [])]
+    return data
+
+
 def brief_business_support(brief, sources):
     """Check each business against cited bodies; allow separate sources and layout whitespace."""
     known = {s['source_id'] for s in sources}
@@ -1231,8 +1248,7 @@ class ResearchWorkflow:
             if analyses.get(b['block_id'], {}).get('version') == version:
                 return
             self.store.emit(self.run_id, '分块分析', b['block_id'], 'running', '分析块：' + b['block_id'])
-            data = package.content
-            data = {k: v for k, v in data.items() if k != 'financial_facts'} | {'facts': data['financial_facts']}
+            data = analyzer_view(package.content)
             if self.mock:
                 output = FinancialAnalysis(
                     observations=['合成资料已按本块问题整理，未披露的驱动保持限制。'],
@@ -1269,10 +1285,15 @@ class ResearchWorkflow:
                     missing_questions = [q for q in b['questions'] if not output.question_answers.get(q, '').strip()]
                 if missing_questions:
                     raise FinancialError('分析块必需问题遗漏，定向修复耗尽：' + b['block_id'])
-            if not set(output.evidence_ids + output.counter_evidence_ids).issubset(
-                {e['evidence_id'] for e in data['evidence']}
-            ) or not set(output.calculation_ids).issubset({r['result_id'] for r in data['calculations']}):
-                raise FinancialError('块分析引用超出已选择数据')
+            unknown_evidence = set(output.evidence_ids + output.counter_evidence_ids) - {
+                e['evidence_id'] for e in data['evidence']
+            }
+            unknown_calculations = set(output.calculation_ids) - {r['result_id'] for r in data['calculations']}
+            if unknown_evidence or unknown_calculations:
+                raise FinancialError(
+                    f'块分析引用超出已选择数据：{b["block_id"]}，'
+                    f'evidence {sorted(unknown_evidence)[:10]}，calculation {sorted(unknown_calculations)[:10]}'
+                )
             if not output.observations:
                 raise FinancialError('块分析语义输出为空：' + b['block_id'])
             analysis = BlockAnalysis(

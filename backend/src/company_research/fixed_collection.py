@@ -1330,6 +1330,9 @@ class FixedCollection:
             rejected_values = []
             reject_reasons = []
             rejected_absence = []
+            # Targets rejected in any attempt. Only these, not every open slot
+            # of the period, are extraction failures once the window returned.
+            failed_targets = set()
             for attempt in range(2):
                 try:
                     request = context
@@ -1343,6 +1346,9 @@ class FixedCollection:
                                 )
                             )
                             excerpts += list(dict.fromkeys(p.quote for p in rejected_absence))
+                            # Keep the whole window: a value quoted from the wrong
+                            # table (e.g. 资产及负债状况) can only be corrected from
+                            # the statement row, which the excerpts do not contain.
                             request = request | {
                                 'fields': '\n'.join(
                                     line
@@ -1353,10 +1359,11 @@ class FixedCollection:
                                     {
                                         'source_id': source.source_id,
                                         'title': source.title,
-                                        'content': '\n'.join(excerpts),
+                                        'content': chunk,
                                         'locator': source.locator,
                                     }
                                 ],
+                                'rejected_excerpts': excerpts,
                                 'rejected_values': [
                                     p.model_dump(mode='json') | {'reject_reason': reason}
                                     for p, reason in zip(rejected_values, reject_reasons)
@@ -1412,6 +1419,7 @@ class FixedCollection:
                 if quantitative:
                     rejected_absence = [p for p in output.not_applicable if not self.accept_absence(c, source, p)]
                     rejected += len(rejected_absence)
+                failed_targets |= {(p.field_id, p.period) for p in rejected_values + rejected_absence}
                 for p in output.evidence:
                     if p.source_id != source.source_id:
                         continue
@@ -1476,6 +1484,8 @@ class FixedCollection:
                     'reject_reasons': reject_reasons[:20],
                     'checked_window': i,
                     'failure_detail': failure_detail,
+                    'window_failed': output is None,
+                    'failed_targets': sorted(map(list, failed_targets)),
                 },
             )
             self.store.emit(
@@ -1485,16 +1495,30 @@ class FixedCollection:
             self.run_id,
             'execution_meta',
             document_id,
-            {'state': 'failed' if failed else 'complete', 'quantitative': quantitative, 'source_id': source.source_id},
+            {
+                'state': 'failed' if failed else 'complete',
+                'quantitative': quantitative,
+                'source_id': source.source_id,
+                'aggregate': True,
+            },
         )
 
     def finish_quantitative(self, c, reports):
         report_ids = {s.source_id for s in reports}
-        failed = {
-            r['source_id']
-            for r in self.store.execution_list(self.run_id, 'execution_meta')
-            if isinstance(r, dict) and r.get('state') == 'failed' and r.get('source_id') in report_ids
-        }
+        # A window that returned nothing leaves its whole source unchecked. A
+        # window that returned values only failed the targets it rejected; the
+        # rest were read and are not disclosed in that report.
+        failed = set()
+        failed_targets = set()
+        for r in self.store.execution_list(self.run_id, 'execution_meta'):
+            if not isinstance(r, dict) or r.get('state') != 'failed' or r.get('source_id') not in report_ids:
+                continue
+            if r.get('aggregate'):
+                continue
+            if 'failed_targets' in r and not r.get('window_failed'):
+                failed_targets |= {(r['source_id'], f, p) for f, p in r['failed_targets']}
+            else:
+                failed.add(r['source_id'])
         bindings = (self.store.execution_get(self.run_id, 'execution_meta', 'fixed-source-manifest') or {}).get(
             'bindings', {}
         )
@@ -1522,6 +1546,12 @@ class FixedCollection:
             elif failed.intersection(bindings.get(slot['period'], report_ids)):
                 state = 'extraction_failed'
                 reason = '该期间财报窗口提取失败，成功字段已锁定；不进行 web 补查'
+            elif any(
+                (s, slot['field_id'], slot['period']) in failed_targets
+                for s in bindings.get(slot['period'], report_ids)
+            ):
+                state = 'extraction_failed'
+                reason = '该字段的提取值未通过原表校验，成功字段已锁定；不进行 web 补查'
             else:
                 state = 'not_disclosed'
                 reason = '指定财报已按固定字段完成提取，未获得该字段的明确披露'

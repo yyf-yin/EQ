@@ -62,6 +62,9 @@ def period_columns(text, default_year=None, default_suffix=None):
         r'(?:(?P<year>20\d{2})\s*年?\s*)?(?P<name>前三季度|半年度|上半年|半年|中期|中报|全年|年度|'
         r'第?[一二三四1234]季度|1\s*[-—–至]\s*[369]\s*月|1月\s*[-—–至]\s*[369]月)'
     )
+    # "第一季度（1-3 月份）" is one single-quarter column; the bracketed month
+    # span only annotates it and must not become a cumulative Q1 column.
+    text = re.sub(r'(第?[一二三四1234]季度)\s*[（(][^（()）]{0,16}月份?\s*[）)]', r'\1', text)
     result = []
     year = default_year
     cursor = 0

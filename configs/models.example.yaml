@@ -16,6 +16,20 @@ models:
     # 可选：服务商特有参数，原样并入请求体（例如关闭/开启思考模式）
     # extra_body: {thinking: {type: disabled}}
 
+  # 可选：财报填槽（slot_extractor）专用的无思考条目。程序会逐值核对原文，
+  # 关闭思考主要影响填槽数量而不是数值正确性；先用同一组文件对比开/关两次的
+  # 锁定槽数、拒绝原因和两次都锁定的值是否一致，再决定是否启用。
+  # 确认服务商支持 thinking 参数，否则请求会被拒绝（HTTP 400）。
+  # deepseek_flash_extract:
+  #   protocol: openai
+  #   base_url: "https://api.deepseek.com/v1"
+  #   model: ""
+  #   api_key_env: CDR_DEEPSEEK_API_KEY
+  #   api_key_file_env: CDR_DEEPSEEK_API_KEY_FILE
+  #   max_tokens: 32000
+  #   structured_mode: json
+  #   extra_body: {thinking: {type: disabled}}
+
   # 流程跑通后换更大模型时，新增一个条目并把 routes 指过去即可，例如：
   # writing_large:
   #   protocol: anthropic                      # 或 openai（OpenAI 兼容服务）
@@ -36,6 +50,7 @@ routes:
   calculation_planner: deepseek_flash
   supervisor: deepseek_flash
   researcher: deepseek_flash        # 资料提取：量最大，优先用便宜快速的模型
+  # slot_extractor: deepseek_flash_extract  # 财报填槽；不填则沿用 researcher 的路由和 role_limits
   compression: deepseek_flash
   financial_analyzer: deepseek_flash  # 分析与写作：换大模型收益最高
   assumption_planner: deepseek_flash
@@ -63,11 +78,13 @@ role_limits:
     input_capacity: 36000
     context_capacity: 68000
     output_reserve: 10000
-    max_output_tokens: 32000
+    max_output_tokens: 32000   # 含模型思考 token（实测约占输出 63%），不能压低；截断时窗口自动对半拆分
     timeout: 180
     retries: 3
     concurrency: 3
     temperature: 0
+  # slot_extractor:                 # 不填则整项继承 researcher；只写需要覆盖的字段
+  #   max_output_tokens: 16000      # 关闭思考后实测答案最长约 12k
   financial_analyzer:
     timeout: 240
     retries: 3

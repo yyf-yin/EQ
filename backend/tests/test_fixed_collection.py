@@ -65,7 +65,9 @@ def prepared(tmp_path,rows=None):
     store=Store(settings.database);run=ResearchRun(company_input='000123',mode='real',created_at='2026-10-15T00:00:00+00:00')
     if rows:
         prepare_uploads(store)
-        annual=register_upload(store,'annual.json',json.dumps(rows,ensure_ascii=False).encode('utf-8'))
+        annual=register_upload(store,'annual.json',json.dumps([
+            {'company_name':'固定测试公司','ticker':'000123', **row} for row in rows
+        ],ensure_ascii=False).encode('utf-8'))
         note=register_upload(store,'固定测试公司2025年年度报告.txt',('固定测试公司2025年年度报告\n'+(local/'company.md').read_text(encoding='utf-8')).encode('utf-8'))
         attachments=[annual['attachment_id'],note['attachment_id']]
         if default_rows:

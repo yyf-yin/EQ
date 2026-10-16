@@ -39,6 +39,10 @@ class BudgetError(LLMError):
 
 
 CALL_CONTEXT = ContextVar('call_context', default={})
+# A specialised role uses its parent's route and limits unless configured itself,
+# so e.g. fixed-table number extraction can get a no-thinking model while the
+# researcher's judgement tasks keep theirs.
+ROLE_PARENTS = {'slot_extractor': 'researcher'}
 RETRYABLE_STATUS = {408, 409, 429, 500, 502, 503, 504, 529}
 
 
@@ -321,10 +325,14 @@ class Gateway:
         self.retries, self.timeout = retries, timeout
         self.usage: dict[str, dict[str, int]] = {}
         # Role entries inherit unspecified fields from the 'default' entry.
-        base = dict((role_limits or {}).get('default') or {})
+        raw = dict(role_limits or {})
+        base = dict(raw.get('default') or {})
+        for child, parent in ROLE_PARENTS.items():
+            if parent in raw:
+                raw[child] = dict(raw[parent] or {}) | dict(raw.get(child) or {})
         self.role_limits = {
             k: RoleLimits.model_validate(v if k == 'default' else base | dict(v or {}))
-            for k, v in (role_limits or {}).items()
+            for k, v in raw.items()
         }
         self.global_call_budget, self.global_token_budget, self.block_call_budget = (
             global_call_budget,
@@ -404,8 +412,14 @@ class Gateway:
         )
         return gateway
 
+    def route(self, agent):
+        for role in (agent, ROLE_PARENTS.get(agent), 'default'):
+            if role in self.routes:
+                return self.routes[role]
+        return None
+
     def resolve(self, agent: str) -> ModelConfig:
-        name = self.routes.get(agent, self.routes.get('default'))
+        name = self.route(agent)
         if name not in self.models:
             raise ConfigurationError(f'Agent {agent} 未配置模型路由')
         config = self.models[name]
@@ -416,7 +430,7 @@ class Gateway:
         """Use the same complete wire payload as the capacity gate, without I/O."""
         from .contexts import estimate_tokens
 
-        config = self.models[self.routes.get(agent, self.routes.get('default'))]
+        config = self.models[self.route(agent)]
         limits = self.limits(agent)
         config = config.model_copy(update={'max_tokens': limits.max_output_tokens or config.max_tokens})
         payload = (anthropic_payload if config.protocol == 'anthropic' else openai_payload)(
@@ -509,7 +523,7 @@ class Gateway:
                     'role': agent,
                     'block_id': block,
                     'batch_id': meta.get('batch_id'),
-                    'model_config': self.routes.get(agent, self.routes.get('default')),
+                    'model_config': self.route(agent),
                     'attempt': attempt,
                     'estimated_input_tokens': estimate,
                     'budget_tokens': estimate + reserve,

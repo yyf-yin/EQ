@@ -288,11 +288,28 @@ class ResearchWorkflow:
                 interim_period='2026H1',
             )
         else:
-            selected = source_context(
-                brief_sources,
-                c['company']['name'] + ' 公司 主营 业务 年报 中期 季报 报告期 period segment',
-                self.gateway.limits('brief').input_capacity - 4000,
-            )
+            annual_manifest = []
+            if c.get('data_template_version'):
+                from .reporting_periods import report_period
+
+                annual_manifest = [
+                    {'source_id': s.source_id, 'title': s.title, 'report_period': report_period(s)}
+                    for s in brief_sources
+                ]
+                brief_sources.sort(key=lambda s: report_period(s) or '', reverse=True)
+            if annual_manifest:
+                selected = []
+                share = (self.gateway.limits('brief').input_capacity - 6000) // len(brief_sources)
+                for source in brief_sources:
+                    selected.extend(source_context(
+                        [source], c['company']['name'] + ' 主营 业务 年报 period segment', share,
+                    ))
+            else:
+                selected = source_context(
+                    brief_sources,
+                    c['company']['name'] + ' 公司 主营 业务 年报 中期 季报 报告期 period segment',
+                    self.gateway.limits('brief').input_capacity - 4000,
+                )
             request = {
                 'company': c['company'],
                 'as_of': self.store.run(self.run_id).created_at[:10],
@@ -300,9 +317,20 @@ class ResearchWorkflow:
             }
             if c.get('data_template_version'):
                 request['fixed_data_contract'] = c['data_template_version']
+                request['annual_report_manifest'] = annual_manifest
+                disclosed = [r['report_period'] for r in annual_manifest if (r['report_period'] or '').endswith('A')]
+                if disclosed:
+                    latest_year = int(max(disclosed)[:4])
+                    request['required_historical_periods'] = [f'{y}A' for y in range(latest_year - 2, latest_year + 1)]
+                    request['required_forecast_periods'] = [f'{y}E' for y in range(latest_year + 1, latest_year + 4)]
             for attempt in range(self.settings.plan_repairs + 1):
                 brief = await ask(self.gateway, 'brief', ResearchBrief, request)
                 support, errors = brief_business_support(brief, [s.model_dump(mode='json') for s in brief_sources])
+                if request.get('required_historical_periods'):
+                    # The upload manifest decides the years; a model slip here
+                    # must not cost a repair round or stop the run.
+                    brief.historical_periods = list(request['required_historical_periods'])
+                    brief.forecast_periods = list(request['required_forecast_periods'])
                 self.store.record(
                     self.run_id,
                     'brief_validation',

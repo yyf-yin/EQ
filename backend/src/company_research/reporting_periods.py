@@ -210,6 +210,15 @@ def supports_period(source, period):
         if q:
             allowed |= {rp[:4] + q, previous_period(rp[:4] + q)}
         return period in allowed
+    if rp:
+        # An annual report covers its own year and the comparative years of its
+        # three-year summary, plus its own quarterly table (1Q–4Q). It never
+        # supplies cumulative Q1/H1/Q3 or another year's quarters, whatever
+        # years its text happens to mention.
+        year = int(rp[:4])
+        if period.endswith('A'):
+            return year - 2 <= int(period[:4]) <= year
+        return period[:4] == rp[:4] and bool(re.fullmatch(r'[1-4]Q', period[4:]))
     if period.endswith('A'):
         return period[:4] in source.title + ' ' + source.content
     columns = period_columns(source.content, default_year=rp[:4] if rp else None)

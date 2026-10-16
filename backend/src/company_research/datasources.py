@@ -95,6 +95,11 @@ def parse_material(data: bytes, suffix: str) -> list[tuple[str, str]]:
                 for k in (
                     'document_type',
                     'company_id',
+                    'company_name',
+                    'ticker',
+                    'security_name',
+                    'market',
+                    'financial_company',
                     'report_period',
                     'currency',
                     'accounting_basis',

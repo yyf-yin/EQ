@@ -97,3 +97,29 @@ async def test_exhausted_repairs_still_block_with_specific_missing_business(work
         await workflow.research_brief(context())
     assert len(requests) == 3
     assert len(workflow.store.records(workflow.run_id, 'brief_validation')) == 3
+
+
+async def test_uploaded_report_manifest_prevents_first_old_report_hiding_new_years(workflow, monkeypatch):
+    requests = []
+    reports = [SourceRecord(source_id=f'annual-{y}', kind='upload', title=f'{y}.pdf',
+        content=f'贵州茅台{y}年年度报告\n' + '主营业务为茅台酒及系列酒。\n' * 1600)
+        for y in [2023, 2025, 2024]]
+
+    async def ask(gateway, role, schema, request):
+        requests.append(request)
+        result = brief(source_ids=['annual-2025'])
+        if len(requests) == 1:
+            result.historical_periods = ['2021A', '2022A', '2023A']
+            result.forecast_periods = ['2024E', '2025E', '2026E']
+        return result
+
+    monkeypatch.setattr('company_research.graphs.ask', ask)
+    c = context() | {'data_template_version': 'fixed-slots-2',
+                     'sources': [s.model_dump(mode='json') for s in reports]}
+    output = await workflow.research_brief(c)
+    assert output['brief']['historical_periods'] == ['2023A', '2024A', '2025A']
+    assert output['brief']['forecast_periods'] == ['2026E', '2027E', '2028E']
+    # Years are set from the upload manifest in code, without a repair request.
+    assert len(requests) == 1
+    assert {s['source_id'] for s in requests[0]['sources']} == {s.source_id for s in reports}
+    assert requests[0]['required_forecast_periods'] == ['2026E', '2027E', '2028E']

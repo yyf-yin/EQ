@@ -1,6 +1,6 @@
 # 本地资料
 
-新真实研究使用固定表合同：这里提供证券主档，股数注明 shares_unit（股、万股、百万股等），股价注明 quote_date。公司年报仅由用户通过初始页“添加文件”上传，放在此目录不会自动采用，缺失不转 web 补数。年报结构化副本也须上传，声明 document_type=annual_report，推荐 field_id。完整示例见 [固定表使用与验收](../../docs/FIXED_DATA_SLOTS_ACCEPTANCE.md) 和 [用户年报入口](../../docs/USER_ANNUAL_REPORTS.md)。
+新真实研究使用固定表合同：公司身份优先从本次上传年报确认；这里可补充其他证券数据，股数注明 shares_unit（股、万股、百万股等），股价注明 quote_date。公司年报仅由用户通过初始页“添加文件”上传，放在此目录不会自动采用，缺失不转 web 补数。年报结构化副本也须上传，声明 document_type=annual_report，推荐 field_id。完整示例见 [固定表使用与验收](../../docs/FIXED_DATA_SLOTS_ACCEPTANCE.md) 和 [用户年报入口](../../docs/USER_ANNUAL_REPORTS.md)。
 
 证券主档及其它非年报参考资料可放在本目录，或通过 CDR_LOCAL_SOURCES 指定目录。已识别的年报文件/行在真实固定表索引中排除。索引不会读取目录外符号链接，不读取可执行文件。
 

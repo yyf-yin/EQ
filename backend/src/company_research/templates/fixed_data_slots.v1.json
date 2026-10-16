@@ -4,6 +4,10 @@
   "status": "runtime_contract",
   "scope": "当前项目 A 股非金融上市公司；固定字段，动态公司、期间、业务及债券记录",
   "source_policies": {
+    "annual_identity": {
+      "route": "本次上传年报；无年报时兼容本地身份入口",
+      "allow_web": false
+    },
     "local_security": {
       "route": "local-datasource",
       "allow_web": false,
@@ -125,8 +129,8 @@
           "normalized_unit": "—",
           "period_kind": "snapshot",
           "requirement": "I",
-          "note": "由本地证券主档确认",
-          "source_policy": "local_security",
+          "note": "优先由本次上传年报确认",
+          "source_policy": "annual_identity",
           "scope": "security"
         },
         {
@@ -138,7 +142,7 @@
           "period_kind": "snapshot",
           "requirement": "I",
           "note": "保留前导零",
-          "source_policy": "local_security",
+          "source_policy": "annual_identity",
           "scope": "security"
         },
         {

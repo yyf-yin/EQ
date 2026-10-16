@@ -28,7 +28,7 @@ export function ReferenceUploads({attachments,onChange,disabled,onUploading,limi
   }finally{setUploading(false);onUploading(false);setCurrentFile('')}
  }
  return <section aria-label="上传参考资料" className="mt-5 text-left rounded-xl border border-slate-200 bg-white p-5">
-  <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-semibold">年报与参考资料 <span className="ml-2 text-xs font-normal text-sea">本次指定</span></h2><p className="mt-1 text-xs text-slate-500">真实研究请上传公司年报、当年最新已披露季报或中报，以及上年同期数据（可来自本期财报比较列）；程序不自动寻找财报。研报或行业资料可一并提供。</p></div>
+  <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-sm font-semibold">年报与参考资料 <span className="ml-2 text-xs font-normal text-sea">本次指定</span></h2><p className="mt-1 text-xs text-slate-500">真实研究请上传完整公司年报（含公司简介、股票简况，程序据此识别公司名称及证券代码）、当年最新已披露季报或中报，以及上年同期数据（可来自本期财报比较列）；程序不自动寻找财报。研报或行业资料可一并提供。</p></div>
    <label className={`rounded-lg border border-sea px-3 py-2 text-sm text-sea ${disabled||uploading?'opacity-40':'cursor-pointer hover:bg-teal-50'}`} htmlFor="reference-files">添加文件</label>
    <input id="reference-files" type="file" className="sr-only" aria-label="选择参考资料文件" accept={accept} multiple disabled={disabled||uploading} onChange={e=>{const files=Array.from(e.currentTarget.files||[]);e.currentTarget.value='';void addFiles(files)}}/>
   </div>

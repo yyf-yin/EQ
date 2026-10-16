@@ -21,9 +21,12 @@ def group_key(fact):
 
 
 def metric_before(text, position, metric):
+    # PDF cells often wrap inside Chinese metric names. Match the same layout-
+    # independent text that quote admission uses, without altering the evidence.
+    prefix = re.sub(r'\s+', '', text[:position])
     labels = list(FIELD_MAP.items()) + [(v, v) for v in set(FIELD_MAP.values())]
     found = [
-        (m.end(), len(label), code) for label, code in labels for m in re.finditer(re.escape(label), text[:position])
+        (m.end(), len(label), code) for label, code in labels for m in re.finditer(re.escape(label), prefix)
     ]
     return bool(found and max(found)[2] == metric)
 

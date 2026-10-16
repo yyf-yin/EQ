@@ -4,7 +4,7 @@ import type {Progress, Run} from './types'
 const stages=['公司识别','研究规划','数据收集','财务分析','业务研究','盈利预测','分块分析','报告写作','最终审核','文档生成']
 const blockNames:Record<string,string>={C01:'公司概况',F01:'增长与盈利',F02:'资产与偿债',F03:'现金流质量',F04:'业务结构',F05:'资本效率',I01:'行业研究',B01:'业务研究',V01:'预测与估值',R01:'风险分析',X01:'核心观点'}
 const stateNames:Record<string,string>={pending:'待处理',running:'进行中',pausing:'保存进度中',collecting:'收集中',ready:'资料就绪',verified:'已验证',validated:'已校验',missing:'缺失',conflict:'冲突',split:'已拆分',quarantined:'待排查',completed:'完成',queued:'排队',warning:'提示',failed:'失败',blocked:'阻断',interrupted:'已暂停',waiting_human:'待人工核验',submitted:'反馈已提交',stale:'待更新'}
-const roleNames:Record<string,string>={resolver:'公司识别',brief:'范围规划',research_planner:'研究规划',reference_planner:'参考资料覆盖检查',calculation_planner:'计算规划',researcher:'资料取证',compression:'摘要整理',supervisor:'研究调度',financial_analyzer:'财务分析',assumption_planner:'预测假设',writer:'章节写作',reflection:'章节复核',core_writer:'核心观点',evidence_reviewer:'证据审核',editorial_reviewer:'编辑审核',critical_reviewer:'独立终审'}
+const roleNames:Record<string,string>={resolver:'公司识别',brief:'范围规划',research_planner:'研究规划',reference_planner:'参考资料覆盖检查',calculation_planner:'计算规划',researcher:'资料取证',slot_extractor:'财报填槽',compression:'摘要整理',supervisor:'研究调度',financial_analyzer:'财务分析',assumption_planner:'预测假设',writer:'章节写作',reflection:'章节复核',core_writer:'核心观点',evidence_reviewer:'证据审核',editorial_reviewer:'编辑审核',critical_reviewer:'独立终审'}
 const timeValue=(value?:string)=>value?Date.parse(value):NaN
 export function duration(seconds:number){
  if(!Number.isFinite(seconds))return '—'

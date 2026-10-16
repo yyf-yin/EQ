@@ -78,6 +78,8 @@ records/call 保存角色、块/批次、模型配置标识、耗时、重试、
 
 `models` 下每个模型可设 `temperature`（不填则用服务商默认）和 `extra_body`（原样并入请求体，用于服务商特有参数，例如 DeepSeek 的思考开关、OpenAI 的 `reasoning_effort`、Anthropic 的 `thinking`）。`role_limits` 中的 `temperature` 覆盖模型默认，建议提取和审核用 0、写作略高。Anthropic 开启 thinking 时不要设置 temperature，结构化输出会自动改用 `tool_choice: auto`。
 
+固定表财报填槽（`SlotExtraction`）使用独立角色 `slot_extractor`：未在 `routes` 中配置时沿用 `researcher` 的路由，`role_limits` 中只写需要覆盖的字段，其余整项继承 `researcher`（再继承 `default`）。这样可以只给填槽换无思考模型，`researcher` 的资料方向规划、材料评估和证据提取仍保留思考。DeepSeek 的思考 token 计入 `max_tokens`（2026-10-16 实测约占输出 63%），开启思考时不要压低输出上限。程序逐值核对原文、列头、期间和单位，关闭思考主要影响填槽数量；启用前用同一组文件对比开/关两次的锁定槽数、拒绝原因和两次都锁定的值是否一致。示例见 `configs/models.example.yaml` 中注释掉的 `deepseek_flash_extract`。
+
 Anthropic 协议默认 `prompt_cache: true`，在 system 与 schema 工具之后打缓存断点；前缀过短时服务商不缓存，无副作用。缓存读取与写入的 token 计入输入用量，并分别记为命中/未命中。DeepSeek 等 OpenAI 兼容服务按相同前缀自动缓存，无需配置。
 
 分析、写作和批判审核的 system 提示会附加 `skills/` 中对应分析块的方法步骤（如 F05 附 ROIC 与竞争优势拆解，I01 附行业供需分析，V01 附预测、估值与倍数校准）。方法只指导分析思路，不放宽数字引用和 schema 规则。`CDR_METHOD_GUIDANCE=false` 可关闭，`CDR_SKILLS_DIR` 可指定其他方法库目录。

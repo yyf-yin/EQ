@@ -1827,8 +1827,6 @@ class ResearchWorkflow:
 
     async def revise(self, c):
         targets = {i['target_node'] for i in c['issues']}
-        locations = {i['location'] for i in c['issues']}
-        instructions = [i['suggested_fix'] for i in c['issues']]
         c['report']['approved_snapshot_id'] = ''
         responsible = {i.get('block_id') for i in c['issues'] if i.get('block_id')}
         self.store.record(
@@ -1892,15 +1890,20 @@ class ResearchWorkflow:
             await execute('assemble')
         elif 'write_sections' in targets:
             from .writers import write_one, mock_sections
+            from .reviewers import issue_sections, FIXED_SECTIONS
 
             report = ReportDocument.model_validate(c['report'])
-            matched = False
+            per_section = {}
+            for problem in c['issues']:
+                for sid in issue_sections(problem, report.sections):
+                    per_section.setdefault(sid, []).append(problem['suggested_fix'])
+            # Any located issue keeps the repair local; fixed sections (core, statements) are
+            # never redrafted here, and core_conclusion below refreshes the core view.
+            matched = bool(per_section)
 
             def patch(sections):
-                nonlocal matched
                 for index, s in enumerate(sections):
-                    if s.section_id in locations:
-                        matched = True
+                    if s.section_id in per_section:
                         if self.mock:
                             from .reports import sections_flat
 
@@ -1917,14 +1920,14 @@ class ResearchWorkflow:
                 from .reports import sections_flat
 
                 for s in sections_flat(report.sections):
-                    if s.section_id in locations and s.section_id not in {'core', 'toc', 'statements'}:
+                    if s.section_id in per_section and s.section_id not in FIXED_SECTIONS:
                         updated = await write_one(
                             self.gateway,
                             c,
                             s.section_id,
                             s.title,
                             '修复终审定位问题',
-                            instructions=instructions,
+                            instructions=list(dict.fromkeys(per_section[s.section_id])),
                             store=self.store,
                             run_id=self.run_id,
                         )
@@ -1934,7 +1937,6 @@ class ResearchWorkflow:
                             updated.calculation_ids,
                             updated.number_bindings,
                         )
-                        matched = True
             c['report'] = report.model_dump(mode='json')
             if not matched:
                 await execute('write_sections')

@@ -71,3 +71,59 @@ def test_core_conflict_gate_ignores_unverifiable_forecast_checks():
     report.sections[0].consistency_checks['cash_growth']='conflict: 正文增长结论与现金计算方向相反'
     blocked=[i for i in critical_review(report) if i.severity=='critical']
     assert len(blocked)==1 and blocked[0].description.endswith('cash_growth')
+
+
+def test_review_issue_target_is_restricted_and_mapped():
+    from company_research.schemas import ReviewIssue
+    base=dict(issue_type='evidence',severity='error',location='x',description='d',suggested_fix='f')
+    stray=ReviewIssue(**base,target_node='C01');core=ReviewIssue(**base,target_node='X01');kept=ReviewIssue(**base,target_node='calculate')
+    assert (stray.target_node,stray.requested_target)==('write_sections','C01')
+    assert (core.target_node,core.requested_target)==('core_conclusion','X01')
+    assert (kept.target_node,kept.requested_target)==('calculate','')
+
+
+def test_semantic_issue_bound_to_reviewed_section():
+    from company_research.schemas import ReviewIssue
+    from company_research.reviewers import bind_semantic
+    base=dict(issue_type='critical',severity='critical',location='第5段',description='d',suggested_fix='f')
+    p=bind_semantic(ReviewIssue(**base,target_node='research_plan'),'risk')
+    assert (p.section_id,p.block_id,p.target_node,p.requested_target)==('risk','R01','write_sections','research_plan')
+    p=bind_semantic(ReviewIssue(**base,target_node='write_sections'),'core')
+    assert p.target_node=='core_conclusion'
+    assert bind_semantic(ReviewIssue(**base,target_node='assumptions'),'forecast').target_node=='assumptions'
+
+
+def test_issue_location_resolves_to_sections():
+    from company_research.reviewers import issue_sections
+    from company_research.schemas import ReportSection
+    sections=[ReportSection(section_id='financial',title='二、财务情况分析',children=[
+                ReportSection(section_id='F01',title='（一）财务增长与盈利能力')]),
+              ReportSection(section_id='business',title='三、公司业务',children=[
+                ReportSection(section_id='segment-0',title='茅台酒',children=[
+                  ReportSection(section_id='position-0',title='（二）公司情况')]),
+                ReportSection(section_id='segment-1',title='其他系列酒',children=[
+                  ReportSection(section_id='position-1',title='（二）公司情况')])]),
+              ReportSection(section_id='risk',title='五、风险提示')]
+    find=lambda **p:issue_sections({'location':'','block_id':None}|p,sections)
+    assert find(location='五、风险提示 第3段')==['risk']
+    assert find(location='F01第2段（毛利率与净利率）')==['F01']
+    assert find(location='segment-0/position-0')==['segment-0','position-0']
+    assert find(location='二、财务情况分析 / （一）财务增长与盈利能力')==['F01']
+    assert find(location='其他系列酒（二）公司情况',block_id='B01-1')==['position-1']
+    assert find(location='无法识别',block_id='R01')==['risk']
+    assert find(location='五、风险提示',section_id='F01')==['F01']
+    assert find(location='无法识别')==[]
+
+
+async def test_located_issue_rewrites_only_its_section(completed,monkeypatch):
+    settings,store,id,report=completed
+    c=store.load_checkpoint(id)[1]
+    c['report']=report.model_copy(deep=True).model_dump(mode='json')
+    workflow=ResearchWorkflow(settings,store,id)
+    async def full_redraft(_):raise AssertionError('整稿重写')
+    monkeypatch.setattr(workflow,'write_sections',full_redraft)
+    c['issues']=[{'issue_id':'i1','issue_type':'critical','severity':'error','location':'第3段（经营现金流归因）',
+                  'description':'d','suggested_fix':'删除无证据归因','target_node':'write_sections',
+                  'section_id':'risk','block_id':'R01','rule_id':'semantic.critical'}]
+    c.update(await workflow.revise(c))
+    assert c['revisions']==1

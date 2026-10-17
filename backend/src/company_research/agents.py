@@ -230,7 +230,9 @@ AssumptionOutput.model_rebuild()
 
 def request_messages(role, context):
     prompt_role = (
-        'fixed_extractor'
+        'draft_merger'
+        if context.get('merge_contract')
+        else 'fixed_extractor'
         if context.get('slot_contract')
         else 'material_planner'
         if context.get('material_plan_contract')
@@ -384,7 +386,66 @@ async def ask_bounded(gateway, role, schema, context, depth=0, max_splits=2):
                 data[key] = data[key] or value
             elif key == 'summary':
                 data[key] += '\n' + value
+        if schema is WriterDraft:
+            return await merge_drafts(gateway, role, context, a, b, schema.model_validate(data))
         return schema.model_validate(data)
+
+
+DRAFT_ID_FIELDS = {
+    'fact': 'fact_ids',
+    'calc': 'calculation_ids',
+    'assumption': 'assumption_ids',
+}
+DRAFT_TOKEN = re.compile(r'\[\[(fact|calc|assumption):([^\]]+)\]\]')
+
+
+async def merge_drafts(gateway, role, context, a: WriterDraft, b: WriterDraft, union: WriterDraft):
+    """Each half of a split writer request drafts a complete section; consolidate
+    them into one section instead of concatenating, citing only declared IDs."""
+    from .llm import TruncatedOutput, IncompleteOutput, CapacityError, LLMError
+
+    fields = ['evidence_ids', *DRAFT_ID_FIELDS.values()]
+    allowed = {f: set(getattr(union, f)) for f in fields}
+    merge = {
+        'merge_contract': True,
+        'section': context.get('section') or {},
+        'drafts': [
+            {
+                'paragraphs': d.paragraphs,
+                'consistency_checks': d.consistency_checks,
+                **{f: getattr(d, f) for f in fields},
+            }
+            for d in (a, b)
+        ],
+        'allowed_ids': {f: getattr(union, f) for f in fields},
+    }
+    if 'consistency_checks' in context:
+        merge['consistency_checks'] = context['consistency_checks']
+    try:
+        merged = await ask(gateway, role, WriterDraft, merge)
+    except (TruncatedOutput, IncompleteOutput, CapacityError, LLMError) as exc:
+        import logging
+
+        logging.getLogger(__name__).warning('%s: split draft consolidation failed, keeping union: %s', role, exc)
+        return union
+    data = merged.model_dump(mode='json')
+    for f in fields:
+        data[f] = [i for i in dict.fromkeys(data[f]) if i in allowed[f]]
+    # A reference used in the text but missing from its list is still declared by
+    # a half; declare it. References no half declared are left for the writer's
+    # contract repair, which knows the actual input objects.
+    for paragraph in data['paragraphs']:
+        for kind, id in DRAFT_TOKEN.findall(paragraph):
+            field = DRAFT_ID_FIELDS[kind]
+            if id in allowed[field] and id not in data[field]:
+                data[field].append(id)
+    if not data['paragraphs']:
+        return union
+    checks = {}
+    for key in dict.fromkeys([*a.consistency_checks, *b.consistency_checks]):
+        checks[key] = data['consistency_checks'].get(key) or union.consistency_checks[key]
+    data['consistency_checks'] = checks | data['consistency_checks']
+    return WriterDraft.model_validate(data)
 
 
 def bind_extraction(extraction: ResearchExtraction, sources: list[SourceRecord], company_id: str):

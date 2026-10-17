@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Literal, Any
 from uuid import uuid4
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 def uid() -> str:
@@ -228,6 +228,26 @@ class ReportSection(Schema):
     consistency_checks: dict[str, str] = Field(default_factory=dict)
 
 
+TargetNode = Literal[
+    "research_plan",
+    "supervisor",
+    "financial_analysis",
+    "assumptions",
+    "calculate",
+    "write_sections",
+    "core_conclusion",
+    "assemble",
+]
+TARGET_NODES = set(TargetNode.__args__)
+TARGET_ALIASES = {
+    "core": "core_conclusion",
+    "x01": "core_conclusion",
+    "core_consistency": "core_conclusion",
+    "assumption": "assumptions",
+    "forecast": "assumptions",
+}
+
+
 class ReviewIssue(Schema):
     issue_id: str = Field(default_factory=uid)
     issue_type: Literal["structural", "financial", "evidence", "critical", "editorial"]
@@ -235,12 +255,27 @@ class ReviewIssue(Schema):
     location: str
     description: str
     suggested_fix: str
-    target_node: str
+    target_node: TargetNode
     snapshot_id: str = ""
     rule_id: str = ""
     block_id: str | None = None
+    section_id: str | None = None
+    requested_target: str = ""
     affected_refs: list[str] = Field(default_factory=list)
     validation_status: str = "open"
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_target(cls, data):
+        # Reviewers sometimes put a location ("C01", "risk") in target_node; unknown
+        # values would match no rework branch, so map them and keep the raw value.
+        if isinstance(data, dict) and data.get("target_node") not in TARGET_NODES:
+            raw = str(data.get("target_node") or "")
+            data = data | {
+                "target_node": TARGET_ALIASES.get(raw.strip().lower(), "write_sections"),
+                "requested_target": data.get("requested_target") or raw,
+            }
+        return data
 
 
 class ReportDocument(Schema):

@@ -11,7 +11,8 @@ from .reports import TITLES, sections_flat, toc
 from .financials import Calculator
 from .financials.formulas import FinancialDataProcessor, FinancialError
 from .agents import ask, ask_bounded, ReviewOutput
-from .writers import number
+from .writers import number, section_block
+from .comparisons import FINANCIAL_TITLES
 
 
 def issue(kind, location, description, target, severity='critical', fix='根据原始资料及注册公式修复后重新审核'):
@@ -23,6 +24,58 @@ def issue(kind, location, description, target, severity='critical', fix='根据�
         suggested_fix=fix,
         target_node=target,
     )
+
+
+# Semantic reviewers read one section; re-collection, recalculation and reassembly are
+# decided by deterministic gates only, so their requests become a local rewrite.
+SEMANTIC_TARGETS = {'write_sections', 'core_conclusion', 'assumptions'}
+FIXED_SECTIONS = {'core', 'toc', 'statements', 'disclaimer'}
+
+
+def bind_semantic(problem: ReviewIssue, section_id: str):
+    problem.section_id = section_id
+    problem.block_id = section_block(section_id)
+    target = 'core_conclusion' if section_id == 'core' else problem.target_node
+    if target not in SEMANTIC_TARGETS:
+        target = 'write_sections'
+    if target != problem.target_node:
+        problem.requested_target = problem.requested_target or problem.target_node
+        problem.target_node = target
+    return problem
+
+
+def block_section(block_id):
+    if block_id in FINANCIAL_TITLES:
+        return block_id
+    for prefix, kind in (('I01-', 'industry-'), ('B01-', 'position-')):
+        if block_id.startswith(prefix):
+            return kind + block_id[len(prefix) :]
+    return {'C01': 'company', 'V01': 'forecast', 'R01': 'risk', 'X01': 'core'}.get(block_id)
+
+
+def issue_sections(problem: dict, sections) -> list[str]:
+    """Report sections an issue points at: bound section, IDs in location, titles, then block."""
+    flat = list(sections_flat(sections))
+    ids = {s.section_id for s in flat}
+    if problem.get('section_id') in ids:
+        return [problem['section_id']]
+    location = problem.get('location') or ''
+    tokens = re.findall(r'[A-Za-z][A-Za-z0-9_-]*', location)
+    hits = [t for t in tokens if t in ids] + [block_section(t) for t in tokens if block_section(t) in ids]
+    if not hits:
+        titled = [s for s in flat if s.title and s.title in location]
+        # A child title wins over its parent's ("五、风险提示 第3段" vs nested headings).
+        hits = [
+            s.section_id
+            for s in titled
+            if not any(o is not s and o.section_id in {x.section_id for x in sections_flat(s.children)} for o in titled)
+        ]
+        block = problem.get('block_id')
+        narrowed = [h for h in hits if block and section_block(h) == block]
+        hits = narrowed or hits
+    if not hits and block_section(problem.get('block_id') or '') in ids:
+        hits = [block_section(problem['block_id'])]
+    return list(dict.fromkeys(hits))
 
 
 def structural_review(report: ReportDocument):
@@ -421,6 +474,7 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False):
                             problem.snapshot_id = report.snapshot_id
                             # Models cannot soften deterministic gates; separate issues only.
                             problem.rule_id = 'semantic.' + name
+                            bind_semantic(problem, section.section_id)
                         issues += semantic.issues
                 if store:
                     store.emit(

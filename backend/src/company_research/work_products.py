@@ -100,7 +100,7 @@ FIELDS = {
     'block_analysis': 'block_id version conclusions evidence_ids calculation_ids counter_evidence_ids limitations status',
     'coverage': 'block_id question_id required requirements status gaps task_id verified_refs validation',
     'task': 'task_id company_id topic role queries block_id question_ids segment_id required_data_ids linked_segments',
-    'review_issue': 'issue_id issue_type severity location description suggested_fix target_node snapshot_id rule_id block_id affected_refs validation_status',
+    'review_issue': 'issue_id issue_type severity location description suggested_fix target_node snapshot_id rule_id block_id section_id requested_target affected_refs validation_status',
     'batch': 'batch_id block_id company_id segment_id question_ids periods scope_hint metric_codes status estimated_input_tokens parent_id failure',
     'call': 'call_id role block_id batch_id model_config model protocol prompt_version attempt estimated_input_tokens budget_tokens count_method input_tokens output_tokens usage_source finish_reason result duration_seconds',
     'invalidation': 'snapshot_id responsible_blocks affected_blocks reason',

@@ -55,3 +55,19 @@ async def test_targeted_revision_and_gate(completed):
     assert not c['issues'] and c['revisions']==1
     c['report']['sources']=[];c['revisions']=settings.max_revisions
     with pytest.raises(FinancialError,match='终审阻断'):await workflow.final_review(c)
+
+
+def test_core_conflict_gate_ignores_unverifiable_forecast_checks():
+    from company_research.reviewers import critical_review
+    from company_research.schemas import ReportSection
+    checks={'cash_growth':'limited: 现金流口径未剔除金融子公司','forecast_total':'conflict: forecasts 为空',
+            'valuation_evidence':'conflict: 无股价与可比数据','resource_concentration':'集中度高但无法量化'}
+    report=ReportDocument(title='t',company_id='c',mode='real',rules_version='1.1',sources=[],sections=[
+        ReportSection(section_id='core',title='核心观点',paragraphs=['结论'],consistency_checks=checks),
+        ReportSection(section_id='risk',title='风险',paragraphs=['甲','乙','丙'])])
+    issues=critical_review(report)
+    assert not [i for i in issues if i.severity in {'critical','error'}]
+    assert any('受限研究' in i.description for i in issues)
+    report.sections[0].consistency_checks['cash_growth']='conflict: 正文增长结论与现金计算方向相反'
+    blocked=[i for i in critical_review(report) if i.severity=='critical']
+    assert len(blocked)==1 and blocked[0].description.endswith('cash_growth')

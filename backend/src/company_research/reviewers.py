@@ -313,8 +313,16 @@ def critical_review(report: ReportDocument):
             not core.consistency_checks.get(k, '').strip() for k in keys
         ):
             issues.append(issue('critical', 'core', 'X01 未回答四类整体一致性检查', 'core_conclusion'))
-        if any(core.consistency_checks.get(k, '').startswith('conflict:') for k in keys):
-            issues.append(issue('critical', 'core', 'X01 存在未解决重大跨块矛盾', 'financial_analysis'))
+        # Without forecasts there is no forecast or valuation block to contradict;
+        # that gap is already disclosed as a limited-research warning below.
+        unverifiable = set() if report.forecasts else {'forecast_total', 'valuation_evidence'}
+        conflicts = sorted(
+            k for k in keys - unverifiable if core.consistency_checks.get(k, '').strip().startswith('conflict:')
+        )
+        if conflicts:
+            issues.append(
+                issue('critical', 'core', 'X01 存在未解决重大跨块矛盾：' + '、'.join(conflicts), 'financial_analysis')
+            )
     if report.mode == 'real' and not report.forecasts:
         issues.append(
             issue(

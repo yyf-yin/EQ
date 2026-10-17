@@ -53,6 +53,8 @@ TEMPLATE = json.loads((Path(__file__).parent / 'templates/fixed_data_slots.v1.js
 VERSION = 'fixed-slots-2'
 FIELDS = {f['field_id']: f for g in TEMPLATE['groups'] for f in g['fields']}
 TERMINAL = {'locked', 'not_disclosed', 'not_applicable', 'source_missing'}
+# Leases above this share of total assets stop the simplified forecast.
+LEASE_MATERIALITY = Decimal('0.05')
 NUMBER = r'(?<![\d.])[-−]?\d[\d,]*(?:\.\d+)?'
 # Model role for fixed-table number extraction; falls back to researcher's
 # route and limits (llm.ROLE_PARENTS) unless configured separately.
@@ -1785,31 +1787,32 @@ class FixedCollection:
         processor = FinancialDataProcessor()
         period = max(c['brief']['historical_periods'])
         company = c['company']['company_id']
+        # Incomplete segments fall back to a company-level forecast and minority
+        # interest is split by an explicit minority_ratio (see forecast_segments);
+        # only inputs the simplified model cannot represent stop the forecast.
         try:
-            total = processor.get(facts, company, 'revenue', period).value
-            revenues = [
-                processor.get(facts, company, 'revenue', period, segment_id=s, scope='segment').value
-                for s in c['brief']['segments']
-            ]
-            if abs(sum(revenues) - total) > Decimal('.000001'):
-                return '分部披露不是完整、互斥的公司收入合计，停止分部预测，保留原值'
-            parent = processor.get(facts, company, 'parent_net_income', period).value
-            net = processor.get(facts, company, 'net_income', period).value
-            if parent != net:
-                return '当前简化预测不处理少数股东损益，停止预测，不改变归母或合并原值'
+            processor.get(facts, company, 'revenue', period)
+            processor.get(facts, company, 'net_income', period)
+            assets = processor.get(facts, company, 'assets', period).value
         except FinancialError:
-            return '固定表缺少完整分部收入或合并利润口径，停止对应预测'
-        for code in ['lease_liabilities', 'current_debt_leases', 'minority_equity', 'right_of_use_assets']:
-            slot = next(
+            return '固定表缺少合并收入、净利润或总资产口径，停止对应预测'
+        slots = {
+            s['field_id']: s
+            for s in self.store.records(self.run_id, 'data_slot')
+            if s['period'] == period and not s.get('segment_id') and not s.get('bond_id')
+        }
+        for codes in [['lease_liabilities', 'current_debt_leases'], ['right_of_use_assets']]:
+            amount = sum(
                 (
-                    s
-                    for s in self.store.records(self.run_id, 'data_slot')
-                    if s['field_id'] == 'balance.' + code and s['period'] == period
+                    abs(Decimal(slots['balance.' + code]['normalized_value'] or '0'))
+                    for code in codes
+                    if slots.get('balance.' + code, {}).get('state') == 'locked'
                 ),
-                None,
+                Decimal(0),
             )
-            if slot and slot['state'] == 'locked' and Decimal(slot['normalized_value'] or '0') != 0:
-                return '当前简化预测不处理复杂租赁或少数股东权益，停止预测，保留年报输入'
+            # Immaterial leases stay inside debt/other assets of the simplified model.
+            if amount > abs(assets) * LEASE_MATERIALITY:
+                return '租赁规模重大，当前简化预测不处理复杂租赁，停止预测，保留年报输入'
         return None
 
     async def assess(self, c, task):

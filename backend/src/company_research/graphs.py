@@ -26,13 +26,20 @@ from .datasources import LocalDatasource, UnifiedDatasource, WebAdapter, HTTPWeb
 from .evidence import EvidenceStore
 from .financials import DependencyResolver, Calculator, ForecastEngine, FinancialError
 from .financials.formulas import REGISTRY, FinancialDataProcessor, INPUT_UNITS, input_unit
-from .financials.forecast import OPENING_KEYS, ASSUMPTION_KEYS
+from .financials.forecast import (
+    OPENING_KEYS,
+    ASSUMPTION_KEYS,
+    COMPANY_SEGMENT,
+    forecast_segments,
+    has_minority_interest,
+)
 from .planners import (
     mock_research_plan,
     mock_calculation_plan,
     mock_assumptions,
     execute_calculation_plan,
     ASSUMPTION_UNITS,
+    REQUIRED_ASSUMPTION_UNITS,
 )
 from .researcher import researcher_graph
 from .reports import mock_report, export_docx, html_report
@@ -1418,18 +1425,15 @@ class ResearchWorkflow:
                 }
         processor = FinancialDataProcessor()
         facts = [FinancialFact.model_validate(f) for f in c['facts']]
+        company = c['company']['company_id']
+        period = max(c['brief']['historical_periods'])
         try:
             for metric in OPENING_KEYS:
-                processor.get(facts, c['company']['company_id'], metric, max(c['brief']['historical_periods']))
-            for segment in c['brief']['segments']:
-                processor.get(
-                    facts,
-                    c['company']['company_id'],
-                    'revenue',
-                    max(c['brief']['historical_periods']),
-                    segment_id=segment,
-                    scope='segment',
-                )
+                processor.get(facts, company, metric, period)
+            # Incomplete segment disclosure limits only the segment split, not the forecast.
+            segments, _, segment_note = forecast_segments(
+                facts, company, period, c['brief']['segments'], bool(c.get('data_template_version'))
+            )
         except FinancialError:
             return {
                 'assumptions': [],
@@ -1438,23 +1442,45 @@ class ResearchWorkflow:
                     dict.fromkeys(c['limitations'] + ['预测关键输入尚未核实，暂停生成假设；其他研究继续。'])
                 ),
             }
+        fallback = segments == [COMPANY_SEGMENT]
+        minority = bool(c.get('data_template_version')) and has_minority_interest(facts, company, period)
         if self.mock:
             candidate = next(e for e in c['evidence'] if '模拟预测依据' in e['quote'])
-            assumptions = mock_assumptions(candidate['evidence_id'], c['brief']['forecast_periods'])
-            models = {s: 'growth' for s in c['brief']['segments']}
+            assumptions = mock_assumptions(candidate['evidence_id'], c['brief']['forecast_periods'], segments)
+            models = {s: 'growth' for s in segments}
             limitations = []
         else:
             package = block_context(c, 'V01', 'assumptions', self.store, self.run_id, 1000000)
+            instructions = [
+                '仅输出本情景本年度公司与各业务假设；不得输出其它期间。以历史证据支持，未取得量价输入时不得编造。'
+            ]
+            if fallback:
+                instructions.append(
+                    f'分部收入披露不完整，本次不做分部预测：segment_models 只能是 {{"{COMPANY_SEGMENT}": "growth"}}，'
+                    f'收入假设只输出 segment_id="{COMPANY_SEGMENT}" 的 growth_rate（公司口径营业收入增速），'
+                    '不得输出各业务分部的收入假设。'
+                )
+            if minority:
+                instructions.append(
+                    '历史合并净利润与归母净利润不同（存在少数股东损益）：必须另输出公司级 minority_ratio'
+                    '（少数股东损益 / 合并净利润，ratio），以历史少数股东损益占比为依据。'
+                )
             base = {k: v for k, v in package.content.items() if k != 'financial_facts'} | {
                 'facts': package.content['financial_facts'],
-                'required_assumption_keys': ASSUMPTION_UNITS,
+                'required_assumption_keys': REQUIRED_ASSUMPTION_UNITS
+                | ({'minority_ratio': ASSUMPTION_UNITS['minority_ratio']} if minority else {}),
+                'forecast_segments': segments,
                 'registry': {
                     k: {'inputs': REGISTRY[k].inputs}
-                    for k in ['volume_price', 'capacity_utilization', 'users_arpu', 'market_share', 'growth']
+                    for k in (
+                        ['growth']
+                        if fallback
+                        else ['volume_price', 'capacity_utilization', 'users_arpu', 'market_share', 'growth']
+                    )
                 },
             }
             assumptions = []
-            models = {}
+            models = {COMPANY_SEGMENT: 'growth'} if fallback else {}
             limitations = []
             selections = [
                 (scenario, period) for scenario in ['Bear', 'Base', 'Bull'] for period in c['brief']['forecast_periods']
@@ -1470,9 +1496,7 @@ class ResearchWorkflow:
                     | {
                         'selected_scenario': scenario,
                         'selected_period': period,
-                        'instructions': [
-                            '仅输出本情景本年度公司与各业务假设；不得输出其它期间。以历史证据支持，未取得量价输入时不得编造。'
-                        ],
+                        'instructions': instructions,
                     },
                     max_splits=self.settings.max_batch_splits,
                 )
@@ -1486,11 +1510,18 @@ class ResearchWorkflow:
                 else [await generate(s) for s in selections]
             )
             for output in outputs:
+                if fallback:
+                    # Disclosed segments are not forecast; their assumptions would be unused.
+                    assumptions += [a for a in output.assumptions if a.segment_id in {None, COMPANY_SEGMENT}]
+                    limitations += output.limitations
+                    continue
                 if any(s in models and models[s] != m for s, m in output.segment_models.items()):
                     raise FinancialError('跨情景业务收入模型冲突')
                 assumptions += output.assumptions
                 models.update(output.segment_models)
                 limitations += output.limitations
+        if segment_note:
+            limitations.append(segment_note)
         # Preserve identity for regenerated assumptions whose full content and
         # evidence are unchanged; unrelated forecast inputs then keep their cache.
         old_assumptions = {
@@ -1549,12 +1580,16 @@ class ResearchWorkflow:
             opening_facts = {k: processor.get(facts, company, k, period) for k in OPENING_KEYS}
             opening = {k: f.value for k, f in opening_facts.items()}
             opening_refs = {k: f.fact_id for k, f in opening_facts.items()}
-            historical = {
-                s: processor.get(facts, company, 'revenue', period, segment_id=s, scope='segment')
-                for s in c['brief']['segments']
-            }
+            segments, historical, segment_note = forecast_segments(
+                facts, company, period, c['brief']['segments'], bool(c.get('data_template_version'))
+            )
         except FinancialError as exc:
             return {'forecasts': [], 'limitations': limitations + [str(exc), '关键三表输入缺失，未生成预测。']}
+        if segment_note:
+            limitations.append(segment_note)
+        # Fixed-template runs used to stop on minority interest; they now need an
+        # explicit split. Legacy runs keep the consolidated simplification.
+        minority = bool(c.get('data_template_version')) and has_minority_interest(facts, company, period)
         for scenario in ['Bear', 'Base', 'Bull']:
             balance = dict(opening)
             balance_refs = dict(opening_refs)
@@ -1562,8 +1597,14 @@ class ResearchWorkflow:
             prev_refs = {s: f.fact_id for s, f in historical.items()}
             for year in sorted(c['brief']['forecast_periods']):
                 try:
+                    if minority and not any(
+                        a.scenario == scenario and a.period == year and a.segment_id is None
+                        for a in assumptions
+                        if a.metric_code == 'minority_ratio'
+                    ):
+                        raise FinancialError('历史存在少数股东损益，缺少 minority_ratio 假设')
                     drivers = {}
-                    for segment in c['brief']['segments']:
+                    for segment in segments:
                         model = c['segment_models'].get(segment)
                         if model not in {
                             'volume_price',

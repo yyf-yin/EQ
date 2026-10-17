@@ -30,6 +30,49 @@ def issue(kind, location, description, target, severity='critical', fix='根据�
 # decided by deterministic gates only, so their requests become a local rewrite.
 SEMANTIC_TARGETS = {'write_sections', 'core_conclusion', 'assumptions'}
 FIXED_SECTIONS = {'core', 'toc', 'statements', 'disclaimer'}
+# Python-generated sections: the three statements are checked by financial_review and no
+# writer can redraft them, so a semantic "no source" there could only end in a block.
+UNREVIEWED_SECTIONS = FIXED_SECTIONS - {'core'}
+ID_TOKEN = re.compile(r'[A-Za-z0-9_-]{12,}')
+
+
+def cited_context(report: ReportDocument, section) -> dict:
+    """Facts, calcs and assumptions a section cites, plus everything they derive from."""
+    facts = {f.fact_id: f for f in report.financial_facts}
+    calcs = {r.result_id: r for r in report.calculations}
+    assumptions = {a.assumption_id: a for a in report.assumptions}
+    known = facts.keys() | calcs.keys() | assumptions.keys()
+    text = '\n'.join(section.paragraphs + [c for t in section.tables for row in t.rows for c in row])
+    pending = [ref.split(':', 1)[-1] for ref in section.number_bindings] + list(section.calculation_ids)
+    for token in ID_TOKEN.findall(text):
+        # Tables show IDs truncated (e.g. the 计算 ID column), so a unique prefix also counts.
+        matches = [token] if token in known else [k for k in known if k.startswith(token)]
+        if len(matches) == 1:
+            pending.append(matches[0])
+    pending += [f.fact_id for f in report.financial_facts if f.evidence_id in section.evidence_ids]
+    seen = set()
+    while pending:
+        id = pending.pop()
+        if id in seen:
+            continue
+        seen.add(id)
+        if id in calcs:
+            pending.extend(calcs[id].input_refs.values())
+        elif id in facts and facts[id].derivation_id:
+            pending.append(facts[id].derivation_id)
+    cited_facts = [f for f in report.financial_facts if f.fact_id in seen]
+    cited_assumptions = [a for a in report.assumptions if a.assumption_id in seen]
+    evidence_ids = (
+        set(section.evidence_ids)
+        | {f.evidence_id for f in cited_facts}
+        | {e for a in cited_assumptions for e in a.evidence_ids}
+    )
+    return {
+        'evidence': [e for e in report.evidence if e.evidence_id in evidence_ids],
+        'facts': cited_facts,
+        'calculations': [r for r in report.calculations if r.result_id in seen],
+        'assumptions': cited_assumptions,
+    }
 
 
 def bind_semantic(problem: ReviewIssue, section_id: str):
@@ -441,27 +484,16 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False):
                 if gateway and not mock and name in {'evidence', 'critical', 'editorial'}:
                     # Review a section and its referenced originals, never a full-company dump.
                     for section in sections_flat(report.sections):
-                        if not section.paragraphs:
+                        if not section.paragraphs or section.section_id in UNREVIEWED_SECTIONS:
                             continue
-                        evidence = [e for e in report.evidence if e.evidence_id in section.evidence_ids]
-                        source_ids = {e.source_id for e in evidence}
-                        from .writers import section_block
+                        cited = cited_context(report, section)
+                        source_ids = {e.source_id for e in cited['evidence']}
 
                         data = {
                             'snapshot_id': report.snapshot_id,
                             'section': section.model_dump(mode='json')
                             | {'block_id': section_block(section.section_id)},
-                            'evidence': [e.model_dump(mode='json') for e in evidence],
-                            'facts': [
-                                f.model_dump(mode='json')
-                                for f in report.financial_facts
-                                if f.evidence_id in section.evidence_ids
-                            ],
-                            'calculations': [
-                                r.model_dump(mode='json')
-                                for r in report.calculations
-                                if r.result_id in section.calculation_ids
-                            ],
+                            **{k: [o.model_dump(mode='json') for o in v] for k, v in cited.items()},
                             'source_metadata': [
                                 s.model_dump(mode='json', exclude={'content'})
                                 for s in report.sources

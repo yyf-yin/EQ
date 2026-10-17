@@ -127,3 +127,49 @@ async def test_located_issue_rewrites_only_its_section(completed,monkeypatch):
                   'section_id':'risk','block_id':'R01','rule_id':'semantic.critical'}]
     c.update(await workflow.revise(c))
     assert c['revisions']==1
+
+
+def test_reviewer_context_follows_section_citations():
+    from company_research.reviewers import cited_context
+    from company_research.schemas import ReportSection,FinancialFact,CalculationResult,EvidenceRecord,Table
+    ev=lambda i:EvidenceRecord(evidence_id='ev-'+i,source_id='src-1',claim=i,quote='原文'+i,locator='p1')
+    fact=lambda i,**k:FinancialFact(fact_id='fact-slot-'+i,company_id='c',metric_code=i,period='2024',unit='CNY_million',
+                                    value=D(1),actual_or_forecast='actual',source_id='src-1',evidence_id='ev-'+i,locator='p1',**k)
+    calc=lambda i,refs:CalculationResult(result_id='calc-'+i,formula_id='f',formula_version='1',output_metric=i,period='2024',
+                                         unit='ratio',inputs={k:D(1) for k in refs},input_refs=refs,value=D(1))
+    report=ReportDocument(title='t',company_id='c',mode='real',sources=[],
+        evidence=[ev(i) for i in ['revenue','net_income','cost','derived','table','unrelated']],
+        financial_facts=[fact('revenue'),fact('net_income'),fact('cost'),fact('table'),fact('unrelated'),
+                         fact('derived',value_origin='derived',derivation_id='calc-gross0000000')],
+        calculations=[calc('margin000000000',{'net_income':'fact-slot-net_income','revenue':'fact-slot-revenue'}),
+                      calc('gross0000000',{'cost':'fact-slot-cost'}),
+                      calc('tabled000000000',{'x':'fact-slot-table'}),calc('other0000000000',{})],
+        sections=[ReportSection(section_id='F01',title='财务',paragraphs=['净利率为12.00%。','[[fact:fact-slot-derived]]'],
+                                number_bindings={'calc:calc-margin000000000':'12.00%'},
+                                tables=[Table(title='计算',columns=['ID'],rows=[['calc-tabled0']])])])
+    cited=cited_context(report,report.sections[0])
+    assert {f.fact_id for f in cited['facts']}=={'fact-slot-'+i for i in ['revenue','net_income','cost','derived','table']}
+    assert {r.result_id for r in cited['calculations']}=={'calc-margin000000000','calc-gross0000000','calc-tabled000000000'}
+    assert {e.quote for e in cited['evidence']}=={'原文'+i for i in ['revenue','net_income','cost','derived','table']}
+
+
+async def test_semantic_review_skips_generated_sections_and_sends_citations(completed,monkeypatch):
+    import company_research.reviewers as reviewers
+    from company_research.agents import ReviewOutput
+    from company_research.reports import sections_flat
+    report=completed[3]
+    seen={}
+    async def fake(gateway,role,schema,data):
+        seen.setdefault(data['section']['section_id'],data);return ReviewOutput(issues=[])
+    monkeypatch.setattr(reviewers,'ask_bounded',fake)
+    await review_graph(gateway=object(),mock=False).ainvoke({'report':report.model_dump(mode='json'),'issues':[]})
+    assert seen and not seen.keys()&{'statements','disclaimer','toc'}
+    for section in sections_flat(report.sections):
+        if section.section_id not in seen:continue
+        facts={f['fact_id'] for f in seen[section.section_id]['facts']}
+        calcs={r['result_id'] for r in seen[section.section_id]['calculations']}
+        evidence={e['evidence_id'] for e in seen[section.section_id]['evidence']}
+        for ref in section.number_bindings:
+            kind,id=ref.split(':',1)
+            assert id in (facts if kind=='fact' else calcs if kind=='calc' else {a['assumption_id'] for a in seen[section.section_id]['assumptions']})
+        assert {f['evidence_id'] for f in seen[section.section_id]['facts']}<=evidence

@@ -1,7 +1,7 @@
 from decimal import Decimal
 from .schemas import ResearchPlan, ResearchTask, CalculationPlan, CalculationRequest, ForecastAssumption, FinancialFact
 from .financials.formulas import REGISTRY, INPUT_UNITS, input_unit, FinancialDataProcessor, FinancialError, Calculator
-from .financials.forecast import ASSUMPTION_KEYS, OPENING_KEYS
+from .financials.forecast import ASSUMPTION_KEYS, OPENING_KEYS, OPTIONAL_ASSUMPTION_KEYS
 
 ASSUMPTION_UNITS = {
     k: 'ratio'
@@ -11,8 +11,9 @@ ASSUMPTION_UNITS = {
     else 'times'
     if k == 'target_pe'
     else 'CNY_million'
-    for k in ASSUMPTION_KEYS
+    for k in ASSUMPTION_KEYS | OPTIONAL_ASSUMPTION_KEYS
 }
+REQUIRED_ASSUMPTION_UNITS = {k: v for k, v in ASSUMPTION_UNITS.items() if k in ASSUMPTION_KEYS}
 
 
 def mock_research_plan() -> ResearchPlan:
@@ -68,7 +69,9 @@ def mock_calculation_plan() -> CalculationPlan:
     return CalculationPlan(company_id='DEMO', calculations=requests, forecast_model='growth')
 
 
-def mock_assumptions(evidence_id: str, periods: list[str]) -> list[ForecastAssumption]:
+def mock_assumptions(
+    evidence_id: str, periods: list[str], segments: list[str] = ('设备', '服务')
+) -> list[ForecastAssumption]:
     result = []
     for scenario, growth, cost_ratio, pe in [
         ('Bear', '.02', '.65', 12),
@@ -104,7 +107,7 @@ def mock_assumptions(evidence_id: str, periods: list[str]) -> list[ForecastAssum
                         evidence_ids=[evidence_id],
                     )
                 )
-            for segment in ['设备', '服务']:
+            for segment in segments:
                 result.append(
                     ForecastAssumption(
                         metric_code='growth_rate',

@@ -1,6 +1,6 @@
 from decimal import Decimal
 from ..schemas import FinancialForecast, ForecastAssumption, CalculationResult
-from .formulas import Calculator, FinancialError, D
+from .formulas import Calculator, FinancialError, D, FinancialDataProcessor
 
 OPENING_KEYS = {
     'cash',
@@ -29,6 +29,49 @@ ASSUMPTION_KEYS = {
     'shares',
     'target_pe',
 }
+# Company-level net income split; required only when history shows minority interest.
+OPTIONAL_ASSUMPTION_KEYS = {'minority_ratio'}
+# Pseudo segment used when disclosed segments cannot anchor a forecast.
+COMPANY_SEGMENT = '公司整体'
+SEGMENT_FALLBACK_NOTE = (
+    '分部收入披露不完整或不构成公司口径完整合计：保留分部原值，不做分部预测，改按公司口径营业收入预测。'
+)
+
+
+def forecast_segments(facts, company_id, period, segments, require_total=False):
+    """Segments the forecast can anchor on, their opening revenue facts, and an optional limitation.
+
+    Disclosed segments are used only when every one has a revenue fact for the
+    anchor period (and, if required, they add up to consolidated revenue).
+    Otherwise the forecast falls back to one company-level segment instead of
+    being dropped; originals are never adjusted to force a fit.
+    """
+    processor = FinancialDataProcessor()
+    try:
+        if not segments:
+            raise FinancialError('没有分部')
+        historical = {
+            s: processor.get(facts, company_id, 'revenue', period, segment_id=s, scope='segment') for s in segments
+        }
+        if require_total:
+            total = processor.get(facts, company_id, 'revenue', period).value
+            if abs(sum(f.value for f in historical.values()) - total) > D('.000001'):
+                raise FinancialError('分部收入合计不等于公司收入')
+        return list(segments), historical, None
+    except FinancialError:
+        total_fact = processor.get(facts, company_id, 'revenue', period)
+        return [COMPANY_SEGMENT], {COMPANY_SEGMENT: total_fact}, SEGMENT_FALLBACK_NOTE
+
+
+def has_minority_interest(facts, company_id, period):
+    """True when the anchor period's consolidated and parent net income differ."""
+    processor = FinancialDataProcessor()
+    try:
+        net = processor.get(facts, company_id, 'net_income', period).value
+        parent = processor.get(facts, company_id, 'parent_net_income', period).value
+    except FinancialError:
+        return False
+    return net != parent
 
 
 def validate_opening(opening: dict[str, Decimal]):
@@ -65,7 +108,9 @@ def validate_forecast(forecast: FinancialForecast, opening: dict[str, Decimal]) 
 class ForecastEngine:
     """Unlevered operating mechanics plus explicitly supplied financing decisions.
 
-    No plug debt/cash/equity. Model uses consolidated net income (no minority stake).
+    No plug debt/cash/equity. Net income is consolidated; with an explicit
+    minority_ratio, EPS and dividends use the parent share and the minority
+    share is retained in total equity.
     """
 
     def __init__(self):
@@ -106,6 +151,8 @@ class ForecastEngine:
             raise FinancialError('股本必须为正')
         if any(values[k] < 0 for k in ['capex', 'depreciation', 'borrowing', 'repayment', 'target_pe']):
             raise FinancialError('假设必须非负')
+        if 'minority_ratio' in values and not 0 <= values['minority_ratio'] < 1:
+            raise FinancialError('比例假设越界 minority_ratio')
         results = []
         refs = {}
         segments = {}
@@ -216,7 +263,29 @@ class ForecastEngine:
             {'a': ebit, 'b': values['depreciation']},
             input_refs={'a': refs['ebit'], 'b': global_assumptions['depreciation'].assumption_id},
         )
-        eps = calc('eps', 'eps', {'net_income': net_income, 'shares': values['shares']}, 'CNY/share')
+        owners_income = net_income
+        minority = {}
+        if 'minority_ratio' in values:
+            minority['minority_net_income'] = calc(
+                'minority_net_income',
+                'multiply',
+                {'a': net_income, 'b': values['minority_ratio']},
+                input_refs={'a': refs['net_income'], 'b': global_assumptions['minority_ratio'].assumption_id},
+            )
+            owners_income = minority['parent_net_income'] = calc(
+                'parent_net_income',
+                'subtract',
+                {'a': net_income, 'b': minority['minority_net_income']},
+                input_refs={'a': refs['net_income'], 'b': refs['minority_net_income']},
+            )
+        owners_ref = refs['parent_net_income' if minority else 'net_income']
+        eps = calc(
+            'eps',
+            'eps',
+            {'net_income': owners_income, 'shares': values['shares']},
+            'CNY/share',
+            input_refs={'net_income': owners_ref, 'shares': global_assumptions['shares'].assumption_id},
+        )
         target_price = calc('target_price', 'target_price', {'eps': eps, 'target_pe': values['target_pe']}, 'CNY/share')
         next_balance = {'other_assets': opening['other_assets'], 'other_liabilities': opening['other_liabilities']}
         for field, base, key in [
@@ -274,8 +343,8 @@ class ForecastEngine:
         dividends = calc(
             'dividends',
             'multiply',
-            {'a': max(net_income, D(0)), 'b': values['payout_ratio']},
-            input_refs={'a': refs['net_income'], 'b': global_assumptions['payout_ratio'].assumption_id},
+            {'a': max(owners_income, D(0)), 'b': values['payout_ratio']},
+            input_refs={'a': owners_ref, 'b': global_assumptions['payout_ratio'].assumption_id},
         )
         cfo = calc(
             'cfo',
@@ -348,6 +417,7 @@ class ForecastEngine:
                 'pretax': pretax,
                 'tax': tax,
                 'net_income': net_income,
+                **minority,
                 'depreciation': values['depreciation'],
                 'ebitda': ebitda,
                 'eps': eps,

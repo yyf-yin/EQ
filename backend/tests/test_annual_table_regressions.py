@@ -7,7 +7,7 @@ import pytest
 
 from company_research.agents import FinancialAnalysis, ask_bounded
 from company_research.fixed_collection import SlotProposal, periods as input_periods
-from company_research.graphs import analyzer_view
+from company_research.graphs import analyzer_view, near_id, resolve_citations
 from company_research.reporting_periods import period_columns
 from company_research.schemas import SourceRecord
 from company_research.table_columns import financial_columns
@@ -126,3 +126,23 @@ async def test_split_keeps_each_fact_with_its_evidence(monkeypatch):
     assert len(seen) == 4
     for part in seen:
         assert {f['evidence_id'] for f in part['facts']} <= {e['evidence_id'] for e in part['evidence']}
+
+
+def test_one_character_citation_typo_resolves_to_the_unique_id():
+    known = {'ev-4e4e3152b881f920d6c3d303', 'ev-000d57d42ba3748827e15342'}
+    output = FinancialAnalysis(
+        observations=['o'],
+        evidence_ids=['ev-e4e3152b881f920d6c3d303'],
+        counter_evidence_ids=['ev-000d57d42ba3748827e15343'],
+        calculation_ids=['calc-unknown'],
+        limitations=[],
+    )
+    unknown_evidence, unknown_calculations = resolve_citations(output, known, {'calc-1'})
+    assert output.evidence_ids == ['ev-4e4e3152b881f920d6c3d303']
+    assert output.counter_evidence_ids == ['ev-000d57d42ba3748827e15342']
+    assert not unknown_evidence and unknown_calculations == {'calc-unknown'}
+
+
+def test_ambiguous_or_distant_citations_stay_unresolved():
+    assert near_id('ev-ab', {'ev-abc', 'ev-abd'}) is None
+    assert near_id('ev-0000', {'ev-1111'}) is None

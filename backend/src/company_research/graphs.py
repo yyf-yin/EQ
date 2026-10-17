@@ -121,6 +121,44 @@ def analyzer_view(content):
     return data
 
 
+def near_id(value, known):
+    """Return the only known ID one insertion, deletion or substitution away.
+    Long hex IDs are occasionally miscopied by one character when the input lists
+    hundreds of them; ambiguous or more distant IDs stay unresolved."""
+    matches = []
+    for k in known:
+        if abs(len(k) - len(value)) > 1:
+            continue
+        if len(k) == len(value):
+            close = sum(a != b for a, b in zip(k, value)) == 1
+        else:
+            short, long = sorted((k, value), key=len)
+            close = any(long[:i] + long[i + 1 :] == short for i in range(len(long)))
+        if close:
+            matches.append(k)
+    return matches[0] if len(matches) == 1 else None
+
+
+def resolve_citations(output, evidence_ids, calculation_ids):
+    """Correct unambiguous one-character citation typos; return unresolved IDs."""
+    unknown = {'evidence': set(), 'calculation': set()}
+
+    def fix(ids, known, kind):
+        fixed = []
+        for i in ids:
+            j = i if i in known else near_id(i, known)
+            if j is None:
+                unknown[kind].add(i)
+            else:
+                fixed.append(j)
+        return list(dict.fromkeys(fixed))
+
+    output.evidence_ids = fix(output.evidence_ids, evidence_ids, 'evidence')
+    output.counter_evidence_ids = fix(output.counter_evidence_ids, evidence_ids, 'evidence')
+    output.calculation_ids = fix(output.calculation_ids, calculation_ids, 'calculation')
+    return unknown['evidence'], unknown['calculation']
+
+
 def brief_business_support(brief, sources):
     """Check each business against cited bodies; allow separate sources and layout whitespace."""
     known = {s['source_id'] for s in sources}
@@ -1285,10 +1323,36 @@ class ResearchWorkflow:
                     missing_questions = [q for q in b['questions'] if not output.question_answers.get(q, '').strip()]
                 if missing_questions:
                     raise FinancialError('分析块必需问题遗漏，定向修复耗尽：' + b['block_id'])
-            unknown_evidence = set(output.evidence_ids + output.counter_evidence_ids) - {
-                e['evidence_id'] for e in data['evidence']
-            }
-            unknown_calculations = set(output.calculation_ids) - {r['result_id'] for r in data['calculations']}
+            known_evidence = {e['evidence_id'] for e in data['evidence']}
+            known_calculations = {r['result_id'] for r in data['calculations']}
+            unknown_evidence, unknown_calculations = resolve_citations(output, known_evidence, known_calculations)
+            for attempt in range(0 if self.mock else self.settings.plan_repairs):
+                if not unknown_evidence and not unknown_calculations:
+                    break
+                # Ask again with the invalid IDs named; keep only citations that resolve.
+                repair = await ask_bounded(
+                    self.gateway,
+                    'financial_analyzer',
+                    FinancialAnalysis,
+                    data
+                    | {
+                        'repair_invalid_citations': {
+                            'evidence_ids': sorted(unknown_evidence),
+                            'calculation_ids': sorted(unknown_calculations),
+                            'instruction': '这些 ID 不在输入中。请逐字复制 evidence[].evidence_id 与 '
+                            'calculations[].result_id 重新给出引用列表；找不到对应项则不引用。',
+                        }
+                    },
+                    max_splits=self.settings.max_batch_splits,
+                )
+                unknown_evidence, unknown_calculations = resolve_citations(
+                    repair, known_evidence, known_calculations
+                )
+                output.evidence_ids = list(dict.fromkeys(output.evidence_ids + repair.evidence_ids))
+                output.counter_evidence_ids = list(
+                    dict.fromkeys(output.counter_evidence_ids + repair.counter_evidence_ids)
+                )
+                output.calculation_ids = list(dict.fromkeys(output.calculation_ids + repair.calculation_ids))
             if unknown_evidence or unknown_calculations:
                 raise FinancialError(
                     f'块分析引用超出已选择数据：{b["block_id"]}，'

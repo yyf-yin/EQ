@@ -21,14 +21,10 @@ export function useResearch(){
     return
    }
    sessionStorage.setItem('cdr-startup-session',value.session_id)
-   if(value.selected_run_id){
-    localStorage.setItem('cdr-run',value.selected_run_id)
-    setId(value.selected_run_id)
-   }else if(value.answer==='N'){
-    localStorage.removeItem('cdr-run')
-   }else{
-    setId(localStorage.getItem('cdr-run')||'')
-   }
+   // After a restart the page opens the latest unfinished run, which may be continued here.
+   const latest=value.candidate?.run_id
+   if(latest)localStorage.setItem('cdr-run',latest)
+   setId(latest||localStorage.getItem('cdr-run')||'')
   }).catch(()=>{if(!disposed&&!manuallyStarted.current)setId(localStorage.getItem('cdr-run')||'')})
   return()=>{disposed=true}
  },[])

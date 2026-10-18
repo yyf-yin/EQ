@@ -240,12 +240,15 @@ async def test_resume_rejects_changed_sources_and_preserves_result(tmp_path):
 
 
 @pytest.mark.parametrize('status', ['queued','running','pausing','interrupted','failed','blocked'])
-async def test_restart_never_runs_old_tasks_or_allows_controls(tmp_path, monkeypatch, status):
+async def test_restart_never_runs_older_tasks_or_allows_controls(tmp_path, monkeypatch, status):
     config = settings(tmp_path)
     old_app = create_app(config)
     store = old_app.state.store
-    run = ResearchRun(company_input='old session', mode='mock', status=status, failure_code='execution')
+    run = ResearchRun(company_input='old session', mode='mock', status=status, failure_code='execution',
+                      created_at='2026-01-01T00:00:00+00:00')
     store.save_run(run)
+    # Only the latest unfinished run may be continued from the page after a restart.
+    store.save_run(ResearchRun(company_input='newer', mode='mock', status='interrupted'))
     store.execution_put(run.run_id, 'execution_meta', 'service-session', {'session_id':store.service_session_id})
     store.record(run.run_id, 'source', 'own', {'content':'preserved source'})
     before = store.records(run.run_id, 'source')

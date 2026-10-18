@@ -5,7 +5,7 @@ export const uploadReference=(file:File)=>request<import('./types').ReferenceAtt
 export const getReferenceAttachments=(id:string)=>request<{attachments:import('./types').ReferenceAttachment[]}>(`/research/${id}/attachments`)
 export const getRun=(id:string)=>request<Run>(`/research/${id}`)
 export const getDataSlots=(id:string,signal?:AbortSignal)=>request<import('./types').DataSlots>(`/research/${id}/data-slots`,{signal})
-export const getStartup=()=>request<{session_id:string;selected_run_id:string|null;answer:'Y'|'N'|null;reference_limits?:import('./types').ReferenceLimits}>('/startup')
+export const getStartup=()=>request<{session_id:string;candidate:{run_id:string;company:string;status:string;can_continue:boolean;reason:string}|null;reference_limits?:import('./types').ReferenceLimits}>('/startup')
 export const pauseRun=(id:string)=>request<Run>(`/research/${id}/pause`,{method:'POST'})
 export const resumeRun=(id:string)=>request<Run>(`/research/${id}/resume`,{method:'POST'})
 export const updateBudget=(id:string,budget:{global_call_budget:number;global_token_budget:number;block_call_budget:number})=>request<import('./types').Recovery>(`/research/${id}/budget`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(budget)})

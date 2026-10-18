@@ -185,6 +185,10 @@ def brief_business_support(brief, sources):
     return support, errors
 
 
+def revision_note(problem):
+    return f"问题（{problem['location']}）：{problem['description']} 修复：{problem['suggested_fix']}"
+
+
 class ResearchWorkflow:
     def __init__(self, settings, store, run_id, gateway=None):
         ensure_isolation(store, run_id)
@@ -1736,6 +1740,10 @@ class ResearchWorkflow:
         report = ReportDocument.model_validate(c['report'])
         report.snapshot_id = report_snapshot(report)
         report.approved_snapshot_id = ''
+        memo = dict(c.get('review_memo') or {})
+        from .reports import sections_flat
+
+        titles = {s.section_id: s.title for s in sections_flat(report.sections)}
         from .work_products import preserve_review
 
         evaluation_review_id = preserve_review(self.store, self.run_id, report, c.get('revisions', 0) + 1)
@@ -1768,20 +1776,45 @@ class ResearchWorkflow:
         if any(i.severity in {'critical', 'error'} for i in deterministic):
             all_issues = [i.model_dump(mode='json') for i in deterministic]
         else:
-            output = await review_graph(self.gateway, self.store, self.run_id, self.mock).ainvoke(
+            output = await review_graph(self.gateway, self.store, self.run_id, self.mock, memo).ainvoke(
                 {'report': report.model_dump(mode='json'), 'issues': []}
             )
             all_issues = output['issues']
         for i in all_issues:
             i['snapshot_id'] = report.snapshot_id
         hard = [i for i in all_issues if i['severity'] in {'critical', 'error'}]
+        unresolved = []
+        if (
+            hard
+            and c.get('revisions', 0) >= self.settings.max_revisions
+            and all(i.get('rule_id', '').startswith('semantic.') for i in hard)
+        ):
+            # Model reviewers drive rework but cannot block on their own: after the last
+            # round their open findings are kept on record and disclosed as limitations.
+            for i in hard:
+                i['severity'], i['validation_status'] = 'warning', 'unresolved'
+            unresolved, hard = hard, []
+        # Deterministic gate failures lead the blocking message.
+        hard.sort(key=lambda i: i.get('rule_id', '').startswith('semantic.'))
         report = ReportDocument.model_validate(c['report'])
         report.issues = [
             __import__('company_research.schemas', fromlist=['ReviewIssue']).ReviewIssue.model_validate(i)
             for i in all_issues
         ]
+        by_section = {}
+        for i in unresolved:
+            by_section.setdefault(i.get('section_id') or i['location'], []).append(i)
+        disclosures = [
+            f'终审未解决意见（{titles.get(sid, sid)}，{len(items)} 项）：'
+            + '；'.join(x['description'][:80] for x in items)
+            for sid, items in by_section.items()
+        ]
         report.limitations = list(
-            dict.fromkeys(report.limitations + [i['description'] for i in all_issues if i['severity'] == 'warning'])
+            dict.fromkeys(
+                report.limitations
+                + [i['description'] for i in all_issues if i['severity'] == 'warning' and i not in unresolved]
+                + disclosures
+            )
         )
         preserve_review(
             self.store,
@@ -1823,7 +1856,7 @@ class ResearchWorkflow:
             preserve_review(
                 self.store, self.run_id, report, c.get('revisions', 0) + 1, evaluation_review_id, 'approved'
             )
-        return {'issues': hard, 'report': report.model_dump(mode='json')}
+        return {'issues': hard, 'report': report.model_dump(mode='json'), 'review_memo': memo}
 
     async def revise(self, c):
         targets = {i['target_node'] for i in c['issues']}
@@ -1839,6 +1872,18 @@ class ResearchWorkflow:
                 'affected_blocks': sorted(descendants(c['plan']['blocks'], responsible)),
                 'reason': 'review repair',
             },
+        )
+
+        from .reviewers import issue_sections
+
+        report = ReportDocument.model_validate(c['report'])
+        # Every core redraft in this round, whichever branch runs it, sees the core findings.
+        c['core_instructions'] = list(
+            dict.fromkeys(
+                revision_note(i)
+                for i in c['issues']
+                if i['target_node'] == 'core_conclusion' or 'core' in issue_sections(i, report.sections)
+            )
         )
 
         async def execute(node):
@@ -1889,14 +1934,14 @@ class ResearchWorkflow:
             await execute('core_conclusion')
             await execute('assemble')
         elif 'write_sections' in targets:
-            from .writers import write_one, mock_sections
-            from .reviewers import issue_sections, FIXED_SECTIONS
+            from .writers import write_one, patch_one, mock_sections
+            from .reviewers import issue_paragraphs, FIXED_SECTIONS
 
             report = ReportDocument.model_validate(c['report'])
             per_section = {}
             for problem in c['issues']:
                 for sid in issue_sections(problem, report.sections):
-                    per_section.setdefault(sid, []).append(problem['suggested_fix'])
+                    per_section.setdefault(sid, []).append(problem)
             # Any located issue keeps the repair local; fixed sections (core, statements) are
             # never redrafted here, and core_conclusion below refreshes the core view.
             matched = bool(per_section)
@@ -1921,16 +1966,30 @@ class ResearchWorkflow:
 
                 for s in sections_flat(report.sections):
                     if s.section_id in per_section and s.section_id not in FIXED_SECTIONS:
-                        updated = await write_one(
-                            self.gateway,
-                            c,
-                            s.section_id,
-                            s.title,
-                            '修复终审定位问题',
-                            instructions=list(dict.fromkeys(per_section[s.section_id])),
-                            store=self.store,
-                            run_id=self.run_id,
-                        )
+                        problems = per_section[s.section_id]
+                        # Paragraph numbers are relative to the section the reviewer read.
+                        spots = [
+                            issue_paragraphs(p, len(s.paragraphs)) if p.get('section_id') == s.section_id else []
+                            for p in problems
+                        ]
+                        updated = None
+                        if all(spots):
+                            notes = {}
+                            for p, at in zip(problems, spots):
+                                for index in at:
+                                    notes.setdefault(index, []).append(revision_note(p))
+                            updated = await patch_one(self.gateway, c, s, notes, self.store, self.run_id)
+                        if updated is None:
+                            updated = await write_one(
+                                self.gateway,
+                                c,
+                                s.section_id,
+                                s.title,
+                                '修复终审定位问题',
+                                instructions=list(dict.fromkeys(revision_note(p) for p in problems)),
+                                store=self.store,
+                                run_id=self.run_id,
+                            )
                         s.paragraphs, s.evidence_ids, s.calculation_ids, s.number_bindings = (
                             updated.paragraphs,
                             updated.evidence_ids,
@@ -1949,7 +2008,7 @@ class ResearchWorkflow:
             await execute('core_conclusion')
         elif 'core_conclusion' in targets:
             await execute('core_conclusion')
-        return {**c, 'revisions': c.get('revisions', 0) + 1}
+        return {**c, 'core_instructions': [], 'revisions': c.get('revisions', 0) + 1}
 
     async def render(self, c):
         report = ReportDocument.model_validate(c['report'])

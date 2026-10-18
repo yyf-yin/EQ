@@ -260,6 +260,8 @@ class ReviewIssue(Schema):
     rule_id: str = ""
     block_id: str | None = None
     section_id: str | None = None
+    # 1-based positions in the reviewed section's paragraphs; empty means the whole section.
+    paragraphs: list[int] = Field(default_factory=list)
     requested_target: str = ""
     affected_refs: list[str] = Field(default_factory=list)
     validation_status: str = "open"

@@ -232,6 +232,8 @@ def request_messages(role, context):
     prompt_role = (
         'draft_merger'
         if context.get('merge_contract')
+        else 'section_patcher'
+        if context.get('patch_contract')
         else 'fixed_extractor'
         if context.get('slot_contract')
         else 'material_planner'

@@ -173,3 +173,113 @@ async def test_semantic_review_skips_generated_sections_and_sends_citations(comp
             kind,id=ref.split(':',1)
             assert id in (facts if kind=='fact' else calcs if kind=='calc' else {a['assumption_id'] for a in seen[section.section_id]['assumptions']})
         assert {f['evidence_id'] for f in seen[section.section_id]['facts']}<=evidence
+
+
+def test_issue_paragraphs_from_field_or_location():
+    from company_research.reviewers import issue_paragraphs
+    at=lambda location='',paragraphs=(),count=20:issue_paragraphs({'location':location,'paragraphs':list(paragraphs)},count)
+    assert at('任意',paragraphs=[2,5])==[1,4]
+    assert at('F05 第1、2、12、18段（另涉第13段）')==[0,1,11,12,17]
+    assert at('F02 第1至第5段（全节正文）')==[0,1,2,3,4]
+    assert at('核心观点 第二段')==[1] and at('F03:p5（自由现金流段）')==[4] and at('paragraphs[3]（第4段）')==[3]
+    assert at('F05 段落8（研发投入口径段）')==[7] and at('第2段及文末列表',count=6)==[1,5]
+    assert at('（二）公司情况 / 竞争位置与壁垒段')==[] and at('第30段',count=6)==[]
+
+
+async def test_semantic_review_reuses_verdict_for_unchanged_sections(completed,monkeypatch):
+    import company_research.reviewers as reviewers
+    from company_research.agents import ReviewOutput
+    from company_research.schemas import ReviewIssue
+    report=completed[3].model_copy(deep=True)
+    calls=[]
+    async def fake(gateway,role,schema,data):
+        calls.append((role,data['section']['section_id']))
+        problem=ReviewIssue(issue_type='critical',severity='critical',location='第1段',description='d'+str(len(calls)),
+                            suggested_fix='f',target_node='write_sections')
+        return ReviewOutput(issues=[problem] if data['section']['section_id']=='risk' else [])
+    monkeypatch.setattr(reviewers,'ask_bounded',fake)
+    memo={}
+    run=lambda r:review_graph(gateway=object(),mock=False,memo=memo).ainvoke({'report':r.model_dump(mode='json'),'issues':[]})
+    first=await run(report);asked=len(calls)
+    assert asked and memo
+    report.sections[0].consistency_checks['cash_growth']='本轮核心观点已更新'
+    second=await run(report)
+    semantic=lambda out:sorted((i['issue_id'],i['description']) for i in out['issues'] if i['rule_id'].startswith('semantic.'))
+    assert semantic(second)==semantic(first)
+    assert sorted(calls[asked:])==sorted((n+'_reviewer','core') for n in ['critical','evidence','editorial'])
+    asked=len(calls)
+    next(s for s in report.sections if s.section_id=='risk').paragraphs[0]+='补充。'
+    await run(report)
+    assert sorted(calls[asked:])==sorted((n+'_reviewer','risk') for n in ['critical','evidence','editorial'])
+
+
+async def test_semantic_findings_disclosed_after_last_round(completed,monkeypatch):
+    import company_research.reviewers as reviewers
+    settings,store,id,report=completed
+    c=store.load_checkpoint(id)[1]
+    c['report']=report.model_copy(deep=True).model_dump(mode='json')
+    workflow=ResearchWorkflow(settings,store,id)
+    finding={'issue_id':'sem-1','issue_type':'critical','severity':'critical','location':'第1段','description':'风险方向与数据相反',
+             'suggested_fix':'f','target_node':'write_sections','section_id':'risk','block_id':'R01','rule_id':'semantic.critical'}
+    class Graph:
+        async def ainvoke(self,state):return {'issues':[dict(finding)]}
+    monkeypatch.setattr(reviewers,'review_graph',lambda *a,**k:Graph())
+    c['revisions']=0
+    assert [i['issue_id'] for i in (await workflow.final_review(c))['issues']]==['sem-1']
+    c['revisions']=settings.max_revisions
+    out=await workflow.final_review(c)
+    assert not out['issues'] and out['report']['approved_snapshot_id']
+    kept=next(i for i in out['report']['issues'] if i['issue_id']=='sem-1')
+    assert (kept['severity'],kept['validation_status'])==('warning','unresolved')
+    assert any(x.startswith('终审未解决意见（五、风险提示，1 项）：风险方向') for x in out['report']['limitations'])
+    c['report']['sources']=[]
+    with pytest.raises(FinancialError,match='终审阻断'):await workflow.final_review(c)
+
+
+async def test_patch_rewrites_only_flagged_paragraphs(completed,monkeypatch):
+    import company_research.writers as writers
+    from company_research.agents import WriterDraft
+    settings,store,id,report=completed
+    c=store.load_checkpoint(id)[1]
+    c['report']=report.model_copy(deep=True).model_dump(mode='json')
+    section=next(s for s in report.sections if s.section_id=='risk').model_copy(deep=True)
+    draft=lambda *p:WriterDraft(paragraphs=list(p),evidence_ids=[],calculation_ids=[],fact_ids=[],assumption_ids=[])
+    sent=[]
+    async def fake(gateway,role,schema,data):
+        sent.append(data);return draft('改写后的第二段。','')
+    monkeypatch.setattr(writers,'ask_bounded',fake)
+    patched=await writers.patch_one(None,c,section,{1:['问题：方向写反'],3:['问题：整段无依据']})
+    targets=[{'paragraph':2,'problems':['问题：方向写反']},{'paragraph':4,'problems':['问题：整段无依据']}]
+    assert sent[0]['patch_contract']['targets']==targets
+    assert sent[0]['section']['current_paragraphs']==section.paragraphs
+    assert patched.paragraphs==[section.paragraphs[0],'改写后的第二段。',section.paragraphs[2]]+section.paragraphs[4:]
+    assert set(section.evidence_ids)<=set(patched.evidence_ids)
+    async def misaligned(gateway,role,schema,data):return draft('只有一段。')
+    monkeypatch.setattr(writers,'ask_bounded',misaligned)
+    assert await writers.patch_one(None,c,section,{1:['a'],3:['b']}) is None
+
+
+async def test_revise_patches_located_paragraphs_with_descriptions(completed,monkeypatch):
+    import company_research.writers as writers
+    settings,store,id,report=completed
+    c=store.load_checkpoint(id)[1]
+    c['report']=report.model_copy(deep=True).model_dump(mode='json')
+    workflow=ResearchWorkflow(settings,store,id);workflow.mock=False
+    patched,rewritten=[],[]
+    async def patch(gateway,c,section,notes,store=None,run_id=None):
+        patched.append((section.section_id,notes));return section
+    async def write(gateway,c,section_id,title,goal,core=False,instructions=None,store=None,run_id=None):
+        rewritten.append((section_id,instructions));return next(s for s in report.sections if s.section_id==section_id)
+    monkeypatch.setattr(writers,'patch_one',patch);monkeypatch.setattr(writers,'write_one',write)
+    issue=lambda **k:{'issue_id':'i','issue_type':'critical','severity':'error','suggested_fix':'改为定性表述',
+                      'target_node':'write_sections','block_id':'R01','rule_id':'semantic.critical'}|k
+    c['issues']=[issue(location='第2段',description='方向写反',section_id='risk'),
+                 issue(location='核心观点 第1段',description='核心与正文冲突',section_id='core',target_node='core_conclusion')]
+    c.update(await workflow.revise(c))
+    assert patched==[('risk',{1:['问题（第2段）：方向写反 修复：改为定性表述']})]
+    assert rewritten==[('core',['问题（核心观点 第1段）：核心与正文冲突 修复：改为定性表述'])]
+    assert c['core_instructions']==[] and c['revisions']==1
+    patched.clear();rewritten.clear()
+    c['issues']=[issue(location='竞争位置段',description='论据不足',section_id='risk')]
+    await workflow.revise(c)
+    assert not patched and rewritten[0]==('risk',['问题（竞争位置段）：论据不足 修复：改为定性表述'])

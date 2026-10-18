@@ -13,6 +13,7 @@ from .financials.formulas import FinancialDataProcessor, FinancialError
 from .agents import ask, ask_bounded, ReviewOutput
 from .writers import number, section_block
 from .comparisons import FINANCIAL_TITLES
+from .framework import digest
 
 
 def issue(kind, location, description, target, severity='critical', fix='根据原始资料及注册公式修复后重新审核'):
@@ -85,6 +86,44 @@ def bind_semantic(problem: ReviewIssue, section_id: str):
         problem.requested_target = problem.requested_target or problem.target_node
         problem.target_node = target
     return problem
+
+
+CN_NUMERALS = dict(zip('一二三四五六七八九', range(1, 10)))
+NUMERAL = r'\d+|[一二三四五六七八九十]+'
+PARAGRAPH_SPAN = re.compile(rf'({NUMERAL})(?:\s*[至到~\-—]\s*第?\s*({NUMERAL}))?')
+PARAGRAPH_REFS = re.compile(
+    r'第\s*([0-9一二三四五六七八九十、,，\s至到和及与~\-—第]+?)\s*段|段落\s*(\d+)|paragraphs\[(\d+)\]|(?<![A-Za-z])p(\d+)\b'
+)
+# The core view feeds every section's review but changes each round; it does not unfreeze them.
+VOLATILE = {'snapshot_id', 'core_consistency'}
+
+
+def numeral(text):
+    if text.isdigit():
+        return int(text)
+    if '十' not in text:
+        return CN_NUMERALS.get(text, 0)
+    tens, _, ones = text.partition('十')
+    return CN_NUMERALS.get(tens, 1) * 10 + CN_NUMERALS.get(ones, 0)
+
+
+def issue_paragraphs(problem: dict, count: int) -> list[int]:
+    """0-based paragraphs an issue points at: the reviewer's list, else 第N段-style locations."""
+    found = {n - 1 for n in problem.get('paragraphs') or []}
+    if not found:
+        location = problem.get('location') or ''
+        for listed, numbered, zero_based, short in PARAGRAPH_REFS.findall(location):
+            if listed:
+                for start, end in PARAGRAPH_SPAN.findall(listed):
+                    first = numeral(start)
+                    found.update(range(first - 1, (numeral(end) if end else first)))
+            elif zero_based:
+                found.add(int(zero_based))
+            else:
+                found.add(int(numbered or short) - 1)
+        if re.search(r'文末|末段|最后一段', location):
+            found.add(count - 1)
+    return sorted(i for i in found if 0 <= i < count)
 
 
 def block_section(block_id):
@@ -457,7 +496,10 @@ class ReviewState(TypedDict):
     issues: Annotated[list[dict], operator.add]
 
 
-def review_graph(gateway=None, store=None, run_id=None, mock=False):
+def review_graph(gateway=None, store=None, run_id=None, mock=False, memo=None):
+    """memo maps reviewer + section input digest to its findings; it is filled in place so a
+    later round reuses the verdict on unchanged sections instead of sampling the model again."""
+    memo = {} if memo is None else memo
     g = StateGraph(ReviewState)
     nodes = []
     for name, fn in [
@@ -481,6 +523,7 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False):
                     store.emit(run_id, '最终审核', 'review_' + name, 'running', f'独立审核：{label}')
                 report = ReportDocument.model_validate(state['report'])
                 issues = fn(report)
+                frozen = 0
                 if gateway and not mock and name in {'evidence', 'critical', 'editorial'}:
                     # Review a section and its referenced originals, never a full-company dump.
                     for section in sections_flat(report.sections):
@@ -501,16 +544,29 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False):
                             ],
                             'core_consistency': report.sections[0].consistency_checks,
                         }
+                        # Unchanged section and citations; the core view feeds every section but
+                        # changes each round, so it does not unfreeze them.
+                        key = name + ':' + digest({k: v for k, v in data.items() if k not in VOLATILE})
+                        if key in memo:
+                            frozen += 1
+                            issues += [ReviewIssue.model_validate(i) for i in memo[key]]
+                            continue
                         semantic = await ask_bounded(gateway, name + '_reviewer', ReviewOutput, data)
                         for problem in semantic.issues:
                             problem.snapshot_id = report.snapshot_id
                             # Models cannot soften deterministic gates; separate issues only.
                             problem.rule_id = 'semantic.' + name
                             bind_semantic(problem, section.section_id)
+                        memo[key] = [i.model_dump(mode='json') for i in semantic.issues]
                         issues += semantic.issues
                 if store:
+                    note = f'（{frozen} 节未改动，沿用上轮结论）' if frozen else ''
                     store.emit(
-                        run_id, '最终审核', 'review_' + name, 'completed', f'{label}审核完成，发现 {len(issues)} 项问题'
+                        run_id,
+                        '最终审核',
+                        'review_' + name,
+                        'completed',
+                        f'{label}审核完成，发现 {len(issues)} 项问题{note}',
                     )
                 return {'issues': [i.model_dump(mode='json') for i in issues]}
 

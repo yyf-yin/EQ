@@ -318,6 +318,58 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
     return section
 
 
+async def patch_one(gateway, c, section: ReportSection, targets: dict[int, list[str]], store=None, run_id=None):
+    """Redraft only the flagged paragraphs (0-based index -> review notes); the rest keep their
+    text and bindings. Returns None when the model does not answer paragraph-for-paragraph."""
+    package = block_context(c, section_block(section.section_id), 'writing', store, run_id, 1000000)
+    selected = package.content
+    local = c | {
+        'facts': selected['financial_facts'],
+        'evidence': selected['evidence'],
+        'calculations': selected['calculations'],
+        'assumptions': selected['assumptions'],
+    }
+    order = sorted(targets)
+    data = selected | {
+        'section': {
+            'section_id': section.section_id,
+            'block_id': section_block(section.section_id),
+            'title': section.title,
+            'goal': '只改写终审指出问题的段落',
+            'current_paragraphs': section.paragraphs,
+        },
+        'patch_contract': {'targets': [{'paragraph': i + 1, 'problems': targets[i]} for i in order]},
+    }
+    draft = await ask_bounded(gateway, 'writer', WriterDraft, data)
+    problems = draft_problems(draft, local)
+    if len(draft.paragraphs) != len(order):
+        problems.append(f'paragraphs 必须恰好 {len(order)} 项，与 targets 一一对应')
+    if problems:
+        draft = await ask_bounded(
+            gateway, 'writer', WriterDraft, data | {'draft': draft.model_dump(mode='json'), 'instructions': problems}
+        )
+        if len(draft.paragraphs) != len(order):
+            return None
+        if draft_problems(draft, local):
+            # Clean paragraph by paragraph so a dropped sentence never shifts the alignment.
+            single = [sanitize_draft(draft.model_copy(update={'paragraphs': [p]}), local)[0] for p in draft.paragraphs]
+            paragraphs = [s.paragraphs[0] if s.paragraphs else '' for s in single]
+            draft = sanitize_draft(draft, local)[0].model_copy(update={'paragraphs': paragraphs})
+    fresh = resolve_draft(draft, local, section.section_id, section.title)
+    replaced = dict(zip(order, fresh.paragraphs))
+    paragraphs = [replaced.get(i, p) for i, p in enumerate(section.paragraphs)]
+    paragraphs = [p for p in paragraphs if p.strip()]
+    kept = {k: v for k, v in section.number_bindings.items() if any(v in p for p in paragraphs)}
+    return section.model_copy(
+        update={
+            'paragraphs': paragraphs,
+            'evidence_ids': sorted(set(section.evidence_ids) | set(fresh.evidence_ids)),
+            'calculation_ids': list(dict.fromkeys(section.calculation_ids + fresh.calculation_ids)),
+            'number_bindings': kept | fresh.number_bindings,
+        }
+    )
+
+
 MOCK_TEXT = {
     'company': [
         '输入公司名称仅用于演示界面。本次映射至虚构的示例制造公司，经营设备与服务两项业务。程序从本地合成材料读取经营说明与财务字段；未检索该输入公司的实际公告，也未调用真实模型。所有后续判断用于检验研究方法，不能作为对输入公司的事实描述。',
@@ -721,6 +773,7 @@ async def write_core(c, gateway, mock, store=None, run_id=None):
         TITLES[0],
         '整体综合并显式检查四类跨块矛盾；重大矛盾列明责任块和修复要求',
         core=True,
+        instructions=c.get('core_instructions'),
         store=store,
         run_id=run_id,
     )

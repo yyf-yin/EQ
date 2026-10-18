@@ -1725,6 +1725,8 @@ class ResearchWorkflow:
             'block_analyses': analyses,
             'plan': c['plan'],
             'coverage': coverage,
+            # Sections accepted from a resume package apply to the first draft only.
+            'imported_sections': {},
         }
 
     async def assemble(self, c):

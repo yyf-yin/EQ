@@ -216,7 +216,16 @@ def section_block(section_id):
     }.get(section_id, 'C01')
 
 
+def imported_section(c, section_id, instructions=None):
+    """A section accepted from a resume package; rework instructions always redraft."""
+    value = (c.get('imported_sections') or {}).get(section_id)
+    return ReportSection.model_validate(value) if value and not instructions else None
+
+
 async def write_one(gateway, c, section_id, title, goal, core=False, instructions=None, store=None, run_id=None):
+    imported = imported_section(c, section_id, instructions)
+    if imported:
+        return imported
     role = 'core_writer' if core else 'writer'
     package = block_context(c, section_block(section_id), 'writing', store, run_id, 1000000)
     selected = package.content
@@ -627,6 +636,15 @@ def append_tables(report: ReportDocument, c):
 async def make_report(c, gateway, mock=False, store=None, run_id=None):
     if mock:
         sections = mock_sections(c)
+
+        def accept(items):
+            for index, s in enumerate(items):
+                imported = imported_section(c, s.section_id)
+                if imported:
+                    items[index] = imported.model_copy(update={'children': s.children})
+                accept(items[index].children)
+
+        accept(sections)
     else:
         from .execution import bounded_schedule, optimized_run
 
@@ -730,10 +748,22 @@ async def make_report(c, gateway, mock=False, store=None, run_id=None):
         report.limitations += [
             '必需研究问题受限：' + e.question_id + '；' + '; '.join(e.gaps) for e in report.coverage if e.gaps
         ]
+    if c.get('imported_sections'):
+        from .reports import sections_flat
+
+        # Imported sections already hold the deterministic paragraphs added above.
+        for s in sections_flat(report.sections):
+            if s.section_id in c['imported_sections']:
+                s.paragraphs = list(dict.fromkeys(s.paragraphs))
+                s.evidence_ids = list(dict.fromkeys(s.evidence_ids))
+                s.calculation_ids = list(dict.fromkeys(s.calculation_ids))
     return report
 
 
 async def write_core(c, gateway, mock, store=None, run_id=None):
+    imported = imported_section(c, 'core', c.get('core_instructions'))
+    if imported:
+        return imported
     if mock:
         report = ReportDocument.model_validate(c['report'])
         base = next((f for f in report.forecasts if f.scenario == 'Base'), None)

@@ -31,6 +31,12 @@ class UpdateBudget(BaseModel):
     block_call_budget: int = Field(ge=1)
 
 
+class ImportPackage(BaseModel):
+    level: Literal['collection', 'forecast', 'blocks', 'writing']
+    keep_sections: list[str] = Field(default_factory=list, max_length=200)
+    accept_risks: bool = False
+
+
 class StartupDecision(BaseModel):
     run_id: str
     session_id: str
@@ -543,6 +549,60 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 'Cache-Control': 'no-store',
             },
         )
+
+    @app.get('/api/research/{run_id}/resume-package')
+    async def resume_package(run_id: str):
+        from .resume_packages import export_package, PackageError
+
+        get_run(run_id)
+        try:
+            content = await asyncio.to_thread(export_package, settings, store, run_id)
+        except PackageError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+        except (sqlite3.Error, OSError, ValueError):
+            raise HTTPException(503, '任务记录暂时无法读取，成果包未生成；研究状态未改变。') from None
+        return Response(
+            content,
+            media_type='application/zip',
+            headers={
+                'Content-Disposition': f'attachment; filename="resume-package-{run_id[:8]}.zip"',
+                'X-Content-Type-Options': 'nosniff',
+                'Cache-Control': 'no-store',
+            },
+        )
+
+    @app.post('/api/resume-packages', status_code=201)
+    async def upload_resume_package(request: Request):
+        from .resume_packages import inspect, read_package, save_upload, PackageError
+
+        data = bytearray()
+        async for chunk in request.stream():
+            if len(data) + len(chunk) > settings.resume_package_max_bytes:
+                raise HTTPException(413, '成果包超过大小限制，可提高 CDR_RESUME_PACKAGE_MAX_BYTES 后重试')
+            data.extend(chunk)
+        try:
+            await asyncio.to_thread(read_package, bytes(data), settings.resume_package_max_bytes)
+            package_id = await asyncio.to_thread(save_upload, store, bytes(data))
+            return await inspect(settings, store, package_id)
+        except PackageError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+
+    @app.post('/api/resume-packages/{package_id}/import', status_code=202)
+    async def import_resume_package(package_id: str, body: ImportPackage):
+        from .resume_packages import import_package, PackageError
+
+        if len(store.active_runs()) >= settings.max_active_runs * 4:
+            raise HTTPException(429, '研究队列已满，请稍后重试')
+        try:
+            run = await import_package(
+                settings, store, package_id, body.level, body.keep_sections, body.accept_risks
+            )
+        except PackageError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+        except (ConfigurationError, RecoveryError, DatasourceError) as exc:
+            raise HTTPException(409, str(exc)) from None
+        schedule(run.run_id)
+        return run
 
     @app.get('/api/research/{run_id}/download')
     async def download(run_id: str, format: Literal['docx', 'pdf'] = 'docx'):

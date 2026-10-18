@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     cache_ttl_hours: float = Field(default=6, ge=0)
     work_product_max_bytes: int = Field(default=50000000, ge=1024)
     reference_max_files: int = Field(default=50, ge=1, le=200)
+    resume_package_max_bytes: int = Field(default=1024 * 1024 * 1024, ge=1024)
 
     def prepare(self) -> None:
         for path in (self.database.parent, self.local_sources, self.artifacts):

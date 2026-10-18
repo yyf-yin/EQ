@@ -14,3 +14,5 @@ export const getWorkProduct=(id:string,snapshotId?:string,page=1)=>request<WorkP
 
 export const getHumanIntervention=(id:string)=>request<import('./types').HumanQueue>(`/research/${id}/human-intervention`)
 export const submitHumanFeedback=(id:string,issue:string,body:Record<string,unknown>)=>request<{feedback_id:string;status:string;resumed:boolean;resume_reason?:string|null}>(`/research/${id}/human-intervention/${issue}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+export const inspectPackage=(file:File)=>request<import('./types').PackageInfo>('/resume-packages',{method:'POST',body:file})
+export const importPackage=(id:string,body:{level:string;keep_sections:string[];accept_risks:boolean})=>request<Run>(`/resume-packages/${id}/import`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})

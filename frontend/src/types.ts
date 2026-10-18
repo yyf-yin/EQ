@@ -63,3 +63,13 @@ export interface ReferenceAttachment {
  source_count:number
 }
 export interface ReferenceLimits {max_files:number;max_file_bytes:number;annual_reports_required?:boolean}
+export interface PackageInfo {
+ package_id:string;created_at:string;checkpoint_node:string;
+ source:{run_id:string;company_input:string;company_name:string;mode:'mock'|'real';status:string;stage:string;error:string|null};
+ levels:{level:'collection'|'forecast'|'blocks'|'writing';label:string;stages:string[];available:boolean}[];
+ recommended_level:PackageInfo['levels'][number]['level']|null;recommendation:string;
+ review:{snapshot_id:string;reviewed:boolean;unmapped_issues:string[];sections:{section_id:string;title:string;status:'passed'|'failed'|'unreviewed';issues:string[];default_keep:boolean}[]}|null;
+ attachments:{filename:string;size:number}[];
+ risks:{field:string;label:string;level:'low'|'medium'|'high';message:string}[];
+ incompatible:string|null;
+}

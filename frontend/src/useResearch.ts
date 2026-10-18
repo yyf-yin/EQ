@@ -70,6 +70,7 @@ export function useResearch(){
   return()=>{disposed=true;stream?.close();if(timer)clearInterval(timer)}
  },[id,connectionEpoch])
  const start=useCallback(async(company:string,attachmentIds:string[]=[])=>{manuallyStarted.current=true;setBusy(true);setError('');try{const value=await createRun(company,attachmentIds);setRun(value);setReport(null);setEvents([]);setLastSyncedAt(null);setConnected(true);localStorage.setItem('cdr-run',value.run_id);setId(value.run_id);return true}catch(e){setError((e as Error).message);setBusy(false);return false}},[])
+ const adopt=useCallback((value:Run)=>{manuallyStarted.current=true;setBusy(true);setError('');setRun(value);setReport(null);setEvents([]);setLastSyncedAt(null);setConnected(true);localStorage.setItem('cdr-run',value.run_id);setId(value.run_id)},[])
  const control=useCallback(async(action:'pause'|'resume')=>{
   if(!id||actionBusy)return
   setActionBusy(true);setPendingAction(action);setError('')
@@ -90,5 +91,5 @@ export function useResearch(){
   catch(e){setError((e as Error).message)}finally{setActionBusy(false)}
  },[id,actionBusy])
  const refresh=useCallback(()=>setConnectionEpoch(v=>v+1),[])
- return {refresh,run,report,events,error,busy:busy||!!(run&&!terminal.has(run.status)),connected,lastSyncedAt,start,actionBusy,pendingAction,control,increaseBudget,referenceLimits}
+ return {refresh,run,report,events,error,busy:busy||!!(run&&!terminal.has(run.status)),connected,lastSyncedAt,start,adopt,actionBusy,pendingAction,control,increaseBudget,referenceLimits}
 }

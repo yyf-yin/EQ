@@ -1773,7 +1773,9 @@ class ResearchWorkflow:
                         affected_refs=decision['candidate_ids'],
                     )
                 )
-        if any(i.severity in {'critical', 'error'} for i in deterministic):
+        from .reviewers import NON_BLOCKING
+
+        if any(i.severity in {'critical', 'error'} and not i.rule_id.startswith(NON_BLOCKING) for i in deterministic):
             all_issues = [i.model_dump(mode='json') for i in deterministic]
         else:
             output = await review_graph(self.gateway, self.store, self.run_id, self.mock, memo).ainvoke(
@@ -1787,15 +1789,15 @@ class ResearchWorkflow:
         if (
             hard
             and c.get('revisions', 0) >= self.settings.max_revisions
-            and all(i.get('rule_id', '').startswith('semantic.') for i in hard)
+            and all(i.get('rule_id', '').startswith(NON_BLOCKING) for i in hard)
         ):
-            # Model reviewers drive rework but cannot block on their own: after the last
-            # round their open findings are kept on record and disclosed as limitations.
+            # Model reviewers and text heuristics drive rework but cannot block on their own:
+            # after the last round their open findings stay on record, disclosed as limitations.
             for i in hard:
                 i['severity'], i['validation_status'] = 'warning', 'unresolved'
             unresolved, hard = hard, []
         # Deterministic gate failures lead the blocking message.
-        hard.sort(key=lambda i: i.get('rule_id', '').startswith('semantic.'))
+        hard.sort(key=lambda i: i.get('rule_id', '').startswith(NON_BLOCKING))
         report = ReportDocument.model_validate(c['report'])
         report.issues = [
             __import__('company_research.schemas', fromlist=['ReviewIssue']).ReviewIssue.model_validate(i)

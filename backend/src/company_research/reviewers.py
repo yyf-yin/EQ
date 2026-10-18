@@ -14,6 +14,7 @@ from .agents import ask, ask_bounded, ReviewOutput
 from .writers import number, section_block
 from .comparisons import FINANCIAL_TITLES
 from .framework import digest
+from .text_checks import direction_problems
 
 
 def issue(kind, location, description, target, severity='critical', fix='根据原始资料及注册公式修复后重新审核'):
@@ -29,6 +30,8 @@ def issue(kind, location, description, target, severity='critical', fix='根据�
 
 # Semantic reviewers read one section; re-collection, recalculation and reassembly are
 # decided by deterministic gates only, so their requests become a local rewrite.
+# Findings from models or text heuristics: they drive rework but never block on their own.
+NON_BLOCKING = ('semantic.', 'heuristic.')
 SEMANTIC_TARGETS = {'write_sections', 'core_conclusion', 'assumptions'}
 FIXED_SECTIONS = {'core', 'toc', 'statements', 'disclaimer'}
 # Python-generated sections: the three statements are checked by financial_review and no
@@ -491,6 +494,29 @@ def editorial_review(report: ReportDocument):
     return issues
 
 
+def prose_review(report: ReportDocument):
+    """Direction words checked against the numbers bound in the same clause. Text heuristics
+    drive rework like semantic findings and, like them, never block a report on their own.
+    Gap claims are checked at drafting time only, against the context the writer saw."""
+    issues = []
+    facts = [f.model_dump(mode='json') for f in report.financial_facts]
+    comparisons = [r.model_dump(mode='json') for r in report.comparisons]
+    for s in sections_flat(report.sections):
+        if not s.paragraphs or s.section_id in UNREVIEWED_SECTIONS:
+            continue
+
+        def refs(clause, bindings=s.number_bindings):
+            return [tuple(ref.split(':', 1)) for ref, text in bindings.items() if text in clause]
+
+        target = 'core_conclusion' if s.section_id == 'core' else 'write_sections'
+        for index, text in direction_problems(s.paragraphs, refs, facts, comparisons):
+            problem = issue('financial', f'{s.section_id} 第{index + 1}段', text, target, 'error', text)
+            problem.rule_id, problem.section_id, problem.paragraphs = 'heuristic.direction', s.section_id, [index + 1]
+            problem.block_id = section_block(s.section_id)
+            issues.append(problem)
+    return issues
+
+
 class ReviewState(TypedDict):
     report: dict
     issues: Annotated[list[dict], operator.add]
@@ -508,6 +534,7 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False, memo=None):
         ('evidence', evidence_review),
         ('critical', critical_review),
         ('editorial', editorial_review),
+        ('prose', prose_review),
     ]:
 
         def reviewer(name, fn):
@@ -518,6 +545,7 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False, memo=None):
                     'evidence': '来源与时效',
                     'critical': '研究逻辑',
                     'editorial': '语言与完整性',
+                    'prose': '数字方向与缺口表述',
                 }[name]
                 if store:
                     store.emit(run_id, '最终审核', 'review_' + name, 'running', f'独立审核：{label}')
@@ -588,6 +616,13 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False, memo=None):
 def deterministic_review(report):
     return [
         i
-        for fn in [structural_review, financial_review, evidence_review, critical_review, editorial_review]
+        for fn in [
+            structural_review,
+            financial_review,
+            evidence_review,
+            critical_review,
+            editorial_review,
+            prose_review,
+        ]
         for i in fn(report)
     ]

@@ -213,14 +213,15 @@ async def test_semantic_review_reuses_verdict_for_unchanged_sections(completed,m
     assert sorted(calls[asked:])==sorted((n+'_reviewer','risk') for n in ['critical','evidence','editorial'])
 
 
-async def test_semantic_findings_disclosed_after_last_round(completed,monkeypatch):
+@pytest.mark.parametrize('rule',['semantic.critical','heuristic.direction'])
+async def test_semantic_findings_disclosed_after_last_round(completed,monkeypatch,rule):
     import company_research.reviewers as reviewers
     settings,store,id,report=completed
     c=store.load_checkpoint(id)[1]
     c['report']=report.model_copy(deep=True).model_dump(mode='json')
     workflow=ResearchWorkflow(settings,store,id)
     finding={'issue_id':'sem-1','issue_type':'critical','severity':'critical','location':'第1段','description':'风险方向与数据相反',
-             'suggested_fix':'f','target_node':'write_sections','section_id':'risk','block_id':'R01','rule_id':'semantic.critical'}
+             'suggested_fix':'f','target_node':'write_sections','section_id':'risk','block_id':'R01','rule_id':rule}
     class Graph:
         async def ainvoke(self,state):return {'issues':[dict(finding)]}
     monkeypatch.setattr(reviewers,'review_graph',lambda *a,**k:Graph())

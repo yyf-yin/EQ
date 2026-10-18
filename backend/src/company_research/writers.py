@@ -17,6 +17,7 @@ from .financials.formulas import FinancialDataProcessor, FinancialError
 from .comparisons import FINANCIAL_TITLES, bind_financial_sections, supplemental_financial_tables
 from .contexts import block_context
 from .framework import digest
+from .text_checks import direction_problems, gap_problems
 
 TOKEN = re.compile(r'\[\[(fact|calc|assumption):([a-zA-Z0-9_-]+)\]\]')
 # Dates, reporting periods and structural ordinals are not financial quantities and
@@ -67,7 +68,10 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
             problems.append(
                 f'第{i + 1}段直接写了数字“{snippet.strip()}”：财务/经营数值必须改用 [[fact:ID]]/[[calc:ID]]/[[assumption:ID]]，没有对应数据时改为定性表述'
             )
-    return problems
+    checks = direction_problems(draft.paragraphs, TOKEN.findall, context['facts'], context.get('comparisons', []))
+    segments = (context.get('brief') or {}).get('segments') or []
+    checks += gap_problems(draft.paragraphs, TOKEN.findall, context['facts'], segments)
+    return problems + [text for _, text in checks]
 
 
 def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list[str]]:

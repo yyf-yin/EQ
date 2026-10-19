@@ -29,13 +29,24 @@ PRESETS = {
     ],
     'industry': [
         ('boundary', '行业边界与口径', '细分市场、地域、期间和产业链范围', True),
-        ('market', '市场规模与结构', '市场规模、细分构成和历史变化，保留统计口径', False),
+        ('market', '市场规模与结构', '市场规模、细分构成、历史变化与机构预测，保留统计口径', True),
         ('supply_demand', '需求与供给', '下游需求、供给能力、产能与供需变化', True),
         ('competition', '竞争与产业链', '主要参与者、竞争方式与上下游关系', True),
         ('policy', '政策与监管变化', '近期相关政策、实施时间、适用范围与变化', False),
         ('technology', '技术与产品演进', '技术路线、替代关系与应用变化', False),
         ('constraints', '行业约束与风险', '行业经营条件、依赖因素及风险', False),
     ],
+}
+# After the broad first search, each open industry direction gets its own query
+# built from these neutral search terms (model-added directions use their label).
+DIRECTION_TERMS = {
+    'boundary': '定义 分类 产业链 细分市场',
+    'market': '市场规模 增速 预测',
+    'supply_demand': '产能 产量 需求量 供需 进出口',
+    'competition': '竞争格局 市场份额 主要企业 产能分布',
+    'policy': '政策 规划 监管 标准',
+    'technology': '技术路线 工艺 替代',
+    'constraints': '原料 成本 环保 风险',
 }
 STATUS_LABELS = {
     'pending': '待收集',
@@ -115,6 +126,14 @@ class MaterialCollector:
         self.fixed = fixed
         self.w, self.store, self.run_id = fixed.w, fixed.store, fixed.run_id
         self.settings = self.w.settings
+
+    def search_budget(self, task):
+        industry = kind(task) == 'industry'
+        return self.settings.material_industry_search_budget if industry else self.settings.material_search_budget
+
+    def document_budget(self, task):
+        industry = kind(task) == 'industry'
+        return self.settings.material_industry_document_budget if industry else self.settings.material_document_budget
 
     def slot(self, task):
         return next(s for s in self.store.records(self.run_id, 'collection_slot') if s['slot_id'] == task['task_id'])
@@ -275,7 +294,7 @@ class MaterialCollector:
                 search_history=[],
                 document_hashes=[],
                 stop_reason='',
-                search_budget=self.settings.material_search_budget,
+                search_budget=self.search_budget(task.model_dump()),
             )
             self.store.record(self.run_id, 'collection_slot', task.task_id, slot)
         self.store.execution_put(
@@ -474,12 +493,14 @@ class MaterialCollector:
         window = (
             scope['policy_start_date'] if any(d['direction_id'] == 'policy' for d in targets) else scope['start_date']
         )
-        # Broad categories remain grouped in one query; no analytical question enters it.
+        period = window[:4] + '-' + scope['as_of'][:4]
+        if kind(task) == 'industry' and not broad:
+            # One direction per query; no analytical question enters it.
+            return ' '.join([subject, period, *(DIRECTION_TERMS.get(d['direction_id'], d['label']) for d in targets)])
+        # Business categories remain grouped in one query.
         labels = [d['label'] for d in targets]
         discovery = '行业报告 市场规模 供需 竞争 政策' if kind(task) == 'industry' else '公司报告 业务构成 经营情况'
-        return ' '.join(
-            [subject, window[:4] + '-' + scope['as_of'][:4], discovery if broad else '资料 ' + ' '.join(labels)]
-        )
+        return ' '.join([subject, period, discovery if broad else '资料 ' + ' '.join(labels)])
 
     async def read_sources(self, c, task, sources):
         from .fixed_collection import material_priority, row_data, periods, VERSION as fixed_version
@@ -504,7 +525,7 @@ class MaterialCollector:
             ):
                 continue  # Already locked financial/security rows contain no qualitative material.
             fingerprint = source_key(source)
-            if fingerprint in seen or len(seen) >= self.settings.material_document_budget:
+            if fingerprint in seen or len(seen) >= self.document_budget(task):
                 continue
             shared_key = 'material-document-' + fingerprint
             shared = self.store.execution_get(self.run_id, 'execution_meta', shared_key)
@@ -624,10 +645,13 @@ class MaterialCollector:
                 )
             ),
         )
+        # An optional direction searched without result (e.g. no recent policy) is simply
+        # left out of the report; only required gaps and failed retrievals are limitations.
         limits = [
             f"{d['label']}：{STATUS_LABELS[slot['direction_statuses'][d['direction_id']]['status']]}；{slot['direction_statuses'][d['direction_id']]['reason']}"
             for d in slot['directions']
             if slot['direction_statuses'][d['direction_id']]['status'] not in {'found', 'no_change', 'not_applicable'}
+            and (d['required'] or slot['direction_statuses'][d['direction_id']]['status'] != 'not_found')
         ]
         warnings = [v for h in slot['search_history'] for v in h['warnings']]
         if slot.get('read_failures'):
@@ -671,17 +695,22 @@ class MaterialCollector:
                 if not history.get('processed'):
                     assessment = await self.process_search(c, task, history)
             stop_reason = 'coverage_complete'
+            # Industry directions are searched one by one, so a fruitless policy search
+            # does not end the search for market size; each gets one dedicated query.
+            by_direction = kind(task) == 'industry'
             while not self.complete(self.slot(task)):
                 slot = self.slot(task)
-                if len(slot['search_history']) >= 2 and all(
-                    not h.get('gained_evidence') for h in slot['search_history'][-2:]
+                if (
+                    not by_direction
+                    and len(slot['search_history']) >= 2
+                    and all(not h.get('gained_evidence') for h in slot['search_history'][-2:])
                 ):
                     stop_reason = 'no_new_evidence'
                     break
-                if len(slot['document_hashes']) >= self.settings.material_document_budget:
+                if len(slot['document_hashes']) >= self.document_budget(task):
                     stop_reason = 'document_budget'
                     break
-                if slot['search_count'] >= self.settings.material_search_budget:
+                if slot['search_count'] >= self.search_budget(task):
                     stop_reason = 'search_budget'
                     break
                 if not self.w.datasource.web or not self.settings.search_url:
@@ -689,7 +718,13 @@ class MaterialCollector:
                     break
                 broad = slot['search_count'] == 0
                 targets = self.targets(slot)
-                if not broad:
+                if by_direction and not broad:
+                    used = {h['query'] for h in slot['search_history']}
+                    targets = [d for d in targets if self.query(c, task, [d], False) not in used][:1]
+                    if not targets:
+                        stop_reason = 'directions_exhausted'
+                        break
+                elif not broad:
                     targets = targets[:3]
                 query = self.query(c, task, targets, broad)
                 if any(h['query'] == query for h in slot['search_history']):

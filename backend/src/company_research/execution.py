@@ -201,6 +201,8 @@ def manifest(settings, gateway=None, mode='real'):
                     'extraction_input_tokens',
                     'material_search_budget',
                     'material_document_budget',
+                    'material_industry_search_budget',
+                    'material_industry_document_budget',
                     'material_extra_direction_limit',
                     'material_policy_years',
                 )

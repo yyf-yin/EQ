@@ -182,8 +182,11 @@ async def test_bounded_search_per_material_and_terminal_limited_state(tmp_path):
     async def retrieve(query):seen.append(query);return sources,[]
     w.datasource.retrieve=retrieve
     c.update(await w.supervisor(c));before=len(g.calls)
-    assert 4<=len(seen)<=12
-    assert all(s['state']=='limited' and 1<=s['search_count']<=3 for s in store.records(run.run_id,'collection_slot'))
+    slots=store.records(run.run_id,'collection_slot')
+    assert 4<=len(seen)<=sum(s['search_budget'] for s in slots)
+    # Industry slots search each direction separately under their own, larger budget.
+    budget=lambda s:w.settings.material_industry_search_budget if s['topic'].startswith('行业') else w.settings.material_search_budget
+    assert all(s['state']=='limited' and 1<=s['search_count']<=budget(s)==s['search_budget'] for s in slots)
     searches=len(seen)
     c.update(await w.supervisor(c))
     assert len(seen)==searches and len(g.calls)==before

@@ -4,7 +4,7 @@ import type {DataSlots,DataSlot,Run} from './types'
 
 const labels:Record<string,string>={pending:'待填',filling:'填槽中',locked:'已锁定',not_disclosed:'未披露',not_applicable:'不适用',source_missing:'资料缺失',extraction_failed:'提取失败',ready:'资料就绪',limited:'资料受限'}
 const materialLabels:Record<string,string>={pending:'待收集',found:'已取得适用资料',partial:'部分取得',not_found:'限定检索后未找到',no_change:'有证据支持无变化',not_applicable:'不适用',retrieval_failed:'获取失败'}
-const stopLabels:Record<string,string>={coverage_complete:'适用资料已覆盖',search_budget:'检索预算已用完',document_budget:'阅读预算已用完',search_unavailable:'搜索未配置',duplicate_query:'已检索过相同范围',no_new_evidence:'补查未取得新增证据'}
+const stopLabels:Record<string,string>={coverage_complete:'适用资料已覆盖',search_budget:'检索预算已用完',document_budget:'阅读预算已用完',search_unavailable:'搜索未配置',duplicate_query:'已检索过相同范围',no_new_evidence:'补查未取得新增证据',directions_exhausted:'各方向已分别检索'}
 const entityKey=(s:DataSlot)=>s.detail_id?`detail:${s.detail_id}`:s.segment_id||s.bond_id||''
 
 export function DataSlotsView({run}:{run:Run}){

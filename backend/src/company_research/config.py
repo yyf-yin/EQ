@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     max_research_rounds: int = Field(default=3, ge=1, le=8)
     material_search_budget: int = Field(default=3, ge=0, le=6)
     material_document_budget: int = Field(default=8, ge=1, le=30)
+    # Industry slots search each direction separately and read more reports.
+    material_industry_search_budget: int = Field(default=8, ge=0, le=12)
+    material_industry_document_budget: int = Field(default=16, ge=1, le=40)
     material_extra_direction_limit: int = Field(default=3, ge=0, le=5)
     material_policy_years: int = Field(default=3, ge=1, le=10)
     max_replans: int = Field(default=2, ge=0, le=4)

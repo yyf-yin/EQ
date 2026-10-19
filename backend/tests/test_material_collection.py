@@ -39,6 +39,12 @@ def default_handler(schema, context):
 
 
 async def setup(tmp_path, handler=default_handler, input_capacity=100000, task_count=1, **options):
+    # The fixture task is an industry slot; budget options given for the shared
+    # settings apply to it unless an industry budget is set explicitly.
+    for shared, industry in (('material_search_budget', 'material_industry_search_budget'),
+                             ('material_document_budget', 'material_industry_document_budget')):
+        if shared in options:
+            options.setdefault(industry, options[shared])
     settings = Settings(_env_file=None, database=tmp_path/'material.sqlite', search_url='https://fixture.invalid', **options)
     store = Store(settings.database)
     run = ResearchRun(company_input='测试公司', mode='real', created_at='2026-10-14T00:00:00+00:00')
@@ -121,9 +127,11 @@ async def test_optional_gaps_can_deliver_ready_packet_without_false_no_change(tm
     assert slot['state'] == 'ready'
     assert slot['direction_statuses']['policy']['status'] == 'not_found'
     assert '不代表不存在或无变化' in slot['direction_statuses']['policy']['reason']
-    assert slot['direction_statuses']['market']['status'] == 'not_found'
-    assert 1 <= len(requests) <= collector.settings.material_search_budget
-    assert result['material_collections'][0]['limitations']
+    assert slot['direction_statuses']['market']['status'] == 'found'  # market size is required
+    assert 1 <= len(requests) <= collector.settings.material_industry_search_budget
+    # No recent policy found: left out of the report, not listed as a limitation.
+    assert not any('政策' in v for v in result['material_collections'][0]['limitations'])
+    assert not any('政策' in v for v in result['limitations'])
     assert not result['facts']
 
 
@@ -163,7 +171,7 @@ async def test_transport_failure_never_becomes_no_information(tmp_path):
     await collector.collect(c)
     slot = collector.slot(task)
     assert slot['state'] == 'limited'
-    assert slot['search_count'] <= 3
+    assert slot['search_count'] <= collector.settings.material_industry_search_budget
     assert all(v['status']=='retrieval_failed' for v in slot['direction_statuses'].values())
     assert slot['search_history'][0]['warnings'] == ['搜索服务请求失败']
 
@@ -204,7 +212,7 @@ async def test_grouped_supplement_closes_gaps_and_terminal_replay(tmp_path):
     slot = collector.slot(task)
     assert slot['state']=='ready' and len(requests)==2 and reads==['external']
     assert set(slot['search_history'][0]['direction_ids'])=={d['direction_id'] for d in slot['directions']}
-    assert len(slot['search_history'][1]['direction_ids'])==3
+    assert slot['search_history'][1]['direction_ids']==['boundary']  # one direction per supplement
     assert slot['stop_reason']=='coverage_complete'
     calls=len(gateway.calls)
     await collector.collect(result | {'plan':c['plan'],'company':c['company'],'brief':c['brief']})
@@ -250,9 +258,9 @@ async def test_analysis_receives_shared_industry_gaps_and_snapshot_tracks_them(t
     result=await collector.collect(c)
     c.update(result)
     package=block_context(c,task['block_id'],'analysis')
-    assert package.content['material_collections'][0]['direction_statuses']['market']['status']=='pending'
+    assert package.content['material_collections'][0]['direction_statuses']['policy']['status']=='pending'
     first=package.snapshot_id
-    c['material_collections'][0]['direction_statuses']['market']['reason']='统计范围存在缺口'
+    c['material_collections'][0]['direction_statuses']['policy']['reason']='统计范围存在缺口'
     assert block_context(c,task['block_id'],'analysis').snapshot_id!=first
     c['plan']['blocks'].append(dict(block_id='I01:服务',template_id='I01',segment_id='服务',dependencies=[],questions={}))
     assert block_context(c,'I01:服务','analysis').content['material_collections']
@@ -339,3 +347,29 @@ async def test_new_counter_evidence_can_reduce_adequacy_without_losing_old_refs(
     assert not (await collector.assess(c,task)).sufficient
     finding=collector.slot(task)['direction_statuses']['boundary']
     assert finding['status']=='partial' and old<set(finding['evidence_ids'])
+
+
+async def test_industry_directions_are_searched_one_by_one_until_each_had_its_query(tmp_path):
+    from company_research.material_collection import DIRECTION_TERMS
+    collector,c,task,requests,_,_=await setup(tmp_path,material_industry_search_budget=12)
+    result=await collector.collect(c)
+    slot=collector.slot(task)
+    # A broad query, then one query per open direction: fruitless searches do not end the loop.
+    assert len(requests)==1+len(PRESETS['industry'])
+    assert [h['direction_ids'] for h in slot['search_history'][1:]]==[[d] for d,*_ in
+        sorted(PRESETS['industry'],key=lambda p:not p[3])]
+    assert all(DIRECTION_TERMS[h['direction_ids'][0]] in h['query'] for h in slot['search_history'][1:])
+    policy=next(h['query'] for h in slot['search_history'] if h['direction_ids']==['policy'])
+    assert '2023-2026' in policy
+    assert slot['stop_reason']=='directions_exhausted' and slot['search_budget']==12
+    limits=result['material_collections'][0]['limitations']
+    assert any(v.startswith('市场规模与结构') for v in limits)  # required gap stays visible
+    assert not any(v.startswith('政策与监管变化') for v in limits)  # 无则过
+
+
+async def test_business_slots_keep_the_shared_budget(tmp_path):
+    collector,_,_,_,_,_=await setup(tmp_path)
+    business={'topic':'业务资料：设备'}
+    assert collector.search_budget(business)==collector.settings.material_search_budget==3
+    assert collector.search_budget({'topic':'行业资料：制造业'})==8
+    assert collector.document_budget(business)==8 and collector.document_budget({'topic':'行业资料：制造业'})==16

@@ -228,7 +228,19 @@ from .schemas import ForecastAssumption
 AssumptionOutput.model_rebuild()
 
 
+def llm_view(value):
+    """What a model may see. Locators are provenance for the audit store and the
+    rendered report; a merged annual report's page list repeated on every quote
+    used to be half of all context sent."""
+    if isinstance(value, dict):
+        return {k: llm_view(v) for k, v in value.items() if k != 'locator'}
+    if isinstance(value, list):
+        return [llm_view(v) for v in value]
+    return value
+
+
 def request_messages(role, context):
+    context = llm_view(context)
     prompt_role = (
         'draft_merger'
         if context.get('merge_contract')
@@ -271,6 +283,7 @@ async def ask(gateway: Gateway, role: str, schema: type[Schema], context: dict):
         or context.get('section', {}).get('block_id')
     )
     token = CALL_CONTEXT.set({'block_id': block, 'batch_id': context.get('batch_id')})
+    context = llm_view(context)
     if getattr(gateway, 'store', None):
         from .framework import digest
         from .contexts import estimate_tokens

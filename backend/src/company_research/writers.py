@@ -32,10 +32,76 @@ ALLOWED_NUMERALS = re.compile(
 )
 
 
+# Internal record IDs (ev-…, fact-slot-…, cmp-…) are provenance, not prose. Their hex
+# digits used to read as raw numbers, which forced repair rounds and dropped sentences.
+RECORD_ID = re.compile(r'(?<![A-Za-z0-9-])(?:[a-z]+-)+[0-9a-f]{8,}(?![0-9A-Za-z])')
+ID_LIST = re.compile(RECORD_ID.pattern + r'(?:\s*[、，,和及/]\s*' + RECORD_ID.pattern + ')*')
+ID_GROUP = re.compile(r'[（(\[【][^（()）\[\]【】]*[)）\]】]')
+ID_LEAD = re.compile(r'(?:证据|来源|参见|详见|见)?[：:]?\s*$')
+ID_FILLER = re.compile(r'[\s、，,；;：:/]|证据|来源|参见|详见|比较|证券代码|见')
+
+
+def blank(pattern, text):
+    return pattern.sub(lambda m: ' ' * len(m.group(0)), text)
+
+
 def raw_numbers(paragraph: str) -> list[str]:
     """Return snippets containing digits that are neither data tokens nor dates/periods."""
-    text = ALLOWED_NUMERALS.sub(lambda m: ' ' * len(m.group(0)), TOKEN.sub(lambda m: ' ' * len(m.group(0)), paragraph))
+    text = blank(ALLOWED_NUMERALS, blank(RECORD_ID, blank(TOKEN, paragraph)))
     return [paragraph[max(0, m.start() - 12) : m.end() + 12] for m in re.finditer(r'\d+(?:[.,]\d+)*\s*%?', text)]
+
+
+def strip_record_ids(text: str, bare_ids=True) -> tuple[str, list[str]]:
+    """Remove record IDs written into prose; returns the text and the IDs removed.
+    Bracketed citations always go; with bare_ids=False an ID used as a noun stays
+    for the writer to rephrase. Data tokens such as [[fact:ID]] are kept untouched."""
+    found = []
+
+    def ids(part):
+        out, last = [], 0
+        for m in ID_LIST.finditer(part):
+            found.extend(RECORD_ID.findall(m.group(0)))
+            out.append(ID_LEAD.sub('', part[last : m.start()]))
+            last = m.end()
+        return ''.join(out) + part[last:]
+
+    bare = ids if bare_ids else (lambda part: part)
+
+    def group(m):
+        if not RECORD_ID.search(m.group(0)):
+            return m.group(0)
+        inner = re.sub(r'([、，,；;])(?:\s*[、，,；;])+', r'\1', ids(m.group(0)[1:-1]))
+        if len(ID_FILLER.sub('', inner)) <= 6:
+            return ''
+        return m.group(0)[0] + re.sub(r'^[\s、，,；;]+|[\s、，,；;]+$', '', inner) + m.group(0)[-1]
+
+    pieces, last = [], 0
+    for m in TOKEN.finditer(text):
+        pieces += [bare(ID_GROUP.sub(group, text[last : m.start()])), m.group(0)]
+        last = m.end()
+    pieces.append(bare(ID_GROUP.sub(group, text[last:])))
+    cleaned = re.sub(r'\s+([，。；、）)])', r'\1', ''.join(pieces))
+    cleaned = re.sub(r'([，、；])\s*([。；])', r'\2', re.sub(r'[ \t]{2,}', ' ', cleaned))
+    return cleaned.strip(), found
+
+
+def without_record_ids(draft: WriterDraft, context: dict) -> WriterDraft:
+    """Prose never carries record IDs; valid evidence IDs move to evidence_ids instead."""
+    known = {e['evidence_id'] for e in context['evidence']}
+    paragraphs, removed = [], []
+    for paragraph in draft.paragraphs:
+        text, ids = strip_record_ids(paragraph, bare_ids=False)
+        paragraphs.append(text)
+        removed += ids
+    if not removed:
+        return draft
+    extra = [id for id in dict.fromkeys(removed) if id in known and id not in draft.evidence_ids]
+    # Empty paragraphs are kept so a paragraph-for-paragraph patch stays aligned.
+    return draft.model_copy(update={'paragraphs': paragraphs, 'evidence_ids': draft.evidence_ids + extra})
+
+
+async def ask_draft(gateway, role, data, local):
+    return without_record_ids(await ask_bounded(gateway, role, WriterDraft, data), local)
 
 
 def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
@@ -64,6 +130,12 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
                 problems.append(f'第{i + 1}段的 [[{kind}:{id}]] 不在输入数据中，请删除或换成存在的 ID')
             elif id not in declared[kind]:
                 problems.append(f'第{i + 1}段使用了 [[{kind}:{id}]] 但未在对应 ID 列表中声明')
+        named = RECORD_ID.findall(blank(TOKEN, paragraph))
+        if named:
+            problems.append(
+                f'第{i + 1}段正文写了记录 ID“{"、".join(named[:3])}”：正文不写任何 ID，'
+                '改为说明资料名称或直接陈述内容，证据只列入 evidence_ids'
+            )
         for snippet in raw_numbers(paragraph):
             problems.append(
                 f'第{i + 1}段直接写了数字“{snippet.strip()}”：财务/经营数值必须改用 [[fact:ID]]/[[calc:ID]]/[[assumption:ID]]，没有对应数据时改为定性表述'
@@ -71,7 +143,7 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
     checks = direction_problems(draft.paragraphs, TOKEN.findall, context['facts'], context.get('comparisons', []))
     segments = (context.get('brief') or {}).get('segments') or []
     checks += gap_problems(draft.paragraphs, TOKEN.findall, context['facts'], segments)
-    return problems + [text for _, text in checks]
+    return list(dict.fromkeys(problems + [text for _, text in checks]))
 
 
 def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list[str]]:
@@ -171,6 +243,8 @@ def resolve_draft(draft: WriterDraft, context: dict, section_id: str, title: str
     for paragraph in draft.paragraphs:
         if raw_numbers(paragraph):
             raise FinancialError('Writer 直接生成数字，必须改用数据或计算引用')
+        paragraph, named = strip_record_ids(paragraph)
+        used_evidence.update(id for id in named if id in evidence)
         paragraphs.append(TOKEN.sub(replace, paragraph))
     return ReportSection(
         section_id=section_id,
@@ -264,22 +338,22 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
         )
         if cached:
             return ReportSection.model_validate(cached['content'])
-    draft = await ask_bounded(gateway, role, WriterDraft, data)
+    draft = await ask_draft(gateway, role, data, local)
     # Depth is judged by reflection against the block's questions, not by character
     # count. A clearly thin draft still gets one expansion request, never a hard fail.
     minimum = (
         300 if core or section_id in FINANCIAL_TITLES or section_id.startswith(('industry-', 'position-')) else 500
     )
     if sum(len(p) for p in draft.paragraphs) < minimum:
-        draft = await ask_bounded(
+        draft = await ask_draft(
             gateway,
             role,
-            WriterDraft,
             data
             | {
                 'instructions': (instructions or [])
                 + ['上一稿过于单薄：请逐一回答本章必需问题，补充有来源的机制分析、反证与限制。']
             },
+            local,
         )
     reflection = await ask_bounded(
         gateway,
@@ -295,11 +369,11 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
     problems = draft_problems(draft, local)
     if reflection.needs_revision or problems:
         fixes = reflection.instructions if reflection.needs_revision else []
-        draft = await ask_bounded(
+        draft = await ask_draft(
             gateway,
             role,
-            WriterDraft,
             data | {'draft': draft.model_dump(mode='json'), 'instructions': problems + fixes + (instructions or [])},
+            local,
         )
         problems = draft_problems(draft, local)
     if problems:
@@ -353,13 +427,13 @@ async def patch_one(gateway, c, section: ReportSection, targets: dict[int, list[
         },
         'patch_contract': {'targets': [{'paragraph': i + 1, 'problems': targets[i]} for i in order]},
     }
-    draft = await ask_bounded(gateway, 'writer', WriterDraft, data)
+    draft = await ask_draft(gateway, 'writer', data, local)
     problems = draft_problems(draft, local)
     if len(draft.paragraphs) != len(order):
         problems.append(f'paragraphs 必须恰好 {len(order)} 项，与 targets 一一对应')
     if problems:
-        draft = await ask_bounded(
-            gateway, 'writer', WriterDraft, data | {'draft': draft.model_dump(mode='json'), 'instructions': problems}
+        draft = await ask_draft(
+            gateway, 'writer', data | {'draft': draft.model_dump(mode='json'), 'instructions': problems}, local
         )
         if len(draft.paragraphs) != len(order):
             return None

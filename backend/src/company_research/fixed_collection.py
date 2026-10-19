@@ -14,7 +14,7 @@ from pydantic import Field
 
 from .agents import EvidenceProposal, ask, locate_quote, request_messages
 from .contexts import chars_for_tokens, estimate_tokens, source_context
-from .datasources import DatasourceError, join_document_chunks
+from .datasources import DatasourceError, join_document_chunks, quote_locator, span_locator
 from .execution import check_pause, unit
 from .financials.formulas import FinancialDataProcessor, FinancialError, UNIT_SCALE, FIELD_MAP
 from .framework import coverage_matrix, digest, refresh_coverage, skeleton
@@ -912,7 +912,7 @@ class FixedCollection:
             source_id=source.source_id,
             claim=field['label'] + ' ' + p.period + ' ' + p.raw_value + ' ' + p.raw_unit,
             quote=quote,
-            locator=source.locator + f' chars {start}:{start + len(quote)}',
+            locator=span_locator(source, start, start + len(quote)),
             actual_or_forecast='actual',
             validation_status='verified',
         )
@@ -1027,7 +1027,7 @@ class FixedCollection:
             source_id=source.source_id,
             claim=FIELDS[field_id]['label'] + '明确不适用',
             quote=quote,
-            locator=source.locator,
+            locator=quote_locator(source, quote),
             actual_or_forecast='actual',
             validation_status='verified',
         )
@@ -1038,7 +1038,7 @@ class FixedCollection:
                 'state': 'not_applicable',
                 'reason': quote,
                 'source_id': source.source_id,
-                'locator': source.locator,
+                'locator': ev.locator,
                 'absence_quote': quote,
                 'evidence_id': ev.evidence_id,
             }
@@ -1433,7 +1433,7 @@ class FixedCollection:
                         source_id=source.source_id,
                         claim=p.claim,
                         quote=quote,
-                        locator=source.locator + f' chars {start}:{start + len(quote)}',
+                        locator=span_locator(source, start, start + len(quote)),
                         validation_status='verified',
                         actual_or_forecast='context',
                     )

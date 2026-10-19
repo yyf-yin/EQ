@@ -1,6 +1,7 @@
 """Auditable comparisons and deterministic financial prose share the same Decimal inputs."""
 
 from decimal import Decimal
+from .datasources import compact_locator
 from .schemas import ComparisonResult, FinancialFact, RequiredData, Table, ReviewIssue
 from .framework import CORE, comparison_periods, digest
 from .financials.formulas import FinancialDataProcessor, FinancialError, Calculator
@@ -164,9 +165,17 @@ def narrative(c):
     return (
         f'{c.current_period} {CORE[c.metric_code]}为 {amount(c.current_value)}百万元，'
         f'{c.previous_period}可比值为 {amount(c.previous_value)}百万元，{direction} {amount(abs(c.delta))}百万元，'
-        f'同比/状态：{change(c)}。驱动原因尚未确认；需依据同口径披露核实，不能由数值变化推断原因。'
-        f' [比较 {c.comparison_id}]'
+        f'同比/状态：{change(c)}。{NARRATIVE_TAIL}'
     )
+
+
+# Marks generated comparison prose so a rebind replaces it; older runs used a visible
+# "[比较 cmp-…]" suffix, which put a record ID into the report text.
+NARRATIVE_TAIL = '驱动原因尚未确认；需依据同口径披露核实，不能由数值变化推断原因。'
+
+
+def generated_narrative(paragraph):
+    return '[比较 cmp-' in paragraph or paragraph.endswith(NARRATIVE_TAIL)
 
 
 def comparison_table(comparisons, facts):
@@ -205,7 +214,7 @@ def comparison_table(comparisons, facts):
                 amount(c.delta, True),
                 change(c),
                 '; '.join(
-                    by_id[id].source_id + '/' + id + ' @ ' + by_id[id].locator
+                    by_id[id].source_id + '/' + id + ' @ ' + compact_locator(by_id[id].locator)
                     for id in [c.current_fact_id, c.previous_fact_id]
                 ),
                 '; '.join(c.calculation_ids),
@@ -236,7 +245,7 @@ def bind_financial_sections(report):
         rows = [c for c in report.comparisons if (c.metric_code == 'operating_cashflow') == (block == 'F03')]
         section.tables = core_tables(rows, report.financial_facts)
         # Remove old generated prose, retain independently reviewed explanations.
-        section.paragraphs = [p for p in section.paragraphs if '[比较 cmp-' not in p] + [narrative(c) for c in rows]
+        section.paragraphs = [p for p in section.paragraphs if not generated_narrative(p)] + [narrative(c) for c in rows]
         from .writers import number
 
         refs = {f.fact_id: f for f in report.financial_facts} | {r.result_id: r for r in report.calculations}

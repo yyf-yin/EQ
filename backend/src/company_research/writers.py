@@ -1,6 +1,6 @@
 import re
 from decimal import Decimal
-from .agents import ask, ask_bounded, WriterDraft, Reflection
+from .agents import ask, ask_bounded, WriterDraft, Reflection, DRAFT_ID_FIELDS
 from .schemas import (
     ReportDocument,
     ReportSection,
@@ -8,6 +8,7 @@ from .schemas import (
     SourceRecord,
     EvidenceRecord,
     FinancialFact,
+    IndustryDatum,
     CalculationResult,
     ForecastAssumption,
     FinancialForecast,
@@ -19,7 +20,7 @@ from .contexts import block_context
 from .framework import digest
 from .text_checks import direction_problems, gap_problems, meta_problems, strip_meta
 
-TOKEN = re.compile(r'\[\[(fact|calc|assumption):([a-zA-Z0-9_-]+)\]\]')
+TOKEN = re.compile(r'\[\[(fact|calc|assumption|ind):([a-zA-Z0-9_-]+)\]\]')
 # Dates, reporting periods and structural ordinals are not financial quantities and
 # may be written directly; every other digit must come from a bound data token.
 ALLOWED_NUMERALS = re.compile(
@@ -104,18 +105,24 @@ async def ask_draft(gateway, role, data, local):
     return without_record_ids(await ask_bounded(gateway, role, WriterDraft, data), local)
 
 
+def citable(context: dict) -> dict:
+    """Objects a draft may cite, by data-token kind."""
+    return {
+        'fact': {f['fact_id']: f for f in context['facts']},
+        'calc': {r['result_id']: r for r in context['calculations']},
+        'assumption': {a['assumption_id']: a for a in context['assumptions']},
+        'ind': {d['data_id']: d for d in context.get('industry_data', [])},
+    }
+
+
+def declared_ids(draft: WriterDraft) -> dict:
+    return {kind: set(getattr(draft, field)) for kind, field in DRAFT_ID_FIELDS.items()}
+
+
 def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
     """Describe every contract violation so one targeted repair round can fix them."""
-    objects = {
-        'fact': {f['fact_id'] for f in context['facts']},
-        'calc': {r['result_id'] for r in context['calculations']},
-        'assumption': {a['assumption_id'] for a in context['assumptions']},
-    }
-    declared = {
-        'fact': set(draft.fact_ids),
-        'calc': set(draft.calculation_ids),
-        'assumption': set(draft.assumption_ids),
-    }
+    objects = {kind: set(items) for kind, items in citable(context).items()}
+    declared = declared_ids(draft)
     problems = []
     unknown = sorted(set(draft.evidence_ids) - {e['evidence_id'] for e in context['evidence']})
     if unknown:
@@ -138,7 +145,8 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
             )
         for snippet in raw_numbers(paragraph):
             problems.append(
-                f'第{i + 1}段直接写了数字“{snippet.strip()}”：财务/经营数值必须改用 [[fact:ID]]/[[calc:ID]]/[[assumption:ID]]，没有对应数据时改为定性表述'
+                f'第{i + 1}段直接写了数字“{snippet.strip()}”：财务/经营数值必须改用 [[fact:ID]]/[[calc:ID]]/[[assumption:ID]]，'
+                '行业与第三方数字改用 industry_data 的 [[ind:ID]]，没有对应数据时改为定性表述'
             )
     checks = direction_problems(draft.paragraphs, TOKEN.findall, context['facts'], context.get('comparisons', []))
     segments = (context.get('brief') or {}).get('segments') or []
@@ -159,11 +167,7 @@ def clean_heading(heading: str) -> str:
 def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list[str]]:
     """Last resort after a failed repair: drop unverifiable sentences and unknown IDs
     instead of failing the whole section. Returns the cleaned draft and what was removed."""
-    objects = {
-        'fact': {f['fact_id'] for f in context['facts']},
-        'calc': {r['result_id'] for r in context['calculations']},
-        'assumption': {a['assumption_id'] for a in context['assumptions']},
-    }
+    objects = {kind: set(items) for kind, items in citable(context).items()}
     evidence = {e['evidence_id'] for e in context['evidence']}
     removed = []
     paragraphs = []
@@ -179,17 +183,19 @@ def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list
             kept.append(sentence)
         if ''.join(kept).strip():
             paragraphs.append(''.join(kept))
-    used = {'fact': set(), 'calc': set(), 'assumption': set()}
+    used = {kind: set() for kind in DRAFT_ID_FIELDS}
     for paragraph in paragraphs:
         for kind, id in TOKEN.findall(paragraph):
             used[kind].add(id)
+    declared = declared_ids(draft)
     clean = draft.model_copy(
         update={
             'paragraphs': paragraphs,
             'evidence_ids': [e for e in draft.evidence_ids if e in evidence],
-            'fact_ids': sorted((set(draft.fact_ids) & objects['fact']) | used['fact']),
-            'calculation_ids': sorted((set(draft.calculation_ids) & objects['calc']) | used['calc']),
-            'assumption_ids': sorted((set(draft.assumption_ids) & objects['assumption']) | used['assumption']),
+            **{
+                field: sorted((declared[kind] & objects[kind]) | used[kind])
+                for kind, field in DRAFT_ID_FIELDS.items()
+            },
         }
     )
     return clean, removed
@@ -217,19 +223,11 @@ def number(value: Decimal, unit: str) -> str:
 
 
 def resolve_draft(draft: WriterDraft, context: dict, section_id: str, title: str) -> ReportSection:
-    objects = {
-        'fact': {f['fact_id']: f for f in context['facts']},
-        'calc': {r['result_id']: r for r in context['calculations']},
-        'assumption': {a['assumption_id']: a for a in context['assumptions']},
-    }
+    objects = citable(context)
     evidence = {e['evidence_id'] for e in context['evidence']}
     if not set(draft.evidence_ids).issubset(evidence):
         raise FinancialError('Writer 引用未知证据')
-    declarations = {
-        'fact': set(draft.fact_ids),
-        'calc': set(draft.calculation_ids),
-        'assumption': set(draft.assumption_ids),
-    }
+    declarations = declared_ids(draft)
     for kind, ids in declarations.items():
         if not ids.issubset(objects[kind]):
             raise FinancialError('Writer 引用未知数据 ID')
@@ -241,9 +239,10 @@ def resolve_draft(draft: WriterDraft, context: dict, section_id: str, title: str
         if id not in declarations[kind]:
             raise FinancialError('数值引用未在章节引用字段声明')
         item = objects[kind][id]
-        text = number(Decimal(item['value']), item['unit'])
+        # Industry numbers keep the source's own wording and unit.
+        text = item['value_text'] if kind == 'ind' else number(Decimal(item['value']), item['unit'])
         bindings[f'{kind}:{id}'] = text
-        if kind == 'fact':
+        if kind in {'fact', 'ind'}:
             used_evidence.add(item['evidence_id'])
         if kind == 'assumption':
             used_evidence.update(item['evidence_ids'])
@@ -320,6 +319,7 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
         'evidence': selected['evidence'],
         'calculations': selected['calculations'],
         'assumptions': selected['assumptions'],
+        'industry_data': selected.get('industry_data', []),
     }
     data = selected | {
         'section': {'section_id': section_id, 'block_id': section_block(section_id), 'title': title, 'goal': goal},
@@ -427,6 +427,7 @@ async def patch_one(gateway, c, section: ReportSection, targets: dict[int, list[
         'evidence': selected['evidence'],
         'calculations': selected['calculations'],
         'assumptions': selected['assumptions'],
+        'industry_data': selected.get('industry_data', []),
     }
     order = sorted(targets)
     data = selected | {
@@ -809,6 +810,7 @@ async def make_report(c, gateway, mock=False, store=None, run_id=None):
         sources=[SourceRecord.model_validate(s) for s in c['sources']],
         evidence=[EvidenceRecord.model_validate(e) for e in c['evidence']],
         financial_facts=[FinancialFact.model_validate(f) for f in c['facts']],
+        industry_data=[IndustryDatum.model_validate(d) for d in c.get('industry_data', [])],
         calculations=[CalculationResult.model_validate(r) for r in c['calculations']],
         assumptions=[ForecastAssumption.model_validate(a) for a in c['assumptions']],
         forecasts=[FinancialForecast.model_validate(f) for f in c['forecasts']],
@@ -911,4 +913,7 @@ def report_snapshot(report):
 
     for section in data['sections']:
         legacy(section)
+    # Reports approved before industry data existed keep their snapshot.
+    if not data.get('industry_data'):
+        data.pop('industry_data', None)
     return digest(data)

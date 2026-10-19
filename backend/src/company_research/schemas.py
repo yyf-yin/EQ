@@ -172,6 +172,24 @@ class FinancialFact(Schema):
     derivation_id: str | None = None
 
 
+class IndustryDatum(Schema):
+    """A third-party or industry number (market size, capacity, price, share, forecast).
+    value_text is the number with its unit exactly as the quote writes it; it is cited
+    as [[ind:ID]] and rendered verbatim, never converted or used in calculations."""
+
+    data_id: str
+    source_id: str
+    evidence_id: str
+    subject: str
+    metric: str
+    period: str
+    value_text: str
+    actual_or_forecast: Literal["actual", "forecast"] = "actual"
+    publisher: str = ""
+    quote: str
+    locator: str
+
+
 class CalculationResult(Schema):
     result_id: str = Field(default_factory=uid)
     formula_id: str
@@ -295,6 +313,7 @@ class ReportDocument(Schema):
     assumptions: list[ForecastAssumption] = Field(default_factory=list)
     forecasts: list[FinancialForecast] = Field(default_factory=list)
     financial_facts: list[FinancialFact] = Field(default_factory=list)
+    industry_data: list[IndustryDatum] = Field(default_factory=list)
     issues: list[ReviewIssue] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     charts: list[dict[str, Any]] = Field(default_factory=list)

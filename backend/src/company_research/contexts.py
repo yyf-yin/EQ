@@ -237,6 +237,11 @@ def extraction_batches(sources, task, periods, capacity, request_size=None, reus
     return sorted(batches, key=order) if reusable else batches
 
 
+INDUSTRY_DATA_FIELDS = (
+    'data_id', 'evidence_id', 'subject', 'metric', 'period', 'value_text', 'actual_or_forecast', 'publisher'
+)
+
+
 def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000):
     blocks = {b['block_id']: b for b in c.get('plan', {}).get('blocks', [])}
     b = blocks.get(block_id, {'template_id': block_id, 'segment_id': None, 'dependencies': [], 'questions': {}})
@@ -323,6 +328,16 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
 
     support = reference_question_support(c, store, run_id)
     reference_ids = {id for q in b['questions'] for id in support.get(q, [])}
+    # Material collected for this business or its industry follows the block even when a
+    # quote does not name the business itself (e.g. 维生素E market data for 营养品).
+    material_ids = {
+        id
+        for s in c.get('material_collections', [])
+        if template in {'I01', 'B01'}
+        and (s.get('block_id') == block_id or segment in s.get('scope', {}).get('linked_segments', []))
+        for status in s.get('direction_statuses', {}).values()
+        for id in status.get('evidence_ids', [])
+    }
     numeric_evidence = {f['evidence_id'] for f in c.get('fact_candidates', c.get('facts', [])) + c.get('facts', [])}
     words = re.findall(r'[\u4e00-\u9fff]{2}', ' '.join(b['questions'].values()))
     evidence = [
@@ -330,6 +345,7 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
         for e in c.get('evidence', [])
         if e['evidence_id'] in evidence_ids
         or e['evidence_id'] in reference_ids
+        or e['evidence_id'] in material_ids
         or (
             e['evidence_id'] not in numeric_evidence
             and not e['quote'].startswith('{')
@@ -343,7 +359,7 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
         # Select paragraphs mentioning this business rather than the entire shared company note.
         evidence = [
             e | {'quote': '\n'.join(p for p in e['quote'].split('\n\n') if segment in p)}
-            if not e['quote'].startswith('{') and e['evidence_id'] not in reference_ids
+            if not e['quote'].startswith('{') and e['evidence_id'] not in reference_ids | material_ids
             else e
             for e in evidence
         ]
@@ -387,6 +403,15 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             )
         ],
     }
+    if template in {'I01', 'B01'}:
+        # Industry numbers travel with the evidence they were read from; only business
+        # and industry sections cite them.
+        selected_evidence = {e['evidence_id'] for e in evidence}
+        content['industry_data'] = [
+            {k: d[k] for k in INDUSTRY_DATA_FIELDS}
+            for d in c.get('industry_data', [])
+            if d['evidence_id'] in selected_evidence
+        ]
     # Shared industry packets follow every linked business; gaps remain visible in analysis and writing.
     materials = c.get('material_collections', [])
     if materials:

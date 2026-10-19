@@ -76,6 +76,7 @@ def cited_context(report: ReportDocument, section) -> dict:
         'facts': cited_facts,
         'calculations': [r for r in report.calculations if r.result_id in seen],
         'assumptions': cited_assumptions,
+        'industry_data': [d for d in report.industry_data if 'ind:' + d.data_id in section.number_bindings],
     }
 
 
@@ -210,6 +211,7 @@ def financial_review(report: ReportDocument):
     results = {r.result_id: r for r in report.calculations}
     assumptions = {a.assumption_id: a for a in report.assumptions}
     refs = {**facts, **results, **assumptions}
+    industry = {d.data_id: d for d in report.industry_data}
     from .comparisons import core_gate
 
     issues += core_gate(report)
@@ -317,8 +319,13 @@ def financial_review(report: ReportDocument):
     for section in sections_flat(report.sections):
         for reference, rendered in section.number_bindings.items():
             kind, id = reference.split(':', 1)
-            obj = refs.get(id)
-            if not obj or number(obj.value, obj.unit) != rendered or not any(rendered in p for p in section.paragraphs):
+            if kind == 'ind':
+                datum = industry.get(id)
+                expected = datum.value_text if datum else None
+            else:
+                obj = refs.get(id)
+                expected = number(obj.value, obj.unit) if obj else None
+            if expected != rendered or not any(rendered in p for p in section.paragraphs):
                 issues.append(
                     issue(
                         'financial',

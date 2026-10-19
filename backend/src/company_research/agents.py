@@ -207,6 +207,7 @@ class WriterDraft(Schema):
     calculation_ids: list[str]
     fact_ids: list[str]
     assumption_ids: list[str]
+    industry_data_ids: list[str] = Field(default_factory=list)
     consistency_checks: dict[str, str] = Field(default_factory=dict)
 
 
@@ -427,8 +428,9 @@ DRAFT_ID_FIELDS = {
     'fact': 'fact_ids',
     'calc': 'calculation_ids',
     'assumption': 'assumption_ids',
+    'ind': 'industry_data_ids',
 }
-DRAFT_TOKEN = re.compile(r'\[\[(fact|calc|assumption):([^\]]+)\]\]')
+DRAFT_TOKEN = re.compile(r'\[\[(fact|calc|assumption|ind):([^\]]+)\]\]')
 
 
 async def merge_drafts(gateway, role, context, a: WriterDraft, b: WriterDraft, union: WriterDraft):

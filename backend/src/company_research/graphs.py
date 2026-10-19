@@ -1,6 +1,8 @@
 import asyncio
 import copy
-from datetime import datetime, timezone
+import json
+import re
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import TypedDict
@@ -26,6 +28,7 @@ from .datasources import LocalDatasource, UnifiedDatasource, WebAdapter, HTTPWeb
 from .evidence import EvidenceStore
 from .financials import DependencyResolver, Calculator, ForecastEngine, FinancialError
 from .financials.formulas import REGISTRY, FinancialDataProcessor, INPUT_UNITS, input_unit
+from .financials.generic import plan as generic_plan
 from .financials.forecast import (
     OPENING_KEYS,
     ASSUMPTION_KEYS,
@@ -1419,6 +1422,71 @@ class ResearchWorkflow:
         return {'block_analyses': analyses, 'coverage': coverage, 'plan': c['plan']}
 
     async def assumptions(self, c):
+        market = await self.market(c)
+        try:
+            planned = await self.planned_assumptions(c | market)
+        except FinancialError as exc:
+            # Model errors propagate so the run can resume and retry; only assumptions that
+            # fail validation hand over to the generic historical-trend model in calculate.
+            if self.mock:
+                raise
+            planned = {
+                'assumptions': [],
+                'segment_models': {},
+                'limitations': list(dict.fromkeys(c['limitations'] + ['有据预测假设未能生成：' + str(exc)])),
+            }
+        return planned | market
+
+    async def market(self, c):
+        """Price, peers and consensus EPS, fetched once per run and cited like any source."""
+        ticker = str(c['company'].get('ticker') or '')
+        if self.mock or not self.settings.market_data or not re.fullmatch(r'\d{6}', ticker):
+            return {}
+        saved = self.store.execution_get(self.run_id, 'execution_meta', 'market-snapshot')
+        if not saved:
+            from .market_data import snapshot
+
+            as_of = date.fromisoformat(str(c['brief'].get('as_of') or date.today().isoformat())[:10])
+            years = [p[:4] for p in sorted(c['brief']['forecast_periods'])]
+            history = max(c['brief']['historical_periods'])[:4]
+            self.store.emit(self.run_id, '盈利预测', 'market_data', 'running', '获取股价、可比公司与一致预期')
+            try:
+                saved = await asyncio.to_thread(snapshot, ticker, as_of, history, years)
+            except Exception as exc:  # network or upstream format change: valuation degrades, research continues
+                saved = {'company': {'code': ticker}, 'peers': [], 'errors': [f'{type(exc).__name__}: {exc}']}
+            self.store.execution_put(self.run_id, 'execution_meta', 'market-snapshot', saved)
+        from .market_data import SOURCE, summary
+
+        text = summary(saved)
+        source = SourceRecord(
+            source_id='market-' + digest(saved)[:16],
+            kind='web',
+            title=f'市场数据快照（{saved.get("as_of") or "日期未知"}）',
+            content=text + '\n' + json.dumps(saved, ensure_ascii=False, default=str),
+            publication_date=saved.get('as_of'),
+            source_url=None,
+        )
+        evidence = EvidenceRecord(
+            evidence_id='ev-' + digest([source.source_id, 'market'])[:24],
+            source_id=source.source_id,
+            claim='股价、可比公司估值与一致预期（' + SOURCE + '）',
+            quote=text,
+            locator='全文',
+            actual_or_forecast='context',
+            validation_status='verified',
+        )
+        self.store.record(self.run_id, 'source', source.source_id, source.model_dump(mode='json'))
+        self.store.record(self.run_id, 'evidence', evidence.evidence_id, evidence.model_dump(mode='json'))
+        known = {e['evidence_id'] for e in c['evidence']}
+        sources = {s['source_id'] for s in c['sources']}
+        return {
+            'market': saved,
+            'market_evidence_ids': [evidence.evidence_id],
+            'evidence': c['evidence'] + ([evidence.model_dump(mode='json')] if evidence.evidence_id not in known else []),
+            'sources': c['sources'] + ([source.model_dump(mode='json')] if source.source_id not in sources else []),
+        }
+
+    async def planned_assumptions(self, c):
         if c.get('data_template_version'):
             reason = self.fixed_collection.forecast_limit(c)
             if reason:
@@ -1571,35 +1639,14 @@ class ResearchWorkflow:
             'limitations': list(dict.fromkeys(c['limitations'] + limitations)),
         }
 
-    async def calculate(self, c):
-        processor = FinancialDataProcessor()
-        facts = [FinancialFact.model_validate(f) for f in c['facts']]
-        assumptions = [ForecastAssumption.model_validate(a) for a in c['assumptions']]
-        results = list(c['calculations'])
-        forecasts = []
-        limitations = list(c['limitations'])
-        period = max(c['brief']['historical_periods'])
-        company = c['company']['company_id']
-        try:
-            opening_facts = {k: processor.get(facts, company, k, period) for k in OPENING_KEYS}
-            opening = {k: f.value for k, f in opening_facts.items()}
-            opening_refs = {k: f.fact_id for k, f in opening_facts.items()}
-            segments, historical, segment_note = forecast_segments(
-                facts, company, period, c['brief']['segments'], bool(c.get('data_template_version'))
-            )
-        except FinancialError as exc:
-            return {'forecasts': [], 'limitations': limitations + [str(exc), '关键三表输入缺失，未生成预测。']}
-        if segment_note:
-            limitations.append(segment_note)
-        # Fixed-template runs used to stop on minority interest; they now need an
-        # explicit split. Legacy runs keep the consolidated simplification.
-        minority = bool(c.get('data_template_version')) and has_minority_interest(facts, company, period)
+    def run_engine(self, company, years, assumptions, models, opening, opening_refs, previous, minority):
+        """Roll Bear/Base/Bull through the three-statement engine; a failed scenario stops at its first bad year."""
+        forecasts, computed, failures = [], [], []
         for scenario in ['Bear', 'Base', 'Bull']:
-            balance = dict(opening)
-            balance_refs = dict(opening_refs)
-            prev = {s: f.value for s, f in historical.items()}
-            prev_refs = {s: f.fact_id for s, f in historical.items()}
-            for year in sorted(c['brief']['forecast_periods']):
+            balance, balance_refs = dict(opening), dict(opening_refs)
+            prev = {s: v for s, (v, _) in previous.items()}
+            prev_refs = {s: r for s, (_, r) in previous.items()}
+            for year in years:
                 try:
                     if minority and not any(
                         a.scenario == scenario and a.period == year and a.segment_id is None
@@ -1608,22 +1655,14 @@ class ResearchWorkflow:
                     ):
                         raise FinancialError('历史存在少数股东损益，缺少 minority_ratio 假设')
                     drivers = {}
-                    for segment in segments:
-                        model = c['segment_models'].get(segment)
-                        if model not in {
-                            'volume_price',
-                            'capacity_utilization',
-                            'users_arpu',
-                            'market_share',
-                            'growth',
-                        }:
+                    for segment in previous:
+                        model = models.get(segment)
+                        if model not in {'volume_price', 'capacity_utilization', 'users_arpu', 'market_share', 'growth'}:
                             raise FinancialError('分部缺少适用预测模型')
-                        params = {}
-                        refs = {}
+                        params, refs = {}, {}
                         for metric in REGISTRY[model].inputs:
                             if model == 'growth' and metric == 'previous':
-                                params[metric] = prev[segment]
-                                refs[metric] = prev_refs[segment]
+                                params[metric], refs[metric] = prev[segment], prev_refs[segment]
                                 continue
                             matches = [
                                 a
@@ -1635,36 +1674,107 @@ class ResearchWorkflow:
                             ]
                             if len(matches) != 1:
                                 raise FinancialError(f'缺少分部驱动 {segment}/{metric}/{year}/{scenario}')
-                            params[metric] = matches[0].value
-                            refs[metric] = matches[0].assumption_id
+                            params[metric], refs[metric] = matches[0].value, matches[0].assumption_id
                         drivers[segment] = {'model': model, 'inputs': params, 'input_refs': refs}
-                    forecast, computed = ForecastEngine().forecast(
+                    forecast, results = ForecastEngine().forecast(
                         company, year, scenario, balance, drivers, assumptions, balance_refs
                     )
                     forecasts.append(forecast.model_dump(mode='json'))
-                    results += [r.model_dump(mode='json') for r in computed]
+                    computed += [r.model_dump(mode='json') for r in results]
                     from .work_products import preserve_materials
 
                     preserve_materials(
                         self.store,
                         self.run_id,
                         [('forecast', scenario + '-' + year, forecast.model_dump(mode='json'))]
-                        + [('calculation', r.result_id, r.model_dump(mode='json')) for r in computed],
+                        + [('calculation', r.result_id, r.model_dump(mode='json')) for r in results],
                     )
                     balance = {k: forecast.balance[k] for k in OPENING_KEYS}
-                    balance_refs = {**balance_refs, **{r.output_metric: r.result_id for r in computed}}
+                    balance_refs = {**balance_refs, **{r.output_metric: r.result_id for r in results}}
                     prev = {s: v['revenue'] for s, v in forecast.segments.items()}
                     prev_refs = {
-                        s: next(r.result_id for r in computed if r.output_metric == f'{s}.revenue') for s in prev
+                        s: next(r.result_id for r in results if r.output_metric == f'{s}.revenue') for s in prev
                     }
                 except FinancialError as exc:
-                    limitations.append(f'{scenario}/{year}：{exc}')
+                    failures.append(f'{scenario}/{year}：{exc}')
                     break
+        return forecasts, computed, failures
+
+    async def calculate(self, c):
+        processor = FinancialDataProcessor()
+        facts = [FinancialFact.model_validate(f) for f in c['facts']]
+        assumptions = [ForecastAssumption.model_validate(a) for a in c['assumptions']]
+        models = dict(c.get('segment_models') or {})
+        limitations = list(c['limitations'])
+        period = max(c['brief']['historical_periods'])
+        company = c['company']['company_id']
+        years = sorted(c['brief']['forecast_periods'])
+        # Fixed-template runs used to stop on minority interest; they now need an
+        # explicit split. Legacy runs keep the consolidated simplification.
+        minority = bool(c.get('data_template_version')) and has_minority_interest(facts, company, period)
+        forecasts, computed = [], []
+        try:
+            opening_facts = {k: processor.get(facts, company, k, period) for k in OPENING_KEYS}
+            segments, historical, segment_note = forecast_segments(
+                facts, company, period, c['brief']['segments'], bool(c.get('data_template_version'))
+            )
+            if segment_note:
+                limitations.append(segment_note)
+            forecasts, computed, failures = self.run_engine(
+                company,
+                years,
+                assumptions,
+                models,
+                {k: f.value for k, f in opening_facts.items()},
+                {k: f.fact_id for k, f in opening_facts.items()},
+                {s: (f.value, f.fact_id) for s, f in historical.items()},
+                minority,
+            )
+            limitations += failures
+        except FinancialError as exc:
+            limitations += [str(exc), '关键三表输入缺失，未按有据假设生成预测。']
+        model = 'planned'
+        if not self.mock and len(forecasts) < 3 * len(years):
+            # Evidence-based assumptions did not cover every scenario and year: the whole
+            # forecast switches to the generic historical-trend model, never a mix.
+            try:
+                generic = generic_plan(facts, company, c['brief'], c.get('market'), c.get('market_evidence_ids'))
+                assumptions, models = generic['assumptions'], generic['models']
+                forecasts, computed, failures = self.run_engine(
+                    company,
+                    years,
+                    assumptions,
+                    models,
+                    {k: Decimal(v) for k, v in generic['opening'].items()},
+                    generic['opening_refs'],
+                    {s: (Decimal(v), generic['previous_refs'][s]) for s, v in generic['previous'].items()},
+                    minority,
+                )
+                model = 'generic'
+                limitations += generic['notes'] + failures + ['盈利预测采用历史趋势通用模型：有据假设未覆盖全部情景与年份。']
+                from .work_products import preserve_materials
+
+                preserve_materials(
+                    self.store,
+                    self.run_id,
+                    [('assumption', a.assumption_id, a.model_dump(mode='json')) for a in assumptions],
+                )
+            except FinancialError as exc:
+                limitations.append('通用预测未能生成：' + str(exc))
+        results = list(c['calculations']) + computed
         for r in results:
             self.store.record(self.run_id, 'calculation', r['result_id'], r)
-        for a in c['assumptions']:
+        assumption_rows = [a.model_dump(mode='json') for a in assumptions]
+        for a in assumption_rows:
             self.store.record(self.run_id, 'assumption', a['assumption_id'], a)
-        return {'calculations': results, 'forecasts': forecasts, 'limitations': list(dict.fromkeys(limitations))}
+        return {
+            'calculations': results,
+            'forecasts': forecasts,
+            'assumptions': assumption_rows,
+            'segment_models': models,
+            'forecast_model': model,
+            'limitations': list(dict.fromkeys(limitations)),
+        }
 
     async def validate(self, c):
         if any(not Calculator().recompute(CalculationResult.model_validate(r)) for r in c['calculations']):

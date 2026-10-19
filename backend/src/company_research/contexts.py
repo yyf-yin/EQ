@@ -412,6 +412,14 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             for d in c.get('industry_data', [])
             if d['evidence_id'] in selected_evidence
         ]
+    if template in {'V01', 'X01'} and (c.get('market') or c.get('forecast_model')):
+        from .market_data import summary
+
+        content['valuation_reference'] = {
+            'market': summary(c['market']) if c.get('market') else '',
+            'forecast_model': '历史趋势通用模型' if c.get('forecast_model') == 'generic' else '有据假设模型',
+            'note': '股价、可比公司估值与一致预期在报告的估值表中列示；正文可作定性比较（如估值高于或低于可比公司），不要手写其中的数字。',
+        }
     # Shared industry packets follow every linked business; gaps remain visible in analysis and writing.
     materials = c.get('material_collections', [])
     if materials:

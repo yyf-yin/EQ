@@ -327,6 +327,9 @@ class ReportDocument(Schema):
     issues: list[ReviewIssue] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     charts: list[dict[str, Any]] = Field(default_factory=list)
+    # Valuation inputs (price, peers, consensus) and which forecast model produced `forecasts`.
+    market: dict[str, Any] | None = None
+    forecast_model: str = ""
     rules_version: str = "1.0"
     data_template_version: str | None = None
     snapshot_id: str = ""

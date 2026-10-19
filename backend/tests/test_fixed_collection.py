@@ -349,6 +349,22 @@ async def test_annual_report_quarterly_or_forecast_revenue_cannot_fill_annual_ac
     assert not w.fixed_collection.accept(c,source,forecast)
 
 
+async def test_annual_rows_after_the_quarterly_table_are_not_treated_as_quarterly(tmp_path):
+    w,g,store,run=prepared(tmp_path,rows=[]);c=await context(w);w.fixed_collection.initialize(c)
+    content=('固定测试公司2025年年度报告\n分季度主要财务数据\n单位：百万元\n2025年\n营业收入 | 100 | 110 | 120 | 130\n'
+             '季度数据与已披露定期报告数据差异说明\n□适用 √不适用\n十、非经常性损益项目和金额\n'
+             '五、经营情况讨论与分析\n单位：元 币种：人民币\n主营业务分产品情况\n分产品 营业收入 营业成本 毛利率（%）\n'
+             '设备 300,000,000.00 180,000,000.00 40.00 5.00 4.00\n服务 160,000,000.00 64,000,000.00 60.00 8.00 6.00\n主营业务分地区情况\n'
+             '2025年度营业成本合计 244 百万元')
+    source=SourceRecord(source_id='mdna',kind='upload',title='固定测试公司2025年年度报告',content=content,locator='p1')
+    cost=SlotProposal(field_id='income.cost',period='2025A',raw_value='244',raw_unit='百万元',quote='2025年度营业成本合计 244 百万元')
+    assert w.fixed_collection.accept(c,source,cost),w.fixed_collection.last_reject
+    w.fixed_collection.standard_tables(c,source)
+    locked={(s['segment_id'],s['field_id']):s for s in store.records(run.run_id,'data_slot') if s.get('segment_id') and s['state']=='locked'}
+    assert Decimal(locked[('设备','segment.revenue')]['normalized_value'])==300
+    assert Decimal(locked[('服务','segment.cost')]['normalized_value'])==64
+
+
 async def test_rounded_narrative_or_another_metric_cannot_lock_revenue(tmp_path):
     w,g,store,run=prepared(tmp_path,rows=[]);c=await context(w);w.fixed_collection.initialize(c)
     text='固定测试公司2025年年报\n2025年度营业收入约100百万元\n2025年度营业收入100百万元，营业成本60百万元'

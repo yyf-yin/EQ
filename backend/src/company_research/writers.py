@@ -899,6 +899,8 @@ async def make_report(c, gateway, mock=False, store=None, run_id=None):
         ),
     )
     append_tables(report, c)
+    report.market = c.get('market')
+    report.forecast_model = c.get('forecast_model', '')
     report.data_template_version = c.get('data_template_version')
     if c.get('rules_version') == '1.1':
         from .schemas import ResearchBrief, ResearchBlock, CoverageEntry, ComparisonResult
@@ -995,4 +997,7 @@ def report_snapshot(report):
     # Reports approved before industry data existed keep their snapshot.
     if not data.get('industry_data'):
         data.pop('industry_data', None)
+    for key, empty in (('market', None), ('forecast_model', '')):
+        if data.get(key) == empty:
+            data.pop(key, None)
     return digest(data)

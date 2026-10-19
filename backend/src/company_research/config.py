@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     mock_delay: float = 0.15
     request_timeout: float = 45
     allow_limited: bool = True
+    # Price, Shenwan peers and consensus EPS through AKShare for valuation (real mode only).
+    market_data: bool = True
     cors_origin: str = "http://localhost:5173"
     extraction_input_tokens: int = Field(default=16000, ge=2000)
     block_call_budget: int = Field(default=40, ge=1)

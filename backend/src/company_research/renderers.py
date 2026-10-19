@@ -103,7 +103,8 @@ def export_pdf(report: ReportDocument, path: Path):
         grid = Table(rows, colWidths=widths, repeatRows=1, hAlign='LEFT')
         grid.setStyle(TableStyle(style))
         label = f'{t.label}：' if numbered and t.label else ''
-        return [Paragraph(escape(label + t.title), cap), grid, Paragraph('数据来源：' + escape(t.source), small)]
+        source = '数据来源：' + escape(t.source) + (f'<br/>注：{escape(t.note)}' if t.note else '')
+        return [Paragraph(escape(label + t.title), cap), grid, Paragraph(source, small)]
 
     def figure(c, width):
         return [Paragraph(escape(f'{c.label}：{c.title}'), cap), to_drawing(c, width), Paragraph('数据来源：' + escape(c.source), small)]

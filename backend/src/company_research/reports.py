@@ -139,7 +139,9 @@ def html_report(report: ReportDocument) -> str:
         head = ''.join(f'<th>{escape(c)}</th>' for c in t.columns)
         return (
             f'<figure class="tbl"><figcaption>{caption}</figcaption><div class="scroll"><table><thead><tr>{head}</tr></thead>'
-            f'<tbody>{rows}</tbody></table></div><p class="src">数据来源：{escape(t.source)}</p></figure>'
+            f'<tbody>{rows}</tbody></table></div><p class="src">数据来源：{escape(t.source)}</p>'
+            + (f'<p class="src">注：{escape(t.note)}</p>' if t.note else '')
+            + '</figure>'
         )
 
     def chart(c):
@@ -341,7 +343,7 @@ def export_docx(report: ReportDocument, path: Path) -> None:
                     p.paragraph_format.space_after = Pt(0)
                     for r in p.runs:
                         r.font.size = Pt(8.5)
-        small(document.add_paragraph('数据来源：' + t.source))
+        small(document.add_paragraph('数据来源：' + t.source + (f'\n注：{t.note}' if t.note else '')))
 
     def figure_row(items):
         """Charts two per row, caption above and source below each, as broker reports lay them out."""

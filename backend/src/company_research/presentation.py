@@ -338,7 +338,9 @@ def summary_table(report: ReportDocument, book: FactBook) -> PTable | None:
         return None
     columns = ['主要财务指标'] + years + [f.period for f in base]
     revenue = [book.get('revenue', p) for p in years] + [forecast_value(f, 'income', 'revenue') for f in base]
-    profit = [book.get('parent_net_income', p) for p in years] + [forecast_value(f, 'income', 'net_income') for f in base]
+    profit = [book.get('parent_net_income', p) for p in years] + [parent_income(f) for f in base]
+    price = market_price(report)
+    eps = [book.get('basic_eps_reported', p, 'CNY/share') for p in years] + [forecast_value(f, 'income', 'eps') for f in base]
 
     def growth(series, first_prev):
         out = []
@@ -352,13 +354,24 @@ def summary_table(report: ReportDocument, book: FactBook) -> PTable | None:
         ['增长率（%）'] + [cell(v, 'pct') for v in growth(revenue, book.get('revenue', book.previous(years[0])))],
         ['归母净利润（百万元）'] + [cell(v) for v in profit],
         ['增长率（%）'] + [cell(v, 'pct') for v in growth(profit, book.get('parent_net_income', book.previous(years[0])))],
-        ['EPS（元/股）'] + [cell(book.get('basic_eps_reported', p, 'CNY/share'), 'num') for p in years]
-        + [cell(forecast_value(f, 'income', 'eps'), 'num') for f in base],
+        ['EPS（元/股）'] + [cell(v, 'num') for v in eps],
         ['ROE（%）'] + [cell(book.roe(p), 'pct') for p in years] + ['—' for _ in base],
         ['毛利率（%）'] + [cell((1 - c / r) * 100 if c is not None and r else None, 'pct') for c, r in zip(
             [book.get('cost', p) for p in years] + [forecast_value(f, 'income', 'cost') for f in base], revenue)],
     ]
-    return PTable('盈利预测', columns, rows, source='公司公告、研究整理')
+    if price:
+        rows.append(['P/E（倍）'] + [cell(price / e if e and e > 0 else None, 'times') for e in eps])
+    note = f'P/E 按 {report.market.get("as_of")} 收盘价 {price:.2f} 元计算' if price else ''
+    return PTable('盈利预测', columns, rows, source='公司公告、研究预测', note=note)
+
+
+def parent_income(forecast):
+    return forecast_value(forecast, 'income', 'parent_net_income') or forecast_value(forecast, 'income', 'net_income')
+
+
+def market_price(report: ReportDocument):
+    company = (report.market or {}).get('company') or {}
+    return company.get('price')
 
 
 def statement_tables(report: ReportDocument, book: FactBook) -> list[PTable]:
@@ -497,16 +510,196 @@ def statement_tables(report: ReportDocument, book: FactBook) -> list[PTable]:
     ]
 
 
-def assumption_table(report: ReportDocument) -> PTable | None:
-    if not report.assumptions:
-        return None
-    from .writers import number
+ASSUMPTION_LABELS = {
+    'opex_ratio': ('综合费用率', 'pct'),
+    'tax_rate': ('所得税率', 'pct'),
+    'payout_ratio': ('分红率', 'pct'),
+    'target_pe': ('目标市盈率（倍）', 'times'),
+}
 
-    rows = [
-        [a.metric_code, a.scenario, a.period, a.segment_id or '公司', number(a.value, a.unit)]
-        for a in report.assumptions
-    ]
-    return PTable('关键盈利预测假设', ['参数', '情景', '期间', '业务', '数值'], rows)
+
+def assumption_table(report: ReportDocument) -> PTable | None:
+    """Base-case drivers by year: segment growth and gross margin, then company-level ratios."""
+    base = [a for a in report.assumptions if a.scenario == 'Base']
+    years = sorted({a.period for a in base})
+    if not years:
+        return None
+
+    def value(metric, period, segment=None):
+        match = next((a for a in base if a.metric_code == metric and a.period == period and a.segment_id == segment), None)
+        return float(match.value) if match else None
+
+    rows = []
+    for segment in dict.fromkeys(a.segment_id for a in base if a.segment_id):
+        growth = [value('growth_rate', y, segment) for y in years]
+        if any(v is not None for v in growth):
+            rows.append([f'{segment}营收增速'] + [cell(v * 100 if v is not None else None, 'pct') for v in growth])
+        ratio = [value('cost_ratio', y, segment) for y in years]
+        if any(v is not None for v in ratio):
+            rows.append([f'{segment}毛利率'] + [cell((1 - v) * 100 if v is not None else None, 'pct') for v in ratio])
+    for metric, (label, kind) in ASSUMPTION_LABELS.items():
+        values = [value(metric, y) for y in years]
+        if not any(values):
+            continue
+        rows.append([label] + [cell(v * 100 if kind == 'pct' and v is not None else v, kind) for v in values])
+    note = (
+        '历史趋势通用模型：增速由近年增速与复合增速推导并逐年收敛，比例按近三年加权（近年权重更高）。'
+        if report.forecast_model == 'generic'
+        else ''
+    )
+    return PTable('主要预测假设（基准情景）', ['假设'] + years, rows, source='研究预测', note=note) if rows else None
+
+
+def segment_split_table(report: ReportDocument, book: FactBook) -> PTable | None:
+    """Revenue, cost and gross margin by business, history then Base forecast, as in broker reports."""
+    from .financials.generic import COMPANY_SEGMENT, OTHER_SEGMENT
+
+    base = forecast_rows(report)
+    years = book.annual()[-3:]
+    if not base or not years:
+        return None
+    segments = list(base[0].segments)
+    named = [s for s in segments if s not in (COMPANY_SEGMENT, OTHER_SEGMENT)]
+
+    def history(segment, metric, period):
+        if segment == COMPANY_SEGMENT:
+            return book.get(metric, period)
+        if segment == OTHER_SEGMENT:
+            parts = [book.get(metric, period, segment=s) for s in named]
+            total = book.get(metric, period)
+            return total - sum(parts) if total is not None and None not in parts else None
+        return book.get(metric, period, segment=segment)
+
+    columns = [''] + years + [f.period for f in base]
+    rows, groups = [], set()
+
+    def block(name, revenue, cost, before=None):
+        groups.add(len(rows))
+        rows.append([name] + [''] * (len(columns) - 1))
+        growth = [(b / a - 1) * 100 if a and b is not None else None for a, b in zip([before] + revenue, revenue)]
+        rows.append(['营业收入'] + [cell(v) for v in revenue])
+        rows.append(['收入增速'] + [cell(v, 'pct') for v in growth])
+        rows.append(['营业成本'] + [cell(v) for v in cost])
+        rows.append(['毛利率'] + [cell((1 - c / r) * 100 if c is not None and r else None, 'pct') for r, c in zip(revenue, cost)])
+
+    for segment in segments:
+        revenue = [history(segment, 'revenue', p) for p in years] + [float(f.segments[segment]['revenue']) for f in base]
+        cost = [history(segment, 'cost', p) for p in years] + [float(f.segments[segment]['cost']) for f in base]
+        block(segment, revenue, cost, history(segment, 'revenue', book.previous(years[0])))
+    if len(segments) > 1:
+        block(
+            '合计',
+            [book.get('revenue', p) for p in years] + [forecast_value(f, 'income', 'revenue') for f in base],
+            [book.get('cost', p) for p in years] + [forecast_value(f, 'income', 'cost') for f in base],
+            book.get('revenue', book.previous(years[0])),
+        )
+    return PTable('业务分拆及关键盈利假设（单位：百万元）', columns, rows, source='公司公告、研究预测', groups=groups)
+
+
+def median(values):
+    values = sorted(v for v in values if v is not None)
+    if not values:
+        return None
+    mid = len(values) // 2
+    return values[mid] if len(values) % 2 else (values[mid - 1] + values[mid]) / 2
+
+
+def comps_table(report: ReportDocument) -> PTable | None:
+    """Comparable companies: price, market cap, EPS and PE (consensus for forecast years)."""
+    from .market_data import pe
+
+    market = report.market or {}
+    peers = market.get('peers') or []
+    if not peers or not report.brief:
+        return None
+    company = market.get('company') or {}
+    years = [max(report.brief.historical_periods)[:4] + 'A'] + [p[:4] + 'E' for p in sorted(report.brief.forecast_periods)[:2]]
+    columns = ['公司简称', '代码', '股价（元）', '总市值（亿元）'] + [f'EPS {y}' for y in years] + [f'PE {y}' for y in years] + ['PE（TTM）']
+
+    def row(item, label=None):
+        eps = item.get('eps') or {}
+        return (
+            [label or item.get('name') or item.get('code'), item.get('code') or '', cell(item.get('price'), 'num'), cell(item.get('market_cap'), 'num')]
+            + [cell(eps.get(y), 'num') for y in years]
+            + [cell(pe(item.get('price'), eps.get(y)), 'times') for y in years]
+            + [cell(item.get('pe_ttm'), 'times')]
+        )
+
+    rows = [row(p) for p in peers]
+    rows.append(
+        ['可比公司中位数', '', '', '']
+        + ['' for _ in years]
+        + [cell(median(pe(p.get('price'), (p.get('eps') or {}).get(y)) for p in peers), 'times') for y in years]
+        + [cell(median(p.get('pe_ttm') for p in peers), 'times')]
+    )
+    if company.get('price'):
+        rows.append(row(company, (company.get('name') or company.get('code') or '') + '（本公司）'))
+    note = (
+        f'可比公司为申万{market.get("industry") or "同行业"}总市值前{len(peers)}名；'
+        '预测 EPS 为同花顺机构一致预期均值，PE 按收盘价计算。'
+    )
+    return PTable(
+        f'可比公司估值表（{market.get("as_of") or "最新"}）',
+        columns,
+        rows,
+        source='同花顺一致预期、新浪行情、乐咕乐股申万行业成份（经 AKShare）',
+        note=note,
+    )
+
+
+def scenario_table(report: ReportDocument) -> PTable | None:
+    first = min((f.period for f in report.forecasts), default=None)
+    rows = []
+    for scenario, label in [('Bear', '悲观'), ('Base', '基准'), ('Bull', '乐观')]:
+        f = next((x for x in report.forecasts if x.scenario == scenario and x.period == first), None)
+        if not f:
+            continue
+        target = forecast_value(f, 'income', 'target_price')
+        rows.append([
+            label,
+            cell(forecast_value(f, 'income', 'revenue')),
+            cell(parent_income(f)),
+            cell(forecast_value(f, 'income', 'eps'), 'num'),
+            cell(target if target else None, 'num'),
+        ])
+    if len(rows) < 2:
+        return None
+    return PTable(
+        f'情景分析（{first}）',
+        ['情景', '营业收入（百万元）', '归母净利润（百万元）', 'EPS（元/股）', '目标价（元）'],
+        rows,
+        source='研究预测',
+    )
+
+
+def valuation_paragraph(report: ReportDocument) -> str | None:
+    """“我们预计……” in the broker style; every number comes from the forecast and the market snapshot."""
+    base = forecast_rows(report)
+    if not base:
+        return None
+    years = [f.period[:4] for f in base]
+    profits = '、'.join(f'{parent_income(f) / 100:,.2f}' for f in base)
+    eps = [forecast_value(f, 'income', 'eps') for f in base]
+    text = (
+        f'盈利预测与估值。我们预计公司{years[0]}—{years[-1]}年归母净利润分别为{profits}亿元，'
+        f'对应每股收益分别为{"、".join(f"{e:.2f}" for e in eps if e is not None)}元'
+    )
+    price = market_price(report)
+    if price and all(e and e > 0 for e in eps):
+        text += f'，按{report.market.get("as_of")}收盘价{price:.2f}元计算，对应市盈率分别为{"、".join(f"{price / e:.1f}" for e in eps)}倍'
+    target = forecast_value(base[0], 'income', 'target_price')
+    pe_assumption = next(
+        (a for a in report.assumptions if a.metric_code == 'target_pe' and a.scenario == 'Base' and a.period == base[0].period),
+        None,
+    )
+    if target and pe_assumption and float(pe_assumption.value) > 0:
+        basis = pe_assumption.rationale.split('：', 1)[-1]
+        text += f'。参考{basis}{float(pe_assumption.value):.1f}倍，对应{years[0]}年目标价{target:.2f}元'
+        if price:
+            text += f'，较当前股价{"上涨" if target >= price else "下跌"}空间{abs(target / price - 1) * 100:.1f}%'
+    if report.forecast_model == 'generic':
+        text += '。上述预测采用基于历史趋势的通用模型，主要假设见上表'
+    return text + '。'
 
 
 def section_tables(section: ReportSection) -> list[PTable]:
@@ -610,15 +803,23 @@ def present(report: ReportDocument) -> Presentation:
     # 三、盈利预测与估值
     forecast = PSection('forecast', CHAPTERS[2], 1)
     if 'forecast' in by_id:
-        paragraphs = [p for p in body_paragraphs(by_id['forecast']) if not p.startswith('假设依据：') or len(p) > 12]
+        # Per-assumption rationale lines are replaced by the assumptions table.
+        paragraphs = [p for p in body_paragraphs(by_id['forecast']) if not p.startswith('假设依据：')]
         figure = forecast_chart(report, book)
-        tables = [t for t in [assumption_table(report)] if t]
-        if report.forecasts:
-            summary = summary_table(report, book)
-            if summary:
-                summary.title = '盈利预测与估值汇总'
-                tables.insert(0, summary)
-        forecast.blocks = place(paragraphs, [figure] if figure else [], tables)
+        forecast.blocks = place(paragraphs, [figure] if figure else [])
+        summary = summary_table(report, book) if report.forecasts else None
+        if summary:
+            summary.title = '盈利预测与估值汇总'
+        for block in [
+            ('table', segment_split_table(report, book)),
+            ('table', assumption_table(report)),
+            ('p', valuation_paragraph(report)),
+            ('table', summary),
+            ('table', scenario_table(report)),
+            ('table', comps_table(report)),
+        ]:
+            if block[1]:
+                forecast.blocks.append(block)
     chapters.append(forecast)
 
     # 四、风险提示

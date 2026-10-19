@@ -16,6 +16,7 @@ from .agents import EvidenceProposal, ask, locate_quote, request_messages
 from .industry_data import IndustryDataProposal, admit as admit_industry_datum
 from .contexts import chars_for_tokens, estimate_tokens, source_context
 from .datasources import DatasourceError, join_document_chunks, quote_locator, span_locator
+from .standard_tables import match_segment, product_rows
 from .execution import check_pause, unit
 from .financials.formulas import FinancialDataProcessor, FinancialError, UNIT_SCALE, FIELD_MAP
 from .framework import coverage_matrix, digest, refresh_coverage, skeleton
@@ -151,6 +152,9 @@ def periods(brief):
     return [str(int(years[0][:4]) - 1) + 'A'] + years + quarterly_periods(brief)
 
 
+# Where an annual report's quarterly table stops; anything later is not a quarterly row.
+QUARTER_TABLE_END = re.compile(r'季度数据与已披露定期报告数据差异说明|非经常性损益项目和金额')
+QUARTER_TABLE_SPAN = 3000
 # An annual report's quarterly table discloses only these metrics.
 ANNUAL_QUARTER_FIELDS = {
     'income.revenue',
@@ -676,6 +680,29 @@ class FixedCollection:
             )
             self.accept(c, source, p, structured=True)
 
+    def standard_tables(self, c, source):
+        """Lock product revenue and cost from the fixed-layout main-business table before model
+        extraction; the parser checks each row's margin, so these slots need no model guess."""
+        period = report_period(source)
+        if not period or period not in periods(c['brief']):
+            return
+        for row in product_rows(source.content):
+            segment = match_segment(row['name'], c['brief']['segments'])
+            if not segment:
+                continue
+            for field_id, key in (('segment.revenue', 'revenue'), ('segment.cost', 'cost')):
+                p = SlotProposal(
+                    field_id=field_id,
+                    period=period,
+                    raw_value=row[key],
+                    raw_unit=row['unit'],
+                    quote=row['quote'],
+                    scope='segment',
+                    segment_id=segment,
+                    raw_label=row['name'],
+                )
+                self.accept(c, source, p, structured=True)
+
     def load_bound(self, c):
         facts = [
             s['fact'] for s in self.store.records(self.run_id, 'data_slot') if s['state'] == 'locked' and s.get('fact')
@@ -769,7 +796,14 @@ class FixedCollection:
                         source.content[:start],
                     )
                 )
-                if sections and re.search(r'季度', sections[-1].group()):
+                # The quarterly table ends at its own reconciliation note; rows after it
+                # (MD&A product tables, cost analysis) are annual figures.
+                if (
+                    sections
+                    and re.search(r'季度', sections[-1].group())
+                    and not QUARTER_TABLE_END.search(source.content, sections[-1].end(), start)
+                    and start - sections[-1].end() < QUARTER_TABLE_SPAN
+                ):
                     return self.reject('该行位于分季度数据表中，不能填全年槽')
             # Core fields must name the correct metric, and a located parent-
             # company table cannot masquerade as the consolidated statement.
@@ -1190,6 +1224,8 @@ class FixedCollection:
                 )
             return
         content_hash = digest(source.content)
+        if quantitative:
+            self.standard_tables(c, source)
         base_context = {
             'company': c['company'],
             'periods': periods(c['brief']),

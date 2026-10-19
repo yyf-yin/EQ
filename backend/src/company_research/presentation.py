@@ -82,8 +82,10 @@ def money(match) -> str:
 def clean(text: str) -> str:
     from .writers import strip_record_ids
 
+    from .text_checks import strip_meta
+
     text, _ = strip_record_ids(text)
-    return MONEY.sub(money, text).strip()
+    return MONEY.sub(money, strip_meta(text)).strip()
 
 
 def lead(text: str) -> tuple[str, str]:
@@ -110,6 +112,11 @@ def body_paragraphs(section: ReportSection) -> list[str]:
 
 def plain_title(title: str) -> str:
     return NUMBERING.sub('', title).strip()
+
+
+def shown_title(section: ReportSection, fallback: str = '') -> str:
+    """The writer's viewpoint heading when there is one, else the structural name."""
+    return section.heading.strip() or fallback or plain_title(section.title)
 
 
 # ---------------------------------------------------------------- facts
@@ -541,13 +548,13 @@ def present(report: ReportDocument) -> Presentation:
     company = PSection('company', CHAPTERS[0], 1)
     subsections = []
     if 'company' in by_id:
-        subsections.append(leaf(by_id['company'], '公司概况', 2))
+        subsections.append(leaf(by_id['company'], shown_title(by_id['company'], '公司概况'), 2))
     financial = by_id.get('financial')
     written = {c.section_id for c in financial.children} if financial else set()
     for child in financial.children if financial else []:
         if child.section_id == 'F04':
             continue
-        subsections.append(leaf(child, plain_title(child.title), 2, charts.get(child.section_id, [])))
+        subsections.append(leaf(child, shown_title(child), 2, charts.get(child.section_id, [])))
     orphans = [c for key in ('F01', 'F02', 'F03', 'F05') if key not in written for c in charts.get(key, [])]
     if orphans or (financial and financial.paragraphs and not financial.children):
         overview = PSection('financial', '财务分析', 2)
@@ -564,13 +571,13 @@ def present(report: ReportDocument) -> Presentation:
     segment_finance = next((c for c in financial.children if c.section_id == 'F04'), None) if financial else None
     parts = []
     if segment_finance:
-        parts.append(leaf(segment_finance, '分业务经营与财务表现', 2, charts.get('F04', [])))
+        parts.append(leaf(segment_finance, shown_title(segment_finance, '分业务经营与财务表现'), 2, charts.get('F04', [])))
     elif charts.get('F04'):
         business.blocks += [('chart', c) for c in charts['F04']]
     for segment in source.children if source else []:
         node = PSection(segment.section_id, plain_title(segment.title), 2)
         node.blocks = [('p', p) for p in body_paragraphs(segment)]
-        node.children = [leaf(c, plain_title(c.title), 3) for c in segment.children]
+        node.children = [leaf(c, shown_title(c), 3) for c in segment.children]
         node.children = [c for c in node.children if c.blocks]
         parts.append(node)
     business.children = [p for p in parts if p.blocks or p.children]

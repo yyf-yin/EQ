@@ -219,6 +219,9 @@ class Table(Schema):
 class ReportSection(Schema):
     section_id: str
     title: str
+    # Reader-facing viewpoint title written with the section; `title` stays the fixed
+    # structural name that review and resume locate sections by.
+    heading: str = ''
     paragraphs: list[str] = Field(default_factory=list)
     children: list["ReportSection"] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)

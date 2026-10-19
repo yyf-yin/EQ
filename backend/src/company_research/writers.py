@@ -17,7 +17,7 @@ from .financials.formulas import FinancialDataProcessor, FinancialError
 from .comparisons import FINANCIAL_TITLES, bind_financial_sections, supplemental_financial_tables
 from .contexts import block_context
 from .framework import digest
-from .text_checks import direction_problems, gap_problems
+from .text_checks import direction_problems, gap_problems, meta_problems, strip_meta
 
 TOKEN = re.compile(r'\[\[(fact|calc|assumption):([a-zA-Z0-9_-]+)\]\]')
 # Dates, reporting periods and structural ordinals are not financial quantities and
@@ -143,7 +143,17 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
     checks = direction_problems(draft.paragraphs, TOKEN.findall, context['facts'], context.get('comparisons', []))
     segments = (context.get('brief') or {}).get('segments') or []
     checks += gap_problems(draft.paragraphs, TOKEN.findall, context['facts'], segments)
+    problems += meta_problems(draft.paragraphs)
+    if len(clean_heading(draft.heading)) > 30:
+        problems.append('heading 过长：观点式标题控制在 30 字以内，一句话说清本节判断')
     return list(dict.fromkeys(problems + [text for _, text in checks]))
+
+
+def clean_heading(heading: str) -> str:
+    """A viewpoint title carries no numbering, data tokens, IDs or trailing punctuation."""
+    text, _ = strip_record_ids(TOKEN.sub('', heading or ''))
+    text = re.sub(r'^\s*(?:[一二三四五六七八九十]+、|（[一二三四五六七八九十]+）|\d+[.、．])\s*', '', text)
+    return text.strip().rstrip('。；;，,')
 
 
 def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list[str]]:
@@ -245,10 +255,12 @@ def resolve_draft(draft: WriterDraft, context: dict, section_id: str, title: str
             raise FinancialError('Writer 直接生成数字，必须改用数据或计算引用')
         paragraph, named = strip_record_ids(paragraph)
         used_evidence.update(id for id in named if id in evidence)
+        paragraph = strip_meta(paragraph)
         paragraphs.append(TOKEN.sub(replace, paragraph))
     return ReportSection(
         section_id=section_id,
         title=title,
+        heading=clean_heading(draft.heading),
         paragraphs=paragraphs,
         evidence_ids=sorted(used_evidence),
         calculation_ids=draft.calculation_ids,
@@ -888,4 +900,15 @@ async def write_core(c, gateway, mock, store=None, run_id=None):
 
 
 def report_snapshot(report):
-    return digest(report.model_dump(mode='json', exclude={'issues', 'snapshot_id', 'approved_snapshot_id'}))
+    data = report.model_dump(mode='json', exclude={'issues', 'snapshot_id', 'approved_snapshot_id'})
+
+    def legacy(section):
+        # Reports approved before viewpoint headings existed keep their snapshot.
+        if section.get('heading') == '':
+            del section['heading']
+        for child in section.get('children', []):
+            legacy(child)
+
+    for section in data['sections']:
+        legacy(section)
+    return digest(data)

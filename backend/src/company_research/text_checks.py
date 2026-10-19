@@ -187,3 +187,38 @@ def gap_problems(paragraphs, refs_in, facts, segments=()):
                         )
                     )
     return problems
+
+
+# Internal audit wording talks about the pipeline (inputs, sections, evidence sets,
+# bound data) rather than the company. Broker reports state the judgement and the
+# data; a sentence that only describes what this run could or could not use is cut.
+DATA_TOKEN = re.compile(r'\[\[[a-z]+:[^\]]+\]\]')
+META_HARD = re.compile(
+    r'本块|本轮(?:证据|新增|资料|输入)|证据集|资料包|结构化事实|占位|写作缺口|未绑定|未取数|未进入本|待证假设|口径混同'
+    r'|financial_facts|calculations?|comparisons?|evidence|\bfacts?\b|consistency_checks'
+    r'|输入(?:中|里|数据|资料|证据|未|没有|给出|显示|仅|只)'
+    r'|(?:本章|本节|本段)(?:不|只|仅|未|无法|没有)'
+)
+META_LABEL = re.compile(r'^\s*(?:本章|本节)?(?:统一)?(?:结论|小结)[：:]\s*')
+META_SOFT = re.compile(r'本章|本节|成立条件|推翻条件|反证[：:]|不确定性[：:]|限制[：:]|依据[：:]|机制[：:]|含义[：:]')
+
+
+def meta_terms(paragraph):
+    text = DATA_TOKEN.sub(' ', paragraph)
+    return list(dict.fromkeys(m.group(0) for p in (META_HARD, META_LABEL, META_SOFT) for m in p.finditer(text)))
+
+
+def meta_problems(paragraphs):
+    return [
+        f'第{i + 1}段含内部审核措辞“{"、".join(terms[:4])}”：按研报正文写法直接陈述判断与数据，'
+        '不描述输入、本章范围、证据或成立/推翻条件；确需提示的不确定性用“若……则……”融入正文'
+        for i, terms in ((i, meta_terms(p)) for i, p in enumerate(paragraphs))
+        if terms
+    ]
+
+
+def strip_meta(paragraph):
+    """Final cleanup: drop a leading “本章结论：” label and sentences that only talk about the run."""
+    text = META_LABEL.sub('', paragraph)
+    kept = [s for s in sentences(text) if not META_HARD.search(DATA_TOKEN.sub(' ', s))]
+    return ''.join(kept).strip()

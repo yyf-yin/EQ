@@ -128,6 +128,32 @@ async def test_split_keeps_each_fact_with_its_evidence(monkeypatch):
         assert {f['evidence_id'] for f in part['facts']} <= {e['evidence_id'] for e in part['evidence']}
 
 
+async def test_split_keeps_each_comparison_with_its_calculations_and_facts(monkeypatch):
+    class Gateway:
+        def request_size(self, role, messages, schema):
+            return len(json.loads(messages[1]['content'])['comparisons']), 1
+    seen = []
+
+    async def answer(gateway, role, schema, context):
+        seen.append(context)
+        return FinancialAnalysis(observations=['o'], evidence_ids=[], calculation_ids=[], limitations=[])
+    monkeypatch.setattr('company_research.agents.ask', answer)
+    comparisons = [{'comparison_id': f'cmp-{i}', 'current_fact_id': f'f{i}', 'previous_fact_id': f'g{i}',
+                    'calculation_ids': [f'cmp-{i}-0', f'cmp-{i}-1']} for i in range(4)]
+    calculations = [{'result_id': f'cmp-{i}-{j}'} for i in reversed(range(4)) for j in range(2)]
+    facts = [{'fact_id': f'{p}{i}', 'evidence_id': f'e{p}{i}'} for p in 'gf' for i in range(4)]
+    evidence = [{'evidence_id': f['evidence_id']} for f in reversed(facts)]
+    await ask_bounded(Gateway(), 'writer', FinancialAnalysis,
+                      {'comparisons': comparisons, 'calculations': calculations, 'financial_facts': facts, 'evidence': evidence})
+    assert len(seen) == 4
+    for part in seen:
+        calcs = {c['result_id'] for c in part['calculations']}
+        fact_ids = {f['fact_id'] for f in part['financial_facts']}
+        for c in part['comparisons']:
+            assert set(c['calculation_ids']) <= calcs and {c['current_fact_id'], c['previous_fact_id']} <= fact_ids
+        assert {f['evidence_id'] for f in part['financial_facts']} <= {e['evidence_id'] for e in part['evidence']}
+
+
 def test_one_character_citation_typo_resolves_to_the_unique_id():
     known = {'ev-4e4e3152b881f920d6c3d303', 'ev-000d57d42ba3748827e15342'}
     output = FinancialAnalysis(

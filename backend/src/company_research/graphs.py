@@ -2036,7 +2036,7 @@ class ResearchWorkflow:
             key = 'render-' + ext
             previous = self.store.execution_get(self.run_id, 'execution_meta', key)
             target = folder / f'report.{ext}'
-            version = digest([report.approved_snapshot_id, 'render-1', ext])
+            version = digest([report.approved_snapshot_id, 'render-2', ext])  # render-2: reader layout with charts
             if (
                 previous
                 and previous['version'] == version

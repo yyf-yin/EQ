@@ -117,9 +117,15 @@ def test_consistent_snapshot_and_exports(completed_v11):
     from docx import Document
     doc=Document(docx);doc_text=' '.join(p.text for p in doc.paragraphs)
     pdf_text=''.join(p.extract_text() for p in PdfReader(pdf).pages)
+    # Comparisons reach the reader as charts and the appendix statements, never as
+    # repeated narrative paragraphs or record IDs.
+    table_text=' '.join(cell.text for t in doc.tables for row in t.rows for cell in row.cells)
+    assert '附录：财务报表' in doc_text and '附录：财务报表' in pdf_text
     for c in report.comparisons:
-        assert narrative(c) in doc_text
-        assert c.comparison_id in pdf_text
+        assert narrative(c) not in doc_text
+        assert c.comparison_id not in pdf_text and c.comparison_id not in doc_text
+        if c.metric_code=='revenue' and c.current_period.endswith('A'):
+            assert f'{c.current_value:,.0f}' in table_text
     changed=report.model_copy(deep=True);changed.sections[3].children[0].paragraphs.append('变更')
     assert report_snapshot(changed)!=changed.approved_snapshot_id
 

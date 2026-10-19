@@ -154,7 +154,51 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
     problems += meta_problems(draft.paragraphs)
     if len(clean_heading(draft.heading)) > 30:
         problems.append('heading 过长：观点式标题控制在 30 字以内，一句话说清本节判断')
+    problems += part_problems(draft, context.get('part_topics') or {})
     return list(dict.fromkeys(problems + [text for _, text in checks]))
+
+
+# Each business's industry section is written as these subsections, in this order,
+# after the two Guangfa deep reports. Policy is written only when material supports it.
+INDUSTRY_PARTS = {
+    'process': '产品与工艺',
+    'supply': '供给格局',
+    'demand': '需求与规模',
+    'price': '价格驱动',
+    'policy': '政策事件',
+}
+
+
+def part_problems(draft: WriterDraft, topics: dict) -> list[str]:
+    if not draft.parts:
+        return []
+    if not topics:
+        return ['本章不分小节：parts 必须为空']
+    order = list(topics)
+    problems = []
+    if any(p.topic not in topics for p in draft.parts):
+        problems.append('parts.topic 只能取：' + '、'.join(order))
+    ranks = [order.index(p.topic) for p in draft.parts if p.topic in topics]
+    starts = [p.start for p in draft.parts]
+    if ranks != sorted(set(ranks)):
+        problems.append('parts 按 ' + '→'.join(order) + ' 的顺序排列，每个 topic 至多一次')
+    if starts[0] != 0 or starts != sorted(set(starts)) or starts[-1] >= len(draft.paragraphs):
+        problems.append('parts.start 是该小节第一段的序号（从 0 开始）：首个为 0，严格递增，且小于段落数')
+    if any(len(clean_heading(p.heading)) > 30 for p in draft.parts):
+        problems.append('parts.heading 过长：小节观点式标题控制在 30 字以内')
+    return problems
+
+
+def remap_parts(parts, mapping):
+    """Parts after paragraphs were dropped or merged; mapping[i] is paragraph i's new
+    index, or None when it is gone. A part left without paragraphs disappears."""
+    out = []
+    for k, part in enumerate(parts):
+        end = parts[k + 1].start if k + 1 < len(parts) else len(mapping)
+        kept = [mapping[i] for i in range(part.start, min(end, len(mapping))) if mapping[i] is not None]
+        if kept:
+            out.append(part.model_copy(update={'start': kept[0]}))
+    return out
 
 
 def clean_heading(heading: str) -> str:
@@ -171,6 +215,7 @@ def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list
     evidence = {e['evidence_id'] for e in context['evidence']}
     removed = []
     paragraphs = []
+    mapping = []
     for paragraph in draft.paragraphs:
         kept = []
         for sentence in re.split(r'(?<=[。！？；])', paragraph):
@@ -181,8 +226,11 @@ def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list
                 removed.append(sentence.strip())
                 continue
             kept.append(sentence)
+        mapping.append(len(paragraphs) if ''.join(kept).strip() else None)
         if ''.join(kept).strip():
             paragraphs.append(''.join(kept))
+    # Malformed parts are dropped rather than guessed; the section then reads unsplit.
+    valid = not part_problems(draft, context.get('part_topics') or {})
     used = {kind: set() for kind in DRAFT_ID_FIELDS}
     for paragraph in paragraphs:
         for kind, id in TOKEN.findall(paragraph):
@@ -191,6 +239,7 @@ def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list
     clean = draft.model_copy(
         update={
             'paragraphs': paragraphs,
+            'parts': remap_parts(draft.parts, mapping) if valid else [],
             'evidence_ids': [e for e in draft.evidence_ids if e in evidence],
             **{
                 field: sorted((declared[kind] & objects[kind]) | used[kind])
@@ -261,6 +310,7 @@ def resolve_draft(draft: WriterDraft, context: dict, section_id: str, title: str
         title=title,
         heading=clean_heading(draft.heading),
         paragraphs=paragraphs,
+        parts=[p.model_copy(update={'heading': clean_heading(p.heading)}) for p in draft.parts],
         evidence_ids=sorted(used_evidence),
         calculation_ids=draft.calculation_ids,
         number_bindings=bindings,
@@ -301,6 +351,10 @@ def section_block(section_id):
     }.get(section_id, 'C01')
 
 
+def section_parts(section_id):
+    return INDUSTRY_PARTS if section_id.startswith('industry-') else {}
+
+
 def imported_section(c, section_id, instructions=None):
     """A section accepted from a resume package; rework instructions always redraft."""
     value = (c.get('imported_sections') or {}).get(section_id)
@@ -320,11 +374,14 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
         'calculations': selected['calculations'],
         'assumptions': selected['assumptions'],
         'industry_data': selected.get('industry_data', []),
+        'part_topics': section_parts(section_id),
     }
     data = selected | {
         'section': {'section_id': section_id, 'block_id': section_block(section_id), 'title': title, 'goal': goal},
         'instructions': instructions or [],
     }
+    if local['part_topics']:
+        data['parts_contract'] = {'topics': local['part_topics'], 'optional': ['policy']}
     if core:
         data['consistency_checks'] = [
             '收入增长与现金流匹配',
@@ -353,8 +410,13 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
     draft = await ask_draft(gateway, role, data, local)
     # Depth is judged by reflection against the block's questions, not by character
     # count. A clearly thin draft still gets one expansion request, never a hard fail.
+    # The industry section carries four to five subsections, so it needs more substance.
     minimum = (
-        300 if core or section_id in FINANCIAL_TITLES or section_id.startswith(('industry-', 'position-')) else 500
+        800
+        if section_id.startswith('industry-')
+        else 300
+        if core or section_id in FINANCIAL_TITLES or section_id.startswith('position-')
+        else 500
     )
     if sum(len(p) for p in draft.paragraphs) < minimum:
         draft = await ask_draft(
@@ -458,11 +520,17 @@ async def patch_one(gateway, c, section: ReportSection, targets: dict[int, list[
     fresh = resolve_draft(draft, local, section.section_id, section.title)
     replaced = dict(zip(order, fresh.paragraphs))
     paragraphs = [replaced.get(i, p) for i, p in enumerate(section.paragraphs)]
+    # A paragraph emptied by the patch is deleted; subsections keep their own paragraphs.
+    mapping, count = [], 0
+    for p in paragraphs:
+        mapping.append(count if p.strip() else None)
+        count += bool(p.strip())
     paragraphs = [p for p in paragraphs if p.strip()]
     kept = {k: v for k, v in section.number_bindings.items() if any(v in p for p in paragraphs)}
     return section.model_copy(
         update={
             'paragraphs': paragraphs,
+            'parts': remap_parts(section.parts, mapping),
             'evidence_ids': sorted(set(section.evidence_ids) | set(fresh.evidence_ids)),
             'calculation_ids': list(dict.fromkeys(section.calculation_ids + fresh.calculation_ids)),
             'number_bindings': kept | fresh.number_bindings,
@@ -749,8 +817,17 @@ async def make_report(c, gateway, mock=False, store=None, run_id=None):
         ]
         business = [
             [
-                (f'industry-{i}', '（一）行业情况', f'{segment}需求、周期、竞争、驱动及资料限制'),
-                (f'position-{i}', '（二）公司情况', f'{segment}经营、竞争能力、份额证据、财务连接及局限'),
+                (
+                    f'industry-{i}',
+                    '（一）行业情况',
+                    f'{segment}所在行业，按小节写：产品与工艺、供给格局、需求与规模、价格驱动；'
+                    '近期有政策或贸易事件资料时加写政策事件，没有则不写',
+                ),
+                (
+                    f'position-{i}',
+                    '（二）公司情况',
+                    f'公司{segment}业务的位置：产能与产业链配套、成本与份额、竞争优势及业务展望',
+                ),
             ]
             for i, segment in enumerate(c['brief']['segments'])
         ]
@@ -908,6 +985,8 @@ def report_snapshot(report):
         # Reports approved before viewpoint headings existed keep their snapshot.
         if section.get('heading') == '':
             del section['heading']
+        if section.get('parts') == []:
+            del section['parts']
         for child in section.get('children', []):
             legacy(child)
 

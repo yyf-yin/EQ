@@ -543,6 +543,22 @@ def present(report: ReportDocument) -> Presentation:
         node.blocks = place(body_paragraphs(section), list(extra_charts), section_tables(section))
         return node
 
+    def part_leaves(section: ReportSection, level: int):
+        from .writers import INDUSTRY_PARTS
+
+        nodes = []
+        for k, part in enumerate(section.parts):
+            end = section.parts[k + 1].start if k + 1 < len(section.parts) else len(section.paragraphs)
+            node = PSection(
+                f'{section.section_id}-{part.topic}', part.heading or INDUSTRY_PARTS.get(part.topic, part.topic), level
+            )
+            text = section.model_copy(update={'paragraphs': section.paragraphs[part.start : end]})
+            node.blocks = place(body_paragraphs(text), [])
+            nodes.append(node)
+        if nodes:
+            nodes[-1].blocks += [('table', t) for t in section_tables(section)]
+        return nodes
+
     chapters = []
     # 一、公司情况
     company = PSection('company', CHAPTERS[0], 1)
@@ -575,9 +591,17 @@ def present(report: ReportDocument) -> Presentation:
     elif charts.get('F04'):
         business.blocks += [('chart', c) for c in charts['F04']]
     for segment in source.children if source else []:
-        node = PSection(segment.section_id, plain_title(segment.title), 2)
+        # An industry section written in parts reads like the reference reports: the
+        # business carries the industry viewpoint, each part is its own subsection.
+        industry = next((c for c in segment.children if c.section_id.startswith('industry-') and c.parts), None)
+        title = plain_title(segment.title)
+        if industry and industry.heading.strip():
+            title += '：' + industry.heading.strip()
+        node = PSection(segment.section_id, title, 2)
         node.blocks = [('p', p) for p in body_paragraphs(segment)]
-        node.children = [leaf(c, shown_title(c), 3) for c in segment.children]
+        node.children = [
+            n for c in segment.children for n in (part_leaves(c, 3) if c is industry else [leaf(c, shown_title(c), 3)])
+        ]
         node.children = [c for c in node.children if c.blocks]
         parts.append(node)
     business.children = [p for p in parts if p.blocks or p.children]

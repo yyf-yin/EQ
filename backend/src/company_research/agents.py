@@ -7,7 +7,7 @@ from decimal import Decimal
 from pathlib import Path
 from pydantic import Field, field_validator, model_validator, ValidationError
 from pydantic import ConfigDict
-from .schemas import Schema, EvidenceRecord, FinancialFact, SourceRecord, ReviewIssue
+from .schemas import Schema, EvidenceRecord, FinancialFact, SourceRecord, ReviewIssue, SectionPart
 from .llm import Gateway
 from .financials.formulas import FinancialDataProcessor, FinancialError
 
@@ -208,6 +208,7 @@ class WriterDraft(Schema):
     fact_ids: list[str]
     assumption_ids: list[str]
     industry_data_ids: list[str] = Field(default_factory=list)
+    parts: list[SectionPart] = Field(default_factory=list)
     consistency_checks: dict[str, str] = Field(default_factory=dict)
 
 
@@ -420,6 +421,9 @@ async def ask_bounded(gateway, role, schema, context, depth=0, max_splits=2):
             elif key == 'summary':
                 data[key] += '\n' + value
         if schema is WriterDraft:
+            # Paragraph indexes of the second half shift once merged; the consolidation
+            # call writes its own parts, and the bare union falls back to no subsections.
+            data['parts'] = []
             return await merge_drafts(gateway, role, context, a, b, schema.model_validate(data))
         return schema.model_validate(data)
 

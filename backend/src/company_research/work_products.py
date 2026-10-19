@@ -107,7 +107,7 @@ FIELDS = {
     'invalidation': 'snapshot_id responsible_blocks affected_blocks reason',
 }
 SECTION_FIELDS = (
-    'section_id title paragraphs children evidence_ids calculation_ids tables number_bindings consistency_checks'
+    'section_id title paragraphs parts children evidence_ids calculation_ids tables number_bindings consistency_checks'
 )
 REPORT_FIELDS = 'title company_id mode as_of sections sources evidence calculations assumptions forecasts financial_facts industry_data issues limitations charts rules_version data_template_version snapshot_id approved_snapshot_id brief blocks coverage comparisons'
 

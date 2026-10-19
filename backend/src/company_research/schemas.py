@@ -234,6 +234,15 @@ class Table(Schema):
     rows: list[list[str]]
 
 
+class SectionPart(Schema):
+    """A subsection of a section's flat paragraph list: from paragraph `start` (0-based)
+    up to the next part. Paragraph indexes used by review and repair stay unchanged."""
+
+    topic: str
+    heading: str = ""
+    start: int = Field(ge=0)
+
+
 class ReportSection(Schema):
     section_id: str
     title: str
@@ -241,6 +250,7 @@ class ReportSection(Schema):
     # structural name that review and resume locate sections by.
     heading: str = ''
     paragraphs: list[str] = Field(default_factory=list)
+    parts: list[SectionPart] = Field(default_factory=list)
     children: list["ReportSection"] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
     calculation_ids: list[str] = Field(default_factory=list)

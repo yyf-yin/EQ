@@ -21,12 +21,28 @@ TEMPLATES = {
     'F03': ['经营现金流同比及利润质量', '营运资本、资本开支与自由现金流'],
     'F04': ['分业务收入毛利占比及同比', '量价结构驱动与分部披露限制'],
     'F05': ['ROE、ROIC与资本效率', '投资研发分红回购融资与股东回报'],
-    'I01': ['需求规模周期价格与政策', '竞争格局与产业链'],
+    'I01': [
+        '产品用途、工艺路线与关键原料',
+        '供给格局、集中度、主要产能与壁垒',
+        '下游需求结构、市场规模与增速预测',
+        '价格走势、周期位置与驱动因素',
+        '近期政策与贸易事件及其影响',
+    ],
     'B01': ['产品客户渠道产能与量价', '竞争位置壁垒及业务展望'],
     'V01': ['分业务假设与未来三年三表', 'Bear/Base/Bull、估值与敏感性'],
     'R01': ['主要结论反例、触发条件与影响方向', '重大证据缺口与风险机制'],
     'X01': ['收入现金匹配与预测总量约束', '估值证据、资源竞争与集中度', '整体判断催化剂与不确定性'],
 }
+
+# Earlier question sets still validate, so plans saved before a rewrite can resume.
+LEGACY_TEMPLATES = {'I01': [['需求规模周期价格与政策', '竞争格局与产业链']]}
+# Answered when the material supports them; their absence is not a coverage gap
+# (not every industry has a recent policy or trade event).
+OPTIONAL_QUESTIONS = {'I01': {4}}
+
+
+def accepted_questions(template):
+    return [TEMPLATES[template], *LEGACY_TEMPLATES.get(template, [])]
 
 
 def digest(value):
@@ -117,7 +133,10 @@ def validate_plan(plan, brief, expected=None):
             continue
         if b.company_id != ref.company_id or b.segment_id != ref.segment_id or b.template_id != ref.template_id:
             errors.append(id + ':身份错误')
-        if any(b.questions.get(k) != v for k, v in ref.questions.items()):
+        if not any(
+            all(b.questions.get(f'{id}:q{i + 1}') == q for i, q in enumerate(questions))
+            for questions in accepted_questions(ref.template_id)
+        ):
             errors.append(id + ':必需问题语义遗漏或被改写')
         if set(b.dependencies) != set(ref.dependencies):
             errors.append(id + ':依赖错误')
@@ -178,7 +197,11 @@ def coverage_matrix(plan, brief):
             needs = [m + '@' + p for m in metrics for pair in comparison_periods(brief) for p in pair]
             result.append(
                 CoverageEntry(
-                    block_id=b.block_id, question_id=q, requirements=list(dict.fromkeys(needs)), task_id=b.block_id
+                    block_id=b.block_id,
+                    question_id=q,
+                    required=i not in OPTIONAL_QUESTIONS.get(b.template_id, set()),
+                    requirements=list(dict.fromkeys(needs)),
+                    task_id=b.block_id,
                 )
             )
     return result
@@ -230,7 +253,7 @@ def refresh_coverage(entries, blocks, facts, evidence, analyses, reference_suppo
                 )
             ]
             refs = [e['evidence_id'] for e in matches]
-            if not refs:
+            if not refs and entry.get('required', True):
                 gaps = ['无问题相关已验证证据；不能以调用完成代替覆盖']
         entry.update(
             status='missing' if gaps else 'verified' if b['block_id'] in analyses else 'ready',

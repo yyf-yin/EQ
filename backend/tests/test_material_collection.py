@@ -371,5 +371,5 @@ async def test_business_slots_keep_the_shared_budget(tmp_path):
     collector,_,_,_,_,_=await setup(tmp_path)
     business={'topic':'业务资料：设备'}
     assert collector.search_budget(business)==collector.settings.material_search_budget==3
-    assert collector.search_budget({'topic':'行业资料：制造业'})==8
+    assert collector.search_budget({'topic':'行业资料：制造业'})==10
     assert collector.document_budget(business)==8 and collector.document_budget({'topic':'行业资料：制造业'})==16

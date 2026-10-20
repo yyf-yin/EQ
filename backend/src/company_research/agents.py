@@ -402,7 +402,8 @@ async def ask_bounded(gateway, role, schema, context, depth=0, max_splits=2):
         data = a.model_dump(mode='json')
         for key, value in b.model_dump(mode='json').items():
             if isinstance(value, list):
-                if value and isinstance(value[0], dict):
+                # Either half may be empty; judge item type from both.
+                if any(isinstance(x, dict) for x in data[key] + value):
                     data[key] += value
                 else:
                     data[key] = list(dict.fromkeys(data[key] + value))

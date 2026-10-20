@@ -3,6 +3,7 @@ import json
 
 from company_research.agents import WriterDraft, ask_bounded
 from company_research.llm import TruncatedOutput
+from company_research.schemas import SectionPart
 
 
 CHECKS = ['cash_growth', 'forecast_total', 'valuation_evidence', 'resource_concentration']
@@ -121,6 +122,21 @@ async def test_empty_consolidation_falls_back_to_union():
 
     draft = await ask_bounded(SplitGateway(empty), 'core_writer', WriterDraft, core_context())
     assert len(draft.paragraphs) == 10
+
+
+async def test_split_merges_when_only_first_half_has_parts():
+    # Regression: an empty second-half `parts` list sent dict items to dict.fromkeys.
+    class PartsGateway(SplitGateway):
+        async def structured(self, role, messages, schema):
+            draft = await super().structured(role, messages, schema)
+            sent = self.calls[-1][2]
+            if not sent.get('merge_contract') and sent['calculations'][0]['result_id'] == 'c0':
+                draft.parts = [SectionPart(topic='现金流', heading='现金流匹配', start=0)]
+            return draft
+
+    gateway = PartsGateway()
+    draft = await ask_bounded(gateway, 'core_writer', WriterDraft, core_context())
+    assert len(draft.paragraphs) == 5
 
 
 async def test_unsplit_writer_request_makes_no_merge_call():

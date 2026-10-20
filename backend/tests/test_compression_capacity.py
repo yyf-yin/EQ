@@ -85,7 +85,7 @@ async def test_researcher_compresses_evidence_after_first_600(tmp_path, monkeypa
         sent_ids.extend(e['evidence_id'] for e in context['evidence'])
         return response(context)
     class Datasource:
-        async def retrieve(self, query):
+        async def retrieve(self, query, **options):
             raise AssertionError('prepared references require no retrieval')
     task=ResearchTask(company_id='D', topic='上传资料', role='company', queries=[]).model_dump(mode='json')
     evidence=[{'evidence_id': f'e{i}', 'claim': '有原文依据的经营情况',

@@ -12,8 +12,19 @@ def industry_annual_title(title):
     return bool(re.search(r'行业|产业|协会|统计|市场', title) and not re.search(r'公司|股份|证券代码|股票代码', title))
 
 
+def peer_excerpt(source):
+    """Industry sections cut from CNINFO filings, and the sample shares computed from them
+    (peer_disclosures): industry material, not a financial report."""
+    url = source.source_url or ''
+    return (source.title.startswith('同行公告节选：') and url.startswith('http://static.cninfo.com.cn/')) or (
+        source.title.startswith('同行公告汇总计算：') and not url
+    )
+
+
 def annual_document(source, company=None):
     """Identify document type/subject, without scoring source quality."""
+    if peer_excerpt(source):
+        return False
     try:
         row = json.loads(source.content)
     except (ValueError, TypeError):

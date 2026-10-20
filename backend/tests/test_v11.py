@@ -193,7 +193,7 @@ async def test_split_recovery_and_validated_batch_reuse(tmp_path):
             return CompressedResearch(summary='test',evidence_ids=[],unresolved=[])
     source=SourceRecord(kind='local',title='test',content='单位：百万元\n营业收入 550 同期500\n'*60)
     class Datasource:
-        async def retrieve(self,q):return [source],[]
+        async def retrieve(self,q, **options):return [source],[]
     gateway=Stub();store=Store(tmp_path/'db');settings=Settings(extraction_input_tokens=8000,max_batch_splits=2)
     task=ResearchTask(company_id='D',block_id='F01',topic='收入',role='financial',queries=['营业收入']).model_dump(mode='json')
     state={'task':task,'brief':brief().model_dump(mode='json'),'round':0,'sources':[],'evidence':[],'facts':[],'queries':task['queries'],'gaps':[],'warnings':[],'summary':{}}

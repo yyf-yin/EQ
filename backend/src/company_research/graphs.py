@@ -24,7 +24,14 @@ from .schemas import (
     ReportDocument,
 )
 from .agents import ask, ask_bounded, locate_quote, SupervisorDecision, FinancialAnalysis, AssumptionOutput
-from .datasources import LocalDatasource, UnifiedDatasource, WebAdapter, HTTPWebSearchProvider, BochaWebSearchProvider
+from .datasources import (
+    LocalDatasource,
+    UnifiedDatasource,
+    WebAdapter,
+    HTTPWebSearchProvider,
+    BochaWebSearchProvider,
+    SourcePolicy,
+)
 from .evidence import EvidenceStore
 from .financials import DependencyResolver, Calculator, ForecastEngine, FinancialError
 from .financials.formulas import REGISTRY, FinancialDataProcessor, INPUT_UNITS, input_unit
@@ -231,7 +238,17 @@ class ResearchWorkflow:
                 store,
                 run_id=run_id,
             )
-        self.datasource = UnifiedDatasource(local, web)
+        self.reports = None
+        if not self.mock and settings.research_reports and settings.research_report_limit:
+            from .research_reports import ResearchReports
+
+            self.reports = ResearchReports(web or WebAdapter(None, store, run_id=run_id))
+        self.peers = None
+        if not self.mock and settings.peer_disclosures:
+            from .peer_disclosures import PeerDisclosures
+
+            self.peers = PeerDisclosures(store, run_id)
+        self.datasource = UnifiedDatasource(local, web, SourcePolicy.load(settings.source_domains))
         self.datasource.exclude_annual_reports = not self.mock and settings.data_collection_mode == 'fixed'
         self.datasource.reference_sources = self.references
         from .fixed_collection import FixedCollection

@@ -44,13 +44,15 @@ def admit(p: IndustryDataProposal, source: SourceRecord) -> tuple[EvidenceRecord
     start, quote = locate_quote(p.quote, source.content) if p.quote.strip() else (-1, None)
     if start < 0 or compact(value) not in compact(quote):
         return None
+    kind = 'forecast' if p.actual_or_forecast == 'forecast' else 'context'
+    # The kind is part of the ID: the same quote may also be saved as context evidence.
     evidence = EvidenceRecord(
-        evidence_id='ev-' + digest([source.source_id, quote, 'context'])[:24],
+        evidence_id='ev-' + digest([source.source_id, quote, kind])[:24],
         source_id=source.source_id,
         claim=f'{p.subject}{p.metric}（{p.period}）：{value}',
         quote=quote,
         locator=span_locator(source, start, start + len(quote)),
-        actual_or_forecast='forecast' if p.actual_or_forecast == 'forecast' else 'context',
+        actual_or_forecast=kind,
         validation_status='verified',
     )
     datum = IndustryDatum(

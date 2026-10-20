@@ -47,7 +47,7 @@ async def test_same_company_other_runs_never_enter_new_or_replayed_task(tmp_path
     workflow = ResearchWorkflow(settings, store, run.run_id, gateway)
     sources = workflow.datasource.local.index
     queries = []
-    async def retrieve(query):
+    async def retrieve(query, **options):
         queries.append(query)
         return sources, []
     async def ask(*args, **kwargs):
@@ -310,7 +310,7 @@ async def test_metadata_failed_retrieval_replays_own_search_and_uses_canonical_s
     source = SourceRecord(kind='web', title='first', content='document', publication_date='2023-03-31')
     store.record('a', 'source', source.source_id, source.model_dump(mode='json'))
     calls = []
-    async def retrieve(query):
+    async def retrieve(query, **options):
         calls.append(query)
         return [source.model_copy(update={'publication_date':'2024-04-01'})], []
     datasource = SimpleNamespace(retrieve=retrieve)

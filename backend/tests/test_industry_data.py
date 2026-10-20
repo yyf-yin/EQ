@@ -29,6 +29,16 @@ def test_value_must_be_one_number_written_in_the_located_quote():
     assert admit(proposal(source_id='other'), SOURCE) is None
 
 
+def test_forecast_datum_evidence_never_reuses_the_context_evidence_id():
+    # Broker reports quote one sentence as context and as a forecast; both must be storable.
+    from company_research.framework import digest
+    context_id = 'ev-' + digest(['s', TEXT, 'context'])[:24]
+    actual, _ = admit(proposal(), SOURCE)
+    forecast, _ = admit(proposal(actual_or_forecast='forecast'), SOURCE)
+    assert actual.evidence_id == context_id and actual.actual_or_forecast == 'context'
+    assert forecast.evidence_id != context_id and forecast.actual_or_forecast == 'forecast'
+
+
 def context():
     evidence, datum = admit(proposal(), SOURCE)
     return dict(

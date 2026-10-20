@@ -103,7 +103,7 @@ async def test_researcher_resumes_after_extraction_without_search_or_extraction(
     source = SourceRecord(kind='local', title='资料', content='营业收入 100 百万元\n'*10)
     queries = []
     class Datasource:
-        async def retrieve(self, q):
+        async def retrieve(self, q, **options):
             queries.append(q)
             return [source], []
     class Model:

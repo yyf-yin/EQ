@@ -179,7 +179,7 @@ async def test_bounded_search_per_material_and_terminal_limited_state(tmp_path):
     w,g,store,run=prepared(tmp_path);c=await context(w);c.update(await w.research_plan(c));g.sufficient=False
     w.settings.search_url='https://test-search.invalid';seen=[]
     sources=[SourceRecord.model_validate(s) for s in c['sources']]
-    async def retrieve(query):seen.append(query);return sources,[]
+    async def retrieve(query, **options):seen.append(query);return sources,[]
     w.datasource.retrieve=retrieve
     c.update(await w.supervisor(c));before=len(g.calls)
     slots=store.records(run.run_id,'collection_slot')

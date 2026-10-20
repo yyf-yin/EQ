@@ -466,12 +466,57 @@ class WebAdapter:
         return []
 
 
+def domain_match(host: str, domain: str) -> bool:
+    return host == domain or host.endswith('.' + domain)
+
+
+class SourcePolicy:
+    """Domain table from configs/source_domains.yaml; filtering happens before any read."""
+
+    def __init__(self, blocked_domains=(), blocked_url_patterns=(), preferred_domains=(), policy_site=''):
+        self.blocked_domains = [d.lower().strip('.') for d in blocked_domains]
+        self.blocked_patterns = [re.compile(p, re.I) for p in blocked_url_patterns]
+        self.preferred_domains = [d.lower().strip('.') for d in preferred_domains]
+        self.policy_site = (policy_site or '').strip()
+
+    @classmethod
+    def load(cls, path: Path | None) -> 'SourcePolicy':
+        if not path or not Path(path).is_file():
+            return cls()
+        import yaml
+
+        data = yaml.safe_load(Path(path).read_text(encoding='utf-8')) or {}
+        return cls(
+            data.get('blocked_domains') or [],
+            data.get('blocked_url_patterns') or [],
+            data.get('preferred_domains') or [],
+            data.get('policy_site') or '',
+        )
+
+    def blocked(self, url: str) -> bool:
+        host = (urlparse(url).hostname or '').lower()
+        return any(domain_match(host, d) for d in self.blocked_domains) or any(
+            p.search(url) for p in self.blocked_patterns
+        )
+
+    def rank(self, url: str) -> int:
+        host = (urlparse(url).hostname or '').lower()
+        return next(
+            (i for i, d in enumerate(self.preferred_domains) if domain_match(host, d)), len(self.preferred_domains)
+        )
+
+    def select(self, results: list[dict]) -> list[dict]:
+        kept = [r for r in results if isinstance(r.get('url'), str) and not self.blocked(r['url'])]
+        return sorted(kept, key=lambda r: self.rank(r['url']))  # Stable: unlisted keep engine order.
+
+
 class UnifiedDatasource:
-    def __init__(self, local: LocalDatasource, web: WebAdapter | None):
+    def __init__(self, local: LocalDatasource, web: WebAdapter | None, policy: SourcePolicy | None = None):
         self.local, self.web = local, web
+        self.policy = policy or SourcePolicy()
         self.exclude_annual_reports = False
 
-    async def retrieve(self, query: str, web_limit=4) -> tuple[list[SourceRecord], list[str]]:
+    async def retrieve(self, query: str, web_limit=4, filter_sources=False) -> tuple[list[SourceRecord], list[str]]:
         from .annual_reports import annual_search_result, SECONDARY
         from .reporting_periods import financial_document, INTERIM
 
@@ -493,6 +538,9 @@ class UnifiedDatasource:
                         and not re.search(SECONDARY, r.get('title', ''), re.I)
                     )
                 ]
+            if filter_sources:
+                # Blocked previews never consume the read budget; the next result is read instead.
+                results = self.policy.select(results)
             read = await asyncio.gather(*(self.web.read(r) for r in results[:web_limit]), return_exceptions=True)
             for r in read:
                 if isinstance(r, Exception):

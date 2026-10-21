@@ -7,7 +7,7 @@ from decimal import Decimal
 from pathlib import Path
 from pydantic import Field, field_validator, model_validator, ValidationError
 from pydantic import ConfigDict
-from .schemas import Schema, EvidenceRecord, FinancialFact, SourceRecord, ReviewIssue, SectionPart
+from .schemas import Schema, EvidenceRecord, FinancialFact, SourceRecord, ReviewIssue, SectionPart, ChartSpec
 from .llm import Gateway
 from .financials.formulas import FinancialDataProcessor, FinancialError
 
@@ -209,6 +209,7 @@ class WriterDraft(Schema):
     assumption_ids: list[str]
     industry_data_ids: list[str] = Field(default_factory=list)
     parts: list[SectionPart] = Field(default_factory=list)
+    charts: list[ChartSpec] = Field(default_factory=list)
     consistency_checks: dict[str, str] = Field(default_factory=dict)
 
 
@@ -468,6 +469,9 @@ async def merge_drafts(gateway, role, context, a: WriterDraft, b: WriterDraft, u
         logging.getLogger(__name__).warning('%s: split draft consolidation failed, keeping union: %s', role, exc)
         return union
     data = merged.model_dump(mode='json')
+    # Charts are placed by the paragraphs citing their data, so the halves' charts stay
+    # valid after consolidation; the writer's contract check drops any that do not.
+    data['charts'] = data['charts'] or union.model_dump(mode='json')['charts']
     for f in fields:
         data[f] = [i for i in dict.fromkeys(data[f]) if i in allowed[f]]
     # A reference used in the text but missing from its list is still declared by

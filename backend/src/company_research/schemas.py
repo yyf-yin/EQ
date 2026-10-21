@@ -243,6 +243,44 @@ class SectionPart(Schema):
     start: int = Field(ge=0)
 
 
+class ChartSeriesSpec(Schema):
+    """One series of a writer-proposed chart: refs[i] is the data token for categories[i]
+    ("fact:ID", "calc:ID", "assumption:ID" or "ind:ID"), "" where the period has no value."""
+
+    name: str = Field(min_length=1, max_length=20)
+    refs: list[str]
+    kind: Literal["bar", "line"] = "bar"
+    axis: Literal["left", "right"] = "left"
+
+
+class ChartSpec(Schema):
+    title: str = Field(min_length=1, max_length=40)
+    kind: Literal["combo", "stacked", "pie"] = "combo"
+    categories: list[str]
+    series: list[ChartSeriesSpec]
+
+
+class ChartSeries(Schema):
+    name: str
+    values: list[float | None]
+    kind: Literal["bar", "line"] = "bar"
+    axis: Literal["left", "right"] = "left"
+
+
+class SectionChart(Schema):
+    """A chart resolved from cited data; drawn after paragraph `after` (0-based)."""
+
+    title: str
+    kind: Literal["combo", "stacked", "pie"] = "combo"
+    categories: list[str]
+    series: list[ChartSeries]
+    unit: str = ""
+    right_unit: str = ""
+    source: str = "公司公告"
+    refs: list[str] = Field(default_factory=list)
+    after: int = 0
+
+
 class ReportSection(Schema):
     section_id: str
     title: str
@@ -255,6 +293,7 @@ class ReportSection(Schema):
     evidence_ids: list[str] = Field(default_factory=list)
     calculation_ids: list[str] = Field(default_factory=list)
     tables: list[Table] = Field(default_factory=list)
+    charts: list[SectionChart] = Field(default_factory=list)
     number_bindings: dict[str, str] = Field(default_factory=dict)
     consistency_checks: dict[str, str] = Field(default_factory=dict)
 

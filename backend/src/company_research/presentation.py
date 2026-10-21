@@ -110,6 +110,105 @@ def body_paragraphs(section: ReportSection) -> list[str]:
     return out
 
 
+# Rendering merges what still reads as a fragment into its neighbour within the same
+# (sub)section: a broker paragraph is rarely under a hundred characters.
+MERGE_BELOW = 100
+MERGE_LIMIT = 420
+
+
+def body_items(section: ReportSection, start: int = 0, end: int | None = None) -> list[tuple[list[int], str]]:
+    """Reader paragraphs of section.paragraphs[start:end], each with the original indexes
+    it was built from; short fragments are merged into the neighbouring paragraph."""
+    from .comparisons import template_paragraph
+
+    items = []
+    stop = len(section.paragraphs) if end is None else end
+    for i in range(start, stop):
+        p = section.paragraphs[i]
+        if not p or template_paragraph(p) or p.startswith(BOILERPLATE):
+            continue
+        text = clean(p)
+        if text and all(text != t for _, t in items):
+            items.append(([i], text))
+    merged = []
+    for indexes, text in items:
+        last = merged[-1] if merged else None
+        if last and (len(text) < MERGE_BELOW or len(last[1]) < MERGE_BELOW) and len(last[1]) + len(text) <= MERGE_LIMIT:
+            merged[-1] = (last[0] + indexes, last[1] + text)
+        else:
+            merged.append((indexes, text))
+    return merged
+
+
+def section_chart(chart) -> Chart:
+    return Chart(
+        chart.title,
+        chart.categories,
+        [Series(s.name, s.values, s.kind, s.axis) for s in chart.series],
+        unit=chart.unit,
+        right_unit=chart.right_unit,
+        kind=chart.kind,
+        source=chart.source,
+        labels=len(chart.categories) <= 6 and len(chart.series) <= 2,
+    )
+
+
+YEAR = re.compile(r'((?:19|20)\d{2})')
+
+
+def industry_charts(section: ReportSection, data) -> list[tuple[Chart, set[str]]]:
+    """A line of the same subject, metric and publisher over three or more years, for
+    industry data the section cites, unless a writer chart already shows it."""
+    from .writers import IND_VALUE
+
+    cited = {k.split(':', 1)[1] for k in section.number_bindings if k.startswith('ind:')}
+    shown = {r.split(':', 1)[1] for c in section.charts for r in c.refs if r.startswith('ind:')}
+    groups = {}
+    for d in data:
+        match, year = IND_VALUE.fullmatch(d.value_text), YEAR.search(d.period)
+        if match and year:
+            key = (d.subject, d.metric, d.publisher, match.group(2))
+            groups.setdefault(key, {}).setdefault(year.group(1) + ('E' if d.actual_or_forecast == 'forecast' else ''), (d, float(re.sub('[,，]', '', match.group(1)))))
+    out = []
+    for (subject, metric, publisher, unit), points in groups.items():
+        ids = {d.data_id for d, _ in points.values()}
+        if len(points) < 3 or not ids & cited or ids & shown:
+            continue
+        periods = sorted(points)[-10:]
+        chart = Chart(
+            f'{subject}{metric}',
+            periods,
+            [Series(metric, [points[p][1] for p in periods], 'bar' if unit not in ('%', 'pct') else 'line')],
+            unit=unit,
+            source=publisher or '行业资料',
+            labels=len(periods) <= 8,
+        )
+        if chart.usable():
+            out.append((chart, {section.number_bindings['ind:' + i] for i in ids & cited}))
+    return out[:2]
+
+
+def place_items(items, charts, keyword_charts=(), tables=()) -> list:
+    """Paragraph blocks with each indexed chart after the paragraph built from that
+    original index (or the nearest one before it when that paragraph was dropped),
+    keyword charts after the first paragraph naming them, the rest after the text."""
+    after = {k: [] for k in range(len(items))}
+    rest = []
+    for index, chart in charts:
+        k = next((j for j, (indexes, _) in enumerate(items) if index in indexes), None)
+        if k is None:
+            k = max((j for j, (indexes, _) in enumerate(items) if indexes[0] <= index), default=None)
+        (after[k] if k is not None else rest).append(('chart', chart))
+    for chart in keyword_charts:
+        k = next((j for j, (_, p) in enumerate(items) if any(w in p for w in chart.keywords)), None)
+        (after[k] if k is not None else rest).append(('chart', chart))
+    blocks = []
+    for k, (_, p) in enumerate(items):
+        blocks.append(('p', p))
+        blocks.extend(after[k])
+    return blocks + rest + [('table', t) for t in tables]
+
+
 def plain_title(title: str) -> str:
     return NUMBERING.sub('', title).strip()
 
@@ -273,6 +372,14 @@ def financial_charts(book: FactBook) -> dict[str, list[Chart]]:
         add('F04', Chart('公司分业务营业收入', [label(p) for p in with_segments], [
             Series(n, [yi(book.segments('revenue', p).get(n)) for p in with_segments]) for n in names
         ], unit='亿元', kind='stacked', labels=False, keywords=('分业务', '收入结构', '占比')))
+
+        def margin(name, period):
+            revenue, cost = book.segments('revenue', period).get(name), book.segments('cost', period).get(name)
+            return (1 - cost / revenue) * 100 if revenue and cost is not None else None
+
+        add('F04', Chart('公司分业务毛利率', [label(p) for p in with_segments], [
+            Series(n, [margin(n, p) for p in with_segments], 'line') for n in names
+        ], unit='%', keywords=('毛利率', '毛利')))
     elif with_segments:
         period = with_segments[-1]
         values = book.segments('revenue', period)
@@ -731,9 +838,20 @@ def present(report: ReportDocument) -> Presentation:
     book = FactBook(report)
     charts = financial_charts(book) if report.financial_facts else {}
 
+    def drawn(section: ReportSection, start=0, end=None):
+        """Writer charts and industry-data charts anchored in paragraphs [start, end)."""
+        stop = len(section.paragraphs) if end is None else end
+        figures = [(c.after, section_chart(c)) for c in section.charts if start <= c.after < stop]
+        for chart, quotes in industry_charts(section, report.industry_data) if report.industry_data else []:
+            # Placed once, after the first paragraph quoting one of its values.
+            index = next((i for i, p in enumerate(section.paragraphs) if any(q in p for q in quotes)), None)
+            if index is not None and start <= index < stop:
+                figures.append((index, chart))
+        return [(index, chart) for index, chart in figures if chart.usable()]
+
     def leaf(section: ReportSection, title: str, level: int, extra_charts=()):
         node = PSection(section.section_id, title, level)
-        node.blocks = place(body_paragraphs(section), list(extra_charts), section_tables(section))
+        node.blocks = place_items(body_items(section), drawn(section), list(extra_charts), section_tables(section))
         return node
 
     def part_leaves(section: ReportSection, level: int):
@@ -745,8 +863,7 @@ def present(report: ReportDocument) -> Presentation:
             node = PSection(
                 f'{section.section_id}-{part.topic}', part.heading or INDUSTRY_PARTS.get(part.topic, part.topic), level
             )
-            text = section.model_copy(update={'paragraphs': section.paragraphs[part.start : end]})
-            node.blocks = place(body_paragraphs(text), [])
+            node.blocks = place_items(body_items(section, part.start, end), drawn(section, part.start, end))
             nodes.append(node)
         if nodes:
             nodes[-1].blocks += [('table', t) for t in section_tables(section)]
@@ -791,7 +908,7 @@ def present(report: ReportDocument) -> Presentation:
         if industry and industry.heading.strip():
             title += '：' + industry.heading.strip()
         node = PSection(segment.section_id, title, 2)
-        node.blocks = [('p', p) for p in body_paragraphs(segment)]
+        node.blocks = place_items(body_items(segment), drawn(segment))
         node.children = [
             n for c in segment.children for n in (part_leaves(c, 3) if c is industry else [leaf(c, shown_title(c), 3)])
         ]

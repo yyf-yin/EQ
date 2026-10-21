@@ -2,6 +2,9 @@ import re
 from decimal import Decimal
 from .agents import ask, ask_bounded, WriterDraft, Reflection, DRAFT_ID_FIELDS
 from .schemas import (
+    ChartSeries,
+    ChartSpec,
+    SectionChart,
     ReportDocument,
     ReportSection,
     Table,
@@ -104,11 +107,19 @@ def canonical_ids(draft: WriterDraft, context: dict) -> WriterDraft:
     def fix(kind, id):
         return aliases[kind].get(id, id)
 
+    def fix_ref(ref):
+        match = CHART_REF.fullmatch(ref.strip())
+        return f'{match.group(1)}:{fix(*match.groups())}' if match and match.group(1) in aliases else ref
+
     paragraphs = [TOKEN.sub(lambda m: f'[[{m.group(1)}:{fix(*m.groups())}]]', p) for p in draft.paragraphs]
     fields = {field: list(dict.fromkeys(fix(kind, id) for id in getattr(draft, field))) for kind, field in DRAFT_ID_FIELDS.items()}
-    if paragraphs == draft.paragraphs and all(fields[f] == getattr(draft, f) for f in fields):
+    charts = [
+        c.model_copy(update={'series': [s.model_copy(update={'refs': [fix_ref(r) for r in s.refs]}) for s in c.series]})
+        for c in draft.charts
+    ]
+    if paragraphs == draft.paragraphs and charts == draft.charts and all(fields[f] == getattr(draft, f) for f in fields):
         return draft
-    return draft.model_copy(update={'paragraphs': paragraphs, **fields})
+    return draft.model_copy(update={'paragraphs': paragraphs, 'charts': charts, **fields})
 
 
 def without_record_ids(draft: WriterDraft, context: dict) -> WriterDraft:
@@ -195,10 +206,28 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
     segments = (context.get('brief') or {}).get('segments') or []
     checks += gap_problems(draft.paragraphs, TOKEN.findall, context['facts'], segments)
     problems += meta_problems(draft.paragraphs)
+    problems += short_problems(draft.paragraphs)
+    problems += chart_problems(draft, context)
     if len(clean_heading(draft.heading)) > 30:
         problems.append('heading 过长：观点式标题控制在 30 字以内，一句话说清本节判断')
     problems += part_problems(draft, context.get('part_topics') or {})
     return list(dict.fromkeys(problems + [text for _, text in checks]))
+
+
+# A broker paragraph argues one point with data, cause and comparison; a run of one- or
+# two-sentence paragraphs reads as a list of facts. Tokens count as a short rendered value.
+SHORT_PARAGRAPH = 120
+
+
+def short_problems(paragraphs: list[str]) -> list[str]:
+    lengths = [len(TOKEN.sub('数值数值', p)) for p in paragraphs]
+    short = [i + 1 for i, n in enumerate(lengths) if 0 < n < SHORT_PARAGRAPH]
+    if len(short) < 3 or len(short) * 3 <= len(paragraphs):
+        return []
+    return [
+        f'第{"、".join(map(str, short[:8]))}段过短（不足 {SHORT_PARAGRAPH} 字）：同一主题的相邻段落合并为一段，'
+        '每段按“判断→数据→原因→与历史或同行对比→对公司的影响”写完整，不要一个数据一段'
+    ]
 
 
 # Each business's industry section is written as these subsections, in this order,
@@ -230,6 +259,114 @@ def part_problems(draft: WriterDraft, topics: dict) -> list[str]:
     if any(len(clean_heading(p.heading)) > 30 for p in draft.parts):
         problems.append('parts.heading 过长：小节观点式标题控制在 30 字以内')
     return problems
+
+
+# Writer-proposed charts carry data tokens, not numbers: each value is read from the
+# cited record, so a chart can only show what the text could cite.
+CHART_REF = re.compile(r'(fact|calc|assumption|ind):([a-zA-Z0-9_-]+)')
+IND_VALUE = re.compile(r'\s*([-+]?\d[\d,，]*(?:\.\d+)?)\s*(.*?)\s*')
+CHART_SCALES = {'CNY_million': (Decimal('0.01'), '亿元'), 'ratio': (Decimal(100), '%'), 'percentage_points': (Decimal(1), 'pct')}
+MAX_CHARTS = 3
+
+
+def chart_value(kind: str, item: dict) -> tuple[float, str] | None:
+    if kind == 'ind':
+        match = IND_VALUE.fullmatch(item['value_text'])
+        return (float(re.sub('[,，]', '', match.group(1))), match.group(2)) if match else None
+    if item.get('value') is None:
+        return None
+    scale, unit = CHART_SCALES.get(item['unit'], (Decimal(1), UNITS.get(item['unit'], item['unit'])))
+    return float(Decimal(str(item['value'])) * scale), unit
+
+
+def resolve_chart(spec: ChartSpec, objects: dict) -> tuple[SectionChart | None, list[str]]:
+    """The chart with values read from its cited records, or the reasons it cannot be drawn."""
+    name = f'图表“{spec.title}”'
+    n = len(spec.categories)
+    if not 2 <= n <= 12 or not 1 <= len(spec.series) <= 5:
+        return None, [f'{name}：categories 需 2—12 项，series 需 1—5 个']
+    if spec.kind == 'pie' and len(spec.series) != 1:
+        return None, [f'{name}：饼图只能有一个序列']
+    problems, series, units, refs, sources = [], [], {}, [], set()
+    for s in spec.series:
+        if len(s.refs) != n:
+            problems.append(f'{name}：序列“{s.name}”的 refs 必须与 categories 一一对应（{n} 项，缺值写空字符串）')
+            continue
+        values, origins = [], set()
+        for ref in s.refs:
+            if not ref.strip():
+                values.append(None)
+                continue
+            match = CHART_REF.fullmatch(ref.strip())
+            item = objects.get(match.group(1), {}).get(match.group(2)) if match else None
+            value = chart_value(match.group(1), item) if item else None
+            if value is None:
+                problems.append(f'{name}：序列“{s.name}”的“{ref}”不是输入中可取值的 fact/calc/assumption/ind 记录')
+                values.append(None)
+                continue
+            kind = match.group(1)
+            units.setdefault(s.axis, set()).add(value[1])
+            values.append(value[0])
+            refs.append(f'{kind}:{match.group(2)}')
+            if kind == 'ind':
+                origins.add((item['metric'], item.get('publisher', '')))
+                sources.add(item.get('publisher') or '行业资料')
+            else:
+                sources.add('研究预测' if kind == 'assumption' or item.get('scenario') not in (None, 'historical') else '公司公告')
+        if len(origins) > 1:
+            problems.append(f'{name}：序列“{s.name}”混用了不同指标或来源的行业数据，不同口径不能放进同一序列')
+        if sum(v is not None for v in values) < 2:
+            problems.append(f'{name}：序列“{s.name}”至少需要两个有值的数据点')
+        if spec.kind == 'pie' and any(v is not None and v <= 0 for v in values):
+            problems.append(f'{name}：饼图各项必须为正数')
+        series.append(ChartSeries(name=s.name, values=values, kind=s.kind, axis=s.axis))
+    for axis, found in units.items():
+        if len(found) > 1:
+            problems.append(f'{name}：{"右" if axis == "right" else "左"}轴混用了单位（{"、".join(sorted(found))}），不同单位的序列放到另一侧坐标轴或拆成两张图')
+    if spec.kind == 'combo' and len(spec.series) == 1 and n < 3:
+        problems.append(f'{name}：单序列图至少需要三个期间')
+    if problems:
+        return None, problems
+    return SectionChart(
+        title=spec.title,
+        kind=spec.kind,
+        categories=spec.categories,
+        series=series,
+        unit=next(iter(units.get('left', {''}))),
+        right_unit=next(iter(units.get('right', {''}))),
+        source='、'.join(sorted(sources, key=lambda s: (s != '公司公告', s))),
+        refs=list(dict.fromkeys(refs)),
+    ), []
+
+
+def chart_problems(draft: WriterDraft, context: dict) -> list[str]:
+    objects = citable(context)
+    cited = {f'{k}:{i}' for p in draft.paragraphs for k, i in TOKEN.findall(p)}
+    problems = [] if len(draft.charts) <= MAX_CHARTS else [f'每节至多 {MAX_CHARTS} 张图表，只保留最能说明论点的']
+    for spec in draft.charts:
+        chart, found = resolve_chart(spec, objects)
+        problems += found
+        if chart and not cited & set(chart.refs):
+            problems.append(f'图表“{spec.title}”的数据没有在正文中引用：图表跟在讨论它的段落之后，请在该段引用其中至少一项')
+    return problems
+
+
+def chart_after(chart: SectionChart, paragraphs: list[str]) -> int:
+    """Index of the first paragraph citing the chart's data (tokens, before rendering)."""
+    refs = set(chart.refs)
+    return next(
+        (i for i, p in enumerate(paragraphs) if refs & {f'{k}:{id}' for k, id in TOKEN.findall(p)}),
+        max(len(paragraphs) - 1, 0),
+    )
+
+
+def remap_charts(charts, mapping):
+    """Charts after paragraphs were dropped; a chart whose paragraph went follows the one before."""
+    out = []
+    for chart in charts:
+        kept = [m for m in mapping[: chart.after + 1] if m is not None]
+        out.append(chart.model_copy(update={'after': kept[-1] if kept else 0}))
+    return out
 
 
 def remap_parts(parts, mapping):
@@ -279,9 +416,18 @@ def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list
         for kind, id in TOKEN.findall(paragraph):
             used[kind].add(id)
     declared = declared_ids(draft)
+    cited = {f'{k}:{i}' for p in paragraphs for k, i in TOKEN.findall(p)}
+    charts = []
+    for spec in draft.charts[:MAX_CHARTS]:
+        chart, problems = resolve_chart(spec, citable(context))
+        if chart and cited & set(chart.refs):
+            charts.append(spec)
+        else:
+            removed.append(f'图表“{spec.title}”')
     clean = draft.model_copy(
         update={
             'paragraphs': paragraphs,
+            'charts': charts,
             'parts': remap_parts(draft.parts, mapping) if valid else [],
             'evidence_ids': [e for e in draft.evidence_ids if e in evidence],
             **{
@@ -348,12 +494,22 @@ def resolve_draft(draft: WriterDraft, context: dict, section_id: str, title: str
         used_evidence.update(id for id in named if id in evidence)
         paragraph = strip_meta(paragraph)
         paragraphs.append(TOKEN.sub(replace, paragraph))
+    charts = []
+    for spec in draft.charts[:MAX_CHARTS]:
+        chart, _ = resolve_chart(spec, objects)
+        if chart:
+            charts.append(chart.model_copy(update={'after': chart_after(chart, draft.paragraphs)}))
+            for ref in chart.refs:
+                kind, id = ref.split(':', 1)
+                if kind in {'fact', 'ind'}:
+                    used_evidence.add(objects[kind][id]['evidence_id'])
     return ReportSection(
         section_id=section_id,
         title=title,
         heading=clean_heading(draft.heading),
         paragraphs=paragraphs,
         parts=[p.model_copy(update={'heading': clean_heading(p.heading)}) for p in draft.parts],
+        charts=charts,
         evidence_ids=sorted(used_evidence),
         calculation_ids=draft.calculation_ids,
         number_bindings=bindings,
@@ -574,6 +730,7 @@ async def patch_one(gateway, c, section: ReportSection, targets: dict[int, list[
         update={
             'paragraphs': paragraphs,
             'parts': remap_parts(section.parts, mapping),
+            'charts': remap_charts(section.charts, mapping),
             'evidence_ids': sorted(set(section.evidence_ids) | set(fresh.evidence_ids)),
             'calculation_ids': list(dict.fromkeys(section.calculation_ids + fresh.calculation_ids)),
             'number_bindings': kept | fresh.number_bindings,

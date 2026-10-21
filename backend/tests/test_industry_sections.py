@@ -52,7 +52,8 @@ def test_plans_saved_with_the_previous_industry_questions_still_validate():
 def test_parts_must_follow_the_topic_order_and_cover_the_paragraphs():
     paragraphs = ['工艺成熟。', '集中度高。', '需求平稳。', '价格低位。']
     good = draft(paragraphs, [part('process', 0), part('supply', 1), part('demand', 2), part('price', 3)])
-    assert draft_problems(good, CONTEXT) == []
+    # The one-line placeholders only trip the paragraph-length check.
+    assert [p for p in draft_problems(good, CONTEXT) if '段过短' not in p] == []
     assert section_parts('industry-0') == INDUSTRY_PARTS and section_parts('position-0') == {}
     shuffled = draft(paragraphs, [part('supply', 0), part('process', 1)])
     assert any('顺序' in p for p in draft_problems(shuffled, CONTEXT))
@@ -95,7 +96,8 @@ def test_industry_parts_render_as_subsections_under_the_business_viewpoint():
     assert [c.title for c in node.children] == [
         '1. 合成工艺成熟，柠檬醛为关键原材料', '2. 行业集中度高，技术壁垒高', '3. 需求平稳增长', '4. 公司情况',
     ]
-    assert [b[1] for b in node.children[1].blocks] == ['行业集中度高。', '技术壁垒高。']
+    # Fragments of one subsection read as one paragraph.
+    assert [b[1] for b in node.children[1].blocks] == ['行业集中度高。技术壁垒高。']
 
 
 def test_sections_without_parts_keep_their_snapshot(monkeypatch):

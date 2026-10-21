@@ -7,6 +7,7 @@ from decimal import Decimal
 import pandas as pd
 
 from company_research.financials.forecast import ASSUMPTION_KEYS, ForecastEngine
+from company_research.financials.formulas import Calculator
 from company_research.financials.generic import OTHER_SEGMENT, growth_path, plan
 from company_research.market_data import peer_forward_pe, snapshot, summary
 from company_research.presentation import comps_table, segment_split_table, valuation_paragraph, FactBook
@@ -129,6 +130,15 @@ def test_generic_plan_covers_every_scenario_and_rolls_the_engine():
     assert all(a.evidence_ids and a.rationale for a in result['assumptions'])
     # No borrowings in the facts: debt opens at zero and the identity closes on the "other" lines.
     assert Decimal(result['opening']['debt']) == 0 and any('有息负债' in n for n in result['notes'])
+    # Derived opening items and 其他业务 revenue trace to facts through recomputable calculations.
+    facts = {f.fact_id: f for f in history()}
+    calcs = {r.result_id: r for r in result['calculations']}
+    refs = list(result['opening_refs'].values()) + list(result['previous_refs'].values())
+    refs += [r for c in calcs.values() for r in c.input_refs.values()]
+    assert all(r in facts or r in calcs or r.startswith('constant:') for r in refs)
+    assert all(Calculator().recompute(c) for c in calcs.values())
+    other = calcs[result['previous_refs'][OTHER_SEGMENT]]
+    assert other.value == Decimal(168838 - 140000 - 22275) == Decimal(result['previous'][OTHER_SEGMENT])
     forecasts = roll(result)
     base = [f for f in forecasts if f.scenario == 'Base']
     bear = next(f for f in forecasts if f.scenario == 'Bear' and f.period == '2026E')

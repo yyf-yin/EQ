@@ -21,7 +21,7 @@ computed from. The method is deliberately plain and stated in the report:
 from decimal import Decimal
 
 from ..schemas import ForecastAssumption
-from .formulas import FinancialDataProcessor, FinancialError
+from .formulas import Calculator, FinancialDataProcessor, FinancialError
 
 OTHER_SEGMENT = '其他业务'
 COMPANY_SEGMENT = '公司整体'
@@ -187,6 +187,22 @@ def plan(facts, company_id, brief, market=None, market_evidence=None):
     minority = h.value('minority_net_income', anchor)
     minority_ratio = clamp(minority / net, '0', '0.99') if minority and net else None
 
+    # Values derived from several facts are recorded as historical calculations so every
+    # forecast input traces to a fact, a calculation or a constant the reviewer can check.
+    derived = []
+
+    def fold(metric, formula, items):
+        """Left-fold (value, ref) pairs with a binary formula; returns the final (value, ref)."""
+        value, ref = items[0]
+        for v, r in items[1:]:
+            result = Calculator().calculate(
+                formula, {'a': value, 'b': v}, period=anchor, unit='CNY_million', output_metric=metric,
+                input_refs={'a': ref, 'b': r},
+            )
+            derived.append(result)
+            value, ref = result.value, result.result_id
+        return value, ref
+
     # Opening balance: debt is what the balance sheet lists (zero when it lists none);
     # the two "other" lines close the accounting identity rather than plug a forecast.
     opening, refs = {}, {}
@@ -194,28 +210,34 @@ def plan(facts, company_id, brief, market=None, market_evidence=None):
         f = h.fact(key, anchor)
         if f is None and key in ('cash', 'ppe', 'equity', 'assets'):
             raise FinancialError(f'通用预测缺少期初 {key}')
-        opening[key] = f.value if f else D(0)
-        refs[key] = f.fact_id if f else 'derived:zero'
+        opening[key], refs[key] = (f.value, f.fact_id) if f else (D(0), 'constant:0')
     debt_fact = h.fact('debt', anchor)
     if debt_fact:
         opening['debt'], refs['debt'] = debt_fact.value, debt_fact.fact_id
     else:
-        listed = [f for m in DEBT_PARTS[1:] if (f := h.fact(m, anchor))]
-        opening['debt'] = sum((f.value for f in listed), D(0))
-        refs['debt'] = 'derived:listed-debt'
+        listed = [(f.value, f.fact_id) for m in DEBT_PARTS[1:] if (f := h.fact(m, anchor))]
+        opening['debt'], refs['debt'] = fold('debt', 'sum', listed) if listed else (D(0), 'constant:0')
         notes.append('有息负债按资产负债表列示的借款、债券与租赁负债合计；未列示视为零')
-    assets = opening.pop('assets')
-    opening['other_assets'] = assets - opening['cash'] - opening['receivables'] - opening['inventory'] - opening['ppe']
-    opening['other_liabilities'] = assets - opening['equity'] - opening['payables'] - opening['debt']
-    refs['other_assets'] = refs['other_liabilities'] = 'derived:balance-identity'
+    assets = (opening.pop('assets'), refs.pop('assets'))
+    opening['other_assets'], refs['other_assets'] = fold(
+        'other_assets', 'subtract', [assets] + [(opening[k], refs[k]) for k in ['cash', 'receivables', 'inventory', 'ppe']]
+    )
+    opening['other_liabilities'], refs['other_liabilities'] = fold(
+        'other_liabilities', 'subtract', [assets] + [(opening[k], refs[k]) for k in ['equity', 'payables', 'debt']]
+    )
     interest = h.value('interest_expense', anchor)
     rate = clamp(interest / opening['debt'], '0', '0.15') if interest and opening['debt'] > 0 else D(0)
 
-    previous = {s: str(history[s][anchor][0]) for s in segments}
-    previous_refs = {}
+    previous, previous_refs = {}, {}
     for s in segments:
-        f = h.fact('revenue', anchor, segment=None if s in (COMPANY_SEGMENT, OTHER_SEGMENT) else s)
-        previous_refs[s] = (f.fact_id if f and s != OTHER_SEGMENT else 'derived:other-business-revenue')
+        if s == OTHER_SEGMENT:
+            total = h.fact('revenue', anchor)
+            parts = [(f.value, f.fact_id) for p in segments if p != OTHER_SEGMENT and (f := h.fact('revenue', anchor, segment=p))]
+            value, previous_refs[s] = fold(f'{s}.revenue', 'subtract', [(total.value, total.fact_id)] + parts)
+        else:
+            f = h.fact('revenue', anchor, segment=None if s == COMPANY_SEGMENT else s)
+            value, previous_refs[s] = f.value, f.fact_id
+        previous[s] = str(value)
 
     base_evidence = h.evidence(('revenue', anchor), ('cost', anchor), ('pretax_profit', anchor), ('parent_net_income', anchor))
     segment_evidence = {
@@ -296,6 +318,7 @@ def plan(facts, company_id, brief, market=None, market_evidence=None):
         'previous_refs': previous_refs,
         'opening': {k: str(v) for k, v in opening.items()},
         'opening_refs': refs,
+        'calculations': derived,
         'assumptions': assumptions,
         'notes': notes,
     }

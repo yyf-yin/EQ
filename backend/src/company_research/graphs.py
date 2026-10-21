@@ -1769,12 +1769,15 @@ class ResearchWorkflow:
                 )
                 model = 'generic'
                 limitations += generic['notes'] + failures + ['盈利预测采用历史趋势通用模型：有据假设未覆盖全部情景与年份。']
+                derived = [r.model_dump(mode='json') for r in generic['calculations']]
+                computed = derived + computed
                 from .work_products import preserve_materials
 
                 preserve_materials(
                     self.store,
                     self.run_id,
-                    [('assumption', a.assumption_id, a.model_dump(mode='json')) for a in assumptions],
+                    [('assumption', a.assumption_id, a.model_dump(mode='json')) for a in assumptions]
+                    + [('calculation', r['result_id'], r) for r in derived],
                 )
             except FinancialError as exc:
                 limitations.append('通用预测未能生成：' + str(exc))

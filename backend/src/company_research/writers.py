@@ -40,6 +40,8 @@ ID_LIST = re.compile(RECORD_ID.pattern + r'(?:\s*[、，,和及/]\s*' + RECORD_I
 ID_GROUP = re.compile(r'[（(\[【][^（()）\[\]【】]*[)）\]】]')
 ID_LEAD = re.compile(r'(?:证据|来源|参见|详见|见)?[：:]?\s*$')
 ID_FILLER = re.compile(r'[\s、，,；;：:/]|证据|来源|参见|详见|比较|证券代码|见')
+# “归母净利润”/“归母净利” followed closely by the value it names.
+PARENT_LABEL = re.compile(r'归母净利(?:润)?(?:分别)?(?:为|达|约|是)?\s*\[\[(fact|calc):([a-zA-Z0-9_-]+)\]\]')
 
 
 def blank(pattern, text):
@@ -86,8 +88,32 @@ def strip_record_ids(text: str, bare_ids=True) -> tuple[str, list[str]]:
     return cleaned.strip(), found
 
 
+def canonical_ids(draft: WriterDraft, context: dict) -> WriterDraft:
+    """Writers often drop the record prefix the token kind already names ([[ind:509f…]]
+    for ind-509f…). Such an ID is mapped back to the one record it denotes instead of
+    being reported as unknown, which made the repair round delete every industry number."""
+    aliases = {}
+    for kind, items in citable(context).items():
+        short = {}
+        for id in items:
+            for i, ch in enumerate(id):
+                if ch == '-':
+                    short.setdefault(id[i + 1 :], set()).add(id)
+        aliases[kind] = {s: next(iter(ids)) for s, ids in short.items() if len(ids) == 1 and s not in items}
+
+    def fix(kind, id):
+        return aliases[kind].get(id, id)
+
+    paragraphs = [TOKEN.sub(lambda m: f'[[{m.group(1)}:{fix(*m.groups())}]]', p) for p in draft.paragraphs]
+    fields = {field: list(dict.fromkeys(fix(kind, id) for id in getattr(draft, field))) for kind, field in DRAFT_ID_FIELDS.items()}
+    if paragraphs == draft.paragraphs and all(fields[f] == getattr(draft, f) for f in fields):
+        return draft
+    return draft.model_copy(update={'paragraphs': paragraphs, **fields})
+
+
 def without_record_ids(draft: WriterDraft, context: dict) -> WriterDraft:
     """Prose never carries record IDs; valid evidence IDs move to evidence_ids instead."""
+    draft = canonical_ids(draft, context)
     known = {e['evidence_id'] for e in context['evidence']}
     paragraphs, removed = [], []
     for paragraph in draft.paragraphs:
@@ -123,6 +149,12 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
     """Describe every contract violation so one targeted repair round can fix them."""
     objects = {kind: set(items) for kind, items in citable(context).items()}
     declared = declared_ids(draft)
+    parent_periods = {
+        (item.get('period'), item.get('scenario'))
+        for items in citable(context).values()
+        for item in items.values()
+        if (item.get('metric_code') or item.get('output_metric')) == 'parent_net_income'
+    }
     problems = []
     unknown = sorted(set(draft.evidence_ids) - {e['evidence_id'] for e in context['evidence']})
     if unknown:
@@ -143,6 +175,17 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
                 f'第{i + 1}段正文写了记录 ID“{"、".join(named[:3])}”：正文不写任何 ID，'
                 '改为说明资料名称或直接陈述内容，证据只列入 evidence_ids'
             )
+        for kind, id in PARENT_LABEL.findall(paragraph):
+            item = citable(context)[kind].get(id) or {}
+            # Without minority interests net_income is the owners' income itself.
+            if (item.get('metric_code') or item.get('output_metric')) == 'net_income' and (
+                item.get('period'),
+                item.get('scenario'),
+            ) in parent_periods:
+                problems.append(
+                    f'第{i + 1}段把 [[{kind}:{id}]] 写成归母净利润，但它是合并净利润（net_income）：'
+                    '归母净利润改引 parent_net_income，或改称“合并净利润”'
+                )
         for snippet in raw_numbers(paragraph):
             problems.append(
                 f'第{i + 1}段直接写了数字“{snippet.strip()}”：财务/经营数值必须改用 [[fact:ID]]/[[calc:ID]]/[[assumption:ID]]，'

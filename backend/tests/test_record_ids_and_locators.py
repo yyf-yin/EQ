@@ -69,3 +69,20 @@ def test_comparison_prose_has_no_visible_id():
     assert generated_narrative('2024A 营业收入为 1.00百万元，同比/状态：+1%。' + NARRATIVE_TAIL)
     assert generated_narrative('旧版 [比较 cmp-ee248ead8a0818e885604121]')
     assert not generated_narrative('分析段落。')
+
+
+def test_comparison_template_lines_stay_out_of_report_prose():
+    from company_research.comparisons import template_paragraph
+    from company_research.presentation import body_paragraphs
+    from company_research.schemas import ReportSection
+
+    lines = [
+        '资产期末/年度值为 3,038.35亿元，上年同口径 2,989.45亿元，增减额 +48.90亿元，+1.64%；同比增加；驱动原因尚未确认。',
+        '分红缺少可比披露，未估算；属于非核心限制。',
+        '茅台酒毛利率本期为 93.53%，同期 94.06%，变化 -0.54个百分点；占比和毛利按同口径披露数据计算。',
+        'ROE为 34.40%，同期 38.37%，变化 -3.97个百分点；按注册公式计算，变化原因尚未确认。',
+        'roic输入缺失或不适用，未填零或以期末替代平均值。',
+    ]
+    assert all(template_paragraph(p) for p in lines)
+    section = ReportSection(section_id='F05', title='资本配置', paragraphs=['分红与回购并行。'] + lines)
+    assert body_paragraphs(section) == ['分红与回购并行。']

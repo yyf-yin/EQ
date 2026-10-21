@@ -178,6 +178,25 @@ def generated_narrative(paragraph):
     return '[比较 cmp-' in paragraph or paragraph.endswith(NARRATIVE_TAIL)
 
 
+# Endings of the deterministic comparison and gap lines that supplemental_financial_tables
+# writes into sections. They keep the bound numbers traceable for review, but the same
+# values already appear in the section tables, so they are not report prose.
+TEMPLATE_TAILS = (
+    '驱动原因尚未确认。',
+    '量价驱动未被披露确认。',
+    '占比和毛利按同口径披露数据计算。',
+    '按注册公式计算，变化原因尚未确认。',
+    '缺少可比披露，未估算；属于非核心限制。',
+    '缺少可比披露；禁止分摊或估造业务数字。',
+    '毛利或收入占比缺少同口径输入，未估算。',
+    '输入缺失或不适用，未填零或以期末替代平均值。',
+)
+
+
+def template_paragraph(paragraph):
+    return generated_narrative(paragraph) or paragraph.endswith(TEMPLATE_TAILS)
+
+
 def comparison_table(comparisons, facts):
     by_id = {f.fact_id: f for f in facts}
     return Table(

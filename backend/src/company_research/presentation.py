@@ -98,11 +98,11 @@ def lead(text: str) -> tuple[str, str]:
 
 
 def body_paragraphs(section: ReportSection) -> list[str]:
-    from .comparisons import generated_narrative
+    from .comparisons import template_paragraph
 
     out = []
     for p in section.paragraphs:
-        if not p or generated_narrative(p) or p.startswith(BOILERPLATE):
+        if not p or template_paragraph(p) or p.startswith(BOILERPLATE):
             continue
         text = clean(p)
         if text and text not in out:

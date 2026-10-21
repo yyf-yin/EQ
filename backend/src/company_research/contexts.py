@@ -274,7 +274,8 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             if (f['metric_code'] in CORE and f['period'] in display and f['scope'] == 'consolidated')
             or (
                 f['period'] == latest
-                and f['metric_code'] in {'revenue', 'cost', 'cash', 'debt', 'equity', 'shares', 'price', 'net_income'}
+                and f['metric_code']
+                in {'revenue', 'cost', 'cash', 'debt', 'equity', 'shares', 'price', 'net_income', 'parent_net_income'}
             )
             or (
                 c.get('data_template_version')
@@ -300,7 +301,7 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             r
             for r in calculations
             if r['output_metric']
-            in {'revenue', 'net_income', 'eps', 'target_price', 'cfo', 'fcf', 'cash', 'pe', 'roe', 'roic'}
+            in {'revenue', 'net_income', 'parent_net_income', 'eps', 'target_price', 'cfo', 'fcf', 'cash', 'pe', 'roe', 'roic'}
             or r['output_metric'].endswith(('.yoy', '.delta'))
         ]
         # Tables retain all detailed calculation chains. Analysis sees key final results and latest comparisons.
@@ -311,7 +312,7 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             if r['period'] == latest
             or (
                 r['scenario'] != 'historical'
-                and r['output_metric'] in {'revenue', 'net_income', 'eps', 'target_price', 'cfo', 'cash'}
+                and r['output_metric'] in {'revenue', 'net_income', 'parent_net_income', 'eps', 'target_price', 'cfo', 'cash'}
             )
         ]
     comparisons = [r for r in c.get('comparisons', []) if r['current_fact_id'] in fact_ids]
@@ -322,6 +323,11 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             if r['current_period'] == max(c['brief']['historical_periods'])
             or r['current_period'] == c['brief'].get('interim_period')
         ]
+    # A comparison is cited through its own delta/rate results, so those stay citable
+    # even where the calculation list above is narrowed to key metrics.
+    listed = {r['result_id'] for r in calculations}
+    cited = {id for r in comparisons for id in r['calculation_ids']} - listed
+    calculations += [r for r in c.get('calculations', []) if r['result_id'] in cited]
     # C01/I01/B01 need actual excerpts. Finance sees only its own evidence and topic matches.
     evidence_ids = {f['evidence_id'] for f in facts}
     from .references import reference_question_support

@@ -76,6 +76,24 @@ def test_hand_written_or_undeclared_industry_numbers_are_flagged_and_dropped():
     assert clean.industry_data_ids == [datum.data_id]
 
 
+def test_industry_ids_written_without_their_prefix_are_mapped_back():
+    # The writer dropped the ind- prefix the token kind already names; the repair round
+    # then reported every such ID as unknown and the model deleted all industry numbers.
+    from company_research.writers import without_record_ids
+    local, datum = context()
+    bare = datum.data_id.removeprefix('ind-')
+    draft = without_record_ids(
+        WriterDraft(
+            paragraphs=[f'全球香精香料市场平稳增长。2017年全球市场规模达到[[ind:{bare}]]。'],
+            evidence_ids=[], calculation_ids=[], fact_ids=[], assumption_ids=[], industry_data_ids=[bare],
+        ),
+        local,
+    )
+    assert draft.paragraphs == [f'全球香精香料市场平稳增长。2017年全球市场规模达到[[ind:{datum.data_id}]]。']
+    assert draft.industry_data_ids == [datum.data_id]
+    assert draft_problems(draft, local) == []
+
+
 def test_industry_blocks_receive_material_evidence_and_its_data():
     local, datum = context()
     c = dict(

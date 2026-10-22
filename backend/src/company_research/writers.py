@@ -24,6 +24,7 @@ from .framework import digest
 from .text_checks import direction_problems, gap_problems, meta_problems, strip_meta
 
 TOKEN = re.compile(r'\[\[(fact|calc|assumption|ind):([a-zA-Z0-9_-]+)\]\]')
+KINDLESS_TOKEN = re.compile(r'\[\[((?:[a-z]+-)+[0-9a-f]{8,}(?:-\d+)?)\]\]')
 # Dates, reporting periods and structural ordinals are not financial quantities and
 # may be written directly; every other digit must come from a bound data token.
 ALLOWED_NUMERALS = re.compile(
@@ -107,12 +108,38 @@ def canonical_ids(draft: WriterDraft, context: dict) -> WriterDraft:
     def fix(kind, id):
         return aliases[kind].get(id, id)
 
+    # [[fact-slot-…]] without its kind: the record's own collection names it. Left alone,
+    # ID cleanup removed the inner ID and left “[]” in the report.
+    objects = citable(context)
+    owners = {}
+    for kind, items in objects.items():
+        for id in items:
+            owners.setdefault(id, set()).add(kind)
+    inferred = {kind: [] for kind in DRAFT_ID_FIELDS}
+
+    def kindless(match):
+        kinds = owners.get(match.group(1), set())
+        if len(kinds) != 1:
+            return match.group(0)
+        kind = next(iter(kinds))
+        inferred[kind].append(match.group(1))
+        return f'[[{kind}:{match.group(1)}]]'
+
     def fix_ref(ref):
+        kinds = owners.get(ref.strip(), set())
+        if len(kinds) == 1:
+            return f'{next(iter(kinds))}:{ref.strip()}'
         match = CHART_REF.fullmatch(ref.strip())
         return f'{match.group(1)}:{fix(*match.groups())}' if match and match.group(1) in aliases else ref
 
-    paragraphs = [TOKEN.sub(lambda m: f'[[{m.group(1)}:{fix(*m.groups())}]]', p) for p in draft.paragraphs]
-    fields = {field: list(dict.fromkeys(fix(kind, id) for id in getattr(draft, field))) for kind, field in DRAFT_ID_FIELDS.items()}
+    paragraphs = [
+        TOKEN.sub(lambda m: f'[[{m.group(1)}:{fix(*m.groups())}]]', KINDLESS_TOKEN.sub(kindless, p))
+        for p in draft.paragraphs
+    ]
+    fields = {
+        field: list(dict.fromkeys([fix(kind, id) for id in getattr(draft, field)] + inferred[kind]))
+        for kind, field in DRAFT_ID_FIELDS.items()
+    }
     charts = [
         c.model_copy(update={'series': [s.model_copy(update={'refs': [fix_ref(r) for r in s.refs]}) for s in c.series]})
         for c in draft.charts
@@ -124,6 +151,8 @@ def canonical_ids(draft: WriterDraft, context: dict) -> WriterDraft:
 
 def without_record_ids(draft: WriterDraft, context: dict) -> WriterDraft:
     """Prose never carries record IDs; valid evidence IDs move to evidence_ids instead."""
+    if context.get('no_charts') and draft.charts:
+        draft = draft.model_copy(update={'charts': []})
     draft = canonical_ids(draft, context)
     known = {e['evidence_id'] for e in context['evidence']}
     paragraphs, removed = [], []
@@ -267,6 +296,13 @@ CHART_REF = re.compile(r'(fact|calc|assumption|ind):([a-zA-Z0-9_-]+)')
 IND_VALUE = re.compile(r'\s*([-+]?\d[\d,，]*(?:\.\d+)?)\s*(.*?)\s*')
 CHART_SCALES = {'CNY_million': (Decimal('0.01'), '亿元'), 'ratio': (Decimal(100), '%'), 'percentage_points': (Decimal(1), 'pct')}
 MAX_CHARTS = 3
+# The cover view and the risk chapter read as text; drafts for them carry no charts.
+NO_CHART_SECTIONS = {'core', 'risk'}
+
+
+def primary_publisher(publisher: str) -> str:
+    """The first named source: “国家统计局、中国酒业协会” and “国家统计局” are one series."""
+    return re.split(r'[、,，/;；]|和|与|及', publisher or '')[0].strip()
 
 
 def chart_value(kind: str, item: dict) -> tuple[float, str] | None:
@@ -309,8 +345,8 @@ def resolve_chart(spec: ChartSpec, objects: dict) -> tuple[SectionChart | None, 
             values.append(value[0])
             refs.append(f'{kind}:{match.group(2)}')
             if kind == 'ind':
-                origins.add((item['metric'], item.get('publisher', '')))
-                sources.add(item.get('publisher') or '行业资料')
+                origins.add((item['metric'], primary_publisher(item.get('publisher', ''))))
+                sources.add(primary_publisher(item.get('publisher', '')) or '行业资料')
             else:
                 sources.add('研究预测' if kind == 'assumption' or item.get('scenario') not in (None, 'historical') else '公司公告')
         if len(origins) > 1:
@@ -574,11 +610,14 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
         'assumptions': selected['assumptions'],
         'industry_data': selected.get('industry_data', []),
         'part_topics': section_parts(section_id),
+        'no_charts': core or section_id in NO_CHART_SECTIONS,
     }
     data = selected | {
         'section': {'section_id': section_id, 'block_id': section_block(section_id), 'title': title, 'goal': goal},
         'instructions': instructions or [],
     }
+    if local['no_charts']:
+        data['charts_contract'] = '本章不配图，charts 留空'
     if local['part_topics']:
         data['parts_contract'] = {'topics': local['part_topics'], 'optional': ['policy']}
     if core:

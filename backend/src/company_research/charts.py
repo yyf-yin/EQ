@@ -42,6 +42,7 @@ class Chart:
     keywords: tuple = ()
     labels: bool = True
     label: str = ''  # 图N, assigned when the report is laid out
+    origin: str = 'fixed'  # fixed | writer | industry; fixed charts win when two show the same data
 
     def usable(self) -> bool:
         self.series = [s for s in self.series if any(v is not None for v in s.values)]

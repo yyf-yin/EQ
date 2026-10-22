@@ -92,3 +92,50 @@ def test_cited_industry_series_gets_a_chart_unless_the_writer_drew_it():
     assert figure.categories == ['2023', '2024', '2025'] and quotes == {'354.90万千升'}
     drawn = section.model_copy(update={'charts': [resolve_draft(draft([chart(['ind:ind-a1', 'ind:ind-a2', 'ind:ind-a3'])]), context(), 'x', 't').charts[0]]})
     assert industry_charts(drawn, DATA) == []
+
+
+def test_tokens_written_without_their_kind_are_completed():
+    from company_research.writers import without_record_ids
+    ids = ['ind-' + c * 24 for c in 'abc']
+    data = [datum(i, f'{2023 + k}年', v) for k, (i, v) in enumerate(zip(ids, ['449.20万千升', '414.50万千升', '354.90万千升']))]
+    raw = WriterDraft(
+        paragraphs=[LONG, f'2025年全国白酒产量为[[{ids[2]}]]。' + LONG],
+        evidence_ids=[], calculation_ids=[], fact_ids=[], assumption_ids=[],
+        charts=[chart([ids[0], 'ind:' + ids[1], 'ind:' + ids[2][4:]])],
+    )
+    fixed = without_record_ids(raw, context(data))
+    assert f'[[ind:{ids[2]}]]' in fixed.paragraphs[1] and fixed.industry_data_ids == [ids[2]]
+    assert fixed.charts[0].series[0].refs == ['ind:' + i for i in ids]
+    assert draft_problems(fixed, context(data)) == []
+    from company_research.presentation import clean
+    assert clean('合并营业收入[]，同比-1.21%。') == '合并营业收入，同比-1.21%。'
+
+
+def test_risk_and_core_drafts_carry_no_charts():
+    from company_research.writers import without_record_ids
+    assert without_record_ids(draft([chart(['ind:ind-a1', 'ind:ind-a2', 'ind:ind-a3'])]), context() | {'no_charts': True}).charts == []
+
+
+def test_co_published_industry_data_forms_one_series():
+    data = DATA[:2] + [datum('ind-a3', '2025年', '354.90万千升', publisher='国家统计局、中国酒业协会')]
+    section = ReportSection(
+        section_id='industry-0', title='t', paragraphs=['2025年产量为354.90万千升。'],
+        number_bindings={'ind:ind-a3': '354.90万千升'},
+    )
+    [(figure, _)] = industry_charts(section, data)
+    assert figure.series[0].values == [449.2, 414.5, 354.9] and figure.source == '国家统计局'
+
+
+def test_charts_repeating_a_fixed_or_earlier_chart_are_dropped():
+    from company_research.charts import Chart, Series
+    from company_research.presentation import PSection, Presentation, drop_repeated_charts
+    fixed = Chart('公司盈利能力情况', ['2023', '2024', '2025'], [Series('毛利率', [91.96, 91.93, 91.18]), Series('ROE', [36.2, 38.4, 34.5])])
+    same = Chart('毛利率', ['2023A', '2024A', '2025A'], [Series('毛利率', [91.961, 91.93, 91.18])], origin='writer')
+    price = Chart('批价', ['原箱', '散装', '普五'], [Series('批价', [1710, 1695, 770])], origin='writer')
+    again = Chart('批价对比', ['飞天原箱', '飞天散装', '八代五粮液'], [Series('批价', [1710, 1695, 770])], origin='writer')
+    view = Presentation('t', 's', [], None, [
+        PSection('a', 'a', 1, [('p', 'x'), ('chart', same), ('chart', fixed), ('chart', price)]),
+        PSection('b', 'b', 1, [('chart', again), ('p', 'y')]),
+    ], [])
+    drop_repeated_charts(view)
+    assert [b[1].title for s in view.flat() for b in s.blocks if b[0] == 'chart'] == ['公司盈利能力情况', '批价']

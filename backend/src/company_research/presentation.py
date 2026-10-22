@@ -85,6 +85,8 @@ def clean(text: str) -> str:
     from .text_checks import strip_meta
 
     text, _ = strip_record_ids(text)
+    # Brackets left empty by a removed record ID are dropped, not shown as “[]”.
+    text = re.sub(r'\[\s*\]|【\s*】|（\s*）', '', text)
     return MONEY.sub(money, strip_meta(text)).strip()
 
 
@@ -116,9 +118,10 @@ MERGE_BELOW = 100
 MERGE_LIMIT = 420
 
 
-def body_items(section: ReportSection, start: int = 0, end: int | None = None) -> list[tuple[list[int], str]]:
+def body_items(section: ReportSection, start: int = 0, end: int | None = None, skip=None) -> list[tuple[list[int], str]]:
     """Reader paragraphs of section.paragraphs[start:end], each with the original indexes
-    it was built from; short fragments are merged into the neighbouring paragraph."""
+    it was built from; short fragments are merged into the neighbouring paragraph.
+    `skip` drops paragraphs (by their cleaned text) before anything is merged."""
     from .comparisons import template_paragraph
 
     items = []
@@ -128,7 +131,7 @@ def body_items(section: ReportSection, start: int = 0, end: int | None = None) -
         if not p or template_paragraph(p) or p.startswith(BOILERPLATE):
             continue
         text = clean(p)
-        if text and all(text != t for _, t in items):
+        if text and not (skip and skip(text)) and all(text != t for _, t in items):
             items.append(([i], text))
     merged = []
     for indexes, text in items:
@@ -150,6 +153,7 @@ def section_chart(chart) -> Chart:
         kind=chart.kind,
         source=chart.source,
         labels=len(chart.categories) <= 6 and len(chart.series) <= 2,
+        origin='writer',
     )
 
 
@@ -159,7 +163,7 @@ YEAR = re.compile(r'((?:19|20)\d{2})')
 def industry_charts(section: ReportSection, data) -> list[tuple[Chart, set[str]]]:
     """A line of the same subject, metric and publisher over three or more years, for
     industry data the section cites, unless a writer chart already shows it."""
-    from .writers import IND_VALUE
+    from .writers import IND_VALUE, primary_publisher
 
     cited = {k.split(':', 1)[1] for k in section.number_bindings if k.startswith('ind:')}
     shown = {r.split(':', 1)[1] for c in section.charts for r in c.refs if r.startswith('ind:')}
@@ -167,7 +171,7 @@ def industry_charts(section: ReportSection, data) -> list[tuple[Chart, set[str]]
     for d in data:
         match, year = IND_VALUE.fullmatch(d.value_text), YEAR.search(d.period)
         if match and year:
-            key = (d.subject, d.metric, d.publisher, match.group(2))
+            key = (d.subject, d.metric, primary_publisher(d.publisher), match.group(2))
             groups.setdefault(key, {}).setdefault(year.group(1) + ('E' if d.actual_or_forecast == 'forecast' else ''), (d, float(re.sub('[,，]', '', match.group(1)))))
     out = []
     for (subject, metric, publisher, unit), points in groups.items():
@@ -182,10 +186,37 @@ def industry_charts(section: ReportSection, data) -> list[tuple[Chart, set[str]]
             unit=unit,
             source=publisher or '行业资料',
             labels=len(periods) <= 8,
+            origin='industry',
         )
         if chart.usable():
             out.append((chart, {section.number_bindings['ind:' + i] for i in ids & cited}))
     return out[:2]
+
+
+def chart_values(chart: Chart) -> set:
+    # One decimal absorbs the rounding between 亿元 conversions and ratio formulas.
+    return {round(v, 1) for s in chart.series for v in s.values if v is not None}
+
+
+# A chart sharing this share of its values with another adds at most a period or two.
+REPEATED_SHARE = 0.75
+
+
+def drop_repeated_charts(presentation: 'Presentation'):
+    """A writer or industry chart whose values are mostly shown by a fixed chart, or by
+    a chart earlier in the report, repeats that figure and is dropped."""
+    fixed = [chart_values(b[1]) for s in presentation.flat() for b in s.blocks if b[0] == 'chart' and b[1].origin == 'fixed']
+    seen = []
+    for section in presentation.flat():
+        kept = []
+        for block in section.blocks:
+            if block[0] == 'chart' and block[1].origin != 'fixed':
+                values = chart_values(block[1])
+                if len(values) >= 3 and any(len(values & other) >= REPEATED_SHARE * len(values) for other in fixed + seen):
+                    continue
+                seen.append(values)
+            kept.append(block)
+        section.blocks = kept
 
 
 def place_items(items, charts, keyword_charts=(), tables=()) -> list:
@@ -395,7 +426,8 @@ def forecast_chart(report: ReportDocument, book: FactBook):
     years = book.annual()[-3:]
     chart = Chart('公司营业收入与归母净利润预测', [label(p) for p in years] + [f.period for f in base], [
         Series('营业收入', [yi(book.get('revenue', p)) for p in years] + [yi(float(f.income['revenue'])) if 'revenue' in f.income else None for f in base]),
-        Series('净利润', [yi(book.get('net_income', p)) for p in years] + [yi(float(f.income['net_income'])) if 'net_income' in f.income else None for f in base]),
+        # The title promises 归母: owners' income, which equals net_income only without minorities.
+        Series('归母净利润', [yi(book.get('parent_net_income', p)) for p in years] + [yi(float(v)) if (v := parent_income(f)) is not None else None for f in base]),
     ], unit='亿元', labels=False, keywords=('预测', '预计'))
     return chart if chart.usable() else None
 
@@ -893,7 +925,7 @@ def present(report: ReportDocument) -> Presentation:
     business = PSection('business', CHAPTERS[1], 1)
     source = by_id.get('business')
     if source:
-        business.blocks = [('p', p) for p in body_paragraphs(source)]
+        business.blocks = place_items(body_items(source), drawn(source))
     segment_finance = next((c for c in financial.children if c.section_id == 'F04'), None) if financial else None
     parts = []
     if segment_finance:
@@ -921,9 +953,9 @@ def present(report: ReportDocument) -> Presentation:
     forecast = PSection('forecast', CHAPTERS[2], 1)
     if 'forecast' in by_id:
         # Per-assumption rationale lines are replaced by the assumptions table.
-        paragraphs = [p for p in body_paragraphs(by_id['forecast']) if not p.startswith('假设依据：')]
+        items = body_items(by_id['forecast'], skip=lambda p: p.startswith('假设依据：'))
         figure = forecast_chart(report, book)
-        forecast.blocks = place(paragraphs, [figure] if figure else [])
+        forecast.blocks = place_items(items, drawn(by_id['forecast']), [figure] if figure else [])
         summary = summary_table(report, book) if report.forecasts else None
         if summary:
             summary.title = '盈利预测与估值汇总'
@@ -942,7 +974,8 @@ def present(report: ReportDocument) -> Presentation:
     # 四、风险提示
     risk = PSection('risk', CHAPTERS[3], 1)
     if 'risk' in by_id:
-        risk.blocks = [('p', p) for p in body_paragraphs(by_id['risk'])]
+        # Risks read as text only; the section carries no figures.
+        risk.blocks = [('p', p) for _, p in body_items(by_id['risk'])]
     chapters.append(risk)
 
     # Two-level numbering: （一）（二）… then 1. 2. …
@@ -961,6 +994,7 @@ def present(report: ReportDocument) -> Presentation:
         appendix=statement_tables(report, book) if report.financial_facts else legacy_statements(by_id.get('statements')),
         mode=report.mode,
     )
+    drop_repeated_charts(presentation)
     number_figures(presentation)
     return presentation
 

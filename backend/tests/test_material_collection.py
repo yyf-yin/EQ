@@ -374,7 +374,7 @@ async def test_new_counter_evidence_can_reduce_adequacy_without_losing_old_refs(
 
 async def test_industry_directions_are_searched_one_by_one_until_each_had_its_query(tmp_path):
     from company_research.material_collection import DIRECTION_TERMS
-    collector,c,task,requests,_,_=await setup(tmp_path,material_industry_search_budget=12)
+    collector,c,task,requests,_,_=await setup(tmp_path,material_industry_search_budget=13)
     result=await collector.collect(c)
     slot=collector.slot(task)
     # A broad query, then one query per open direction: fruitless searches do not end the loop.
@@ -384,7 +384,7 @@ async def test_industry_directions_are_searched_one_by_one_until_each_had_its_qu
     assert all(DIRECTION_TERMS[h['direction_ids'][0]] in h['query'] for h in slot['search_history'][1:])
     policy=next(h['query'] for h in slot['search_history'] if h['direction_ids']==['policy'])
     assert '2023-2026' in policy
-    assert slot['stop_reason']=='directions_exhausted' and slot['search_budget']==12
+    assert slot['stop_reason']=='directions_exhausted' and slot['search_budget']==13
     limits=result['material_collections'][0]['limitations']
     assert any(v.startswith('市场规模与结构') for v in limits)  # required gap stays visible
     assert not any(v.startswith('政策与监管变化') for v in limits)  # 无则过
@@ -394,7 +394,7 @@ async def test_business_slots_keep_the_shared_budget(tmp_path):
     collector,_,_,_,_,_=await setup(tmp_path)
     business={'topic':'业务资料：设备'}
     assert collector.search_budget(business)==collector.settings.material_search_budget==3
-    assert collector.search_budget({'topic':'行业资料：制造业'})==12
+    assert collector.search_budget({'topic':'行业资料：制造业'})==13
     assert collector.document_budget(business)==8 and collector.document_budget({'topic':'行业资料：制造业'})==16
 
 
@@ -436,7 +436,7 @@ async def test_refined_subject_must_be_disclosed_and_neutral(tmp_path,subject):
 
 async def test_policy_query_is_limited_to_configured_site(tmp_path):
     from company_research.datasources import SourcePolicy
-    collector,c,task,requests,_,_=await setup(tmp_path,material_industry_search_budget=12)
+    collector,c,task,requests,_,_=await setup(tmp_path,material_industry_search_budget=13)
     collector.w.datasource.policy=SourcePolicy(policy_site='gov.cn')
     await collector.collect(c)
     slot=collector.slot(task)

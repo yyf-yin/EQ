@@ -22,8 +22,8 @@ TEMPLATES = {
     'F04': ['分业务收入毛利占比及同比', '量价结构驱动与分部披露限制'],
     'F05': ['ROE、ROIC与资本效率', '投资研发分红回购融资与股东回报'],
     'I01': [
-        '产品用途、工艺路线与关键原料',
-        '供给格局、集中度、主要产能与壁垒',
+        '产品性能用途、应用领域、工艺路线与关键原料',
+        '供给格局、集中度、主要厂商产能对比与壁垒',
         '下游需求结构、市场规模与增速预测',
         '价格走势、周期位置与驱动因素',
         '近期政策与贸易事件及其影响',
@@ -35,7 +35,18 @@ TEMPLATES = {
 }
 
 # Earlier question sets still validate, so plans saved before a rewrite can resume.
-LEGACY_TEMPLATES = {'I01': [['需求规模周期价格与政策', '竞争格局与产业链']]}
+LEGACY_TEMPLATES = {
+    'I01': [
+        ['需求规模周期价格与政策', '竞争格局与产业链'],
+        [
+            '产品用途、工艺路线与关键原料',
+            '供给格局、集中度、主要产能与壁垒',
+            '下游需求结构、市场规模与增速预测',
+            '价格走势、周期位置与驱动因素',
+            '近期政策与贸易事件及其影响',
+        ],
+    ]
+}
 # Answered when the material supports them; their absence is not a coverage gap
 # (not every industry has a recent policy or trade event).
 OPTIONAL_QUESTIONS = {'I01': {4}}

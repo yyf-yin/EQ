@@ -1253,6 +1253,8 @@ class FixedCollection:
                 '行业与第三方数字（市场规模、产量、产能、需求量、价格、增速、市占率、进出口、开工率及机构预测）逐项填 industry_data，不进 values：'
                 'value_text 照抄原文的单个数值和单位（如 263亿美元、7.37%），quote 保留含该数值的完整原句，period 写原文期间（如 2020年、2025E、2016-2020年），'
                 'subject 写统计对象和地域（如 全球维生素E、我国蛋氨酸），预测值 actual_or_forecast=forecast，publisher 写原文所述的数据或预测机构；不换算、不推算、不取区间中点。',
+                '厂商对比表或列举中各家企业的产能、产量、份额、在建与拟建产能逐家各提交一条，subject 写企业名与产品（如 东丽PPS、赢创蛋氨酸），'
+                'metric 写指标（如 产能、拟建产能），同一表中各家口径与期间保持一致；目标公司自身的这类数据同样提交，便于横向比较。',
             ],
         }
         # Stable windows are independent of task IDs and analysis questions. Leave

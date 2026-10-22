@@ -1823,8 +1823,57 @@ class ResearchWorkflow:
                     'industry_data': c.get('industry_data', []) + [d.model_dump(mode='json') for d in data],
                 }
                 c = c | update
+        if not self.mock and c.get('writing_style') == 'bullish' and c.get('forecasts'):
+            valued = await self.bullish_valuation(c)
+            update |= valued
+            c = c | valued
         report = await make_report(c, self.gateway, self.mock, self.store, self.run_id)
         return update | {'report': report.model_dump(mode='json')}
+
+    async def bullish_valuation(self, c):
+        """The bullish multiple and target price (valuation.py), added to the forecast's own
+        assumptions and calculations. The PE history is fetched once per run and cited."""
+        from .market_data import HISTORY_SOURCE, history_summary, valuation_history
+        from .valuation import HISTORY_YEARS, bullish_valuation
+
+        ticker = str(c['company'].get('ticker') or '')
+        history, evidence_ids, added = None, [], {'sources': c['sources'], 'evidence': c['evidence']}
+        if self.settings.market_data and re.fullmatch(r'\d{6}', ticker):
+            saved = self.store.execution_get(self.run_id, 'execution_meta', 'valuation-history')
+            if saved is None:
+                as_of = date.fromisoformat(str((c.get('market') or {}).get('as_of') or c['brief'].get('as_of') or date.today().isoformat())[:10])
+                try:
+                    found = await asyncio.to_thread(valuation_history, ticker, as_of, HISTORY_YEARS)
+                except Exception:  # network or upstream format change: the history anchor is skipped
+                    found = None
+                saved = {'history': found}
+                self.store.execution_put(self.run_id, 'execution_meta', 'valuation-history', saved)
+            history = saved.get('history')
+        if history:
+            text = history_summary(ticker, history)
+            source = SourceRecord(
+                source_id='valuation-' + digest(history)[:16], kind='web', title=f'个股历史估值（{history["end"]}）',
+                content=text + '\n' + json.dumps(history, ensure_ascii=False), publication_date=history['end'],
+            )
+            evidence = EvidenceRecord(
+                evidence_id='ev-' + digest([source.source_id, 'valuation-history'])[:24], source_id=source.source_id,
+                claim=f'公司历史估值（{HISTORY_SOURCE}）', quote=text, locator='全文',
+                actual_or_forecast='context', validation_status='verified',
+            )
+            self.store.record(self.run_id, 'source', source.source_id, source.model_dump(mode='json'))
+            self.store.record(self.run_id, 'evidence', evidence.evidence_id, evidence.model_dump(mode='json'))
+            evidence_ids = [evidence.evidence_id]
+            if source.source_id not in {s['source_id'] for s in c['sources']}:
+                added['sources'] = c['sources'] + [source.model_dump(mode='json')]
+            if evidence.evidence_id not in {e['evidence_id'] for e in c['evidence']}:
+                added['evidence'] = c['evidence'] + [evidence.model_dump(mode='json')]
+        assumptions, calculations = bullish_valuation(c, history, evidence_ids)
+        known_a = {a['assumption_id'] for a in c['assumptions']}
+        known_r = {r['result_id'] for r in c['calculations']}
+        return added | {
+            'assumptions': c['assumptions'] + [a.model_dump(mode='json') for a in assumptions if a.assumption_id not in known_a],
+            'calculations': c['calculations'] + [r.model_dump(mode='json') for r in calculations if r.result_id not in known_r],
+        }
 
     async def core_conclusion(self, c):
         from .writers import write_core

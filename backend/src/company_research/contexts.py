@@ -296,12 +296,15 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
         if (set(r['input_refs'].values()) & fact_ids or (template in {'V01', 'X01'} and r['scenario'] != 'historical'))
         and (not template.startswith('F') or r['scenario'] == 'historical')
     ]
+    from .valuation import METRICS as BULLISH_METRICS
+
     if template in {'V01', 'R01', 'X01'}:
         calculations = [
             r
             for r in calculations
             if r['output_metric']
             in {'revenue', 'net_income', 'parent_net_income', 'eps', 'target_price', 'cfo', 'fcf', 'cash', 'pe', 'roe', 'roic'}
+            | set(BULLISH_METRICS)
             or r['output_metric'].endswith(('.yoy', '.delta'))
         ]
         # Tables retain all detailed calculation chains. Analysis sees key final results and latest comparisons.
@@ -312,7 +315,8 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             if r['period'] == latest
             or (
                 r['scenario'] != 'historical'
-                and r['output_metric'] in {'revenue', 'net_income', 'parent_net_income', 'eps', 'target_price', 'cfo', 'cash'}
+                and r['output_metric']
+                in {'revenue', 'net_income', 'parent_net_income', 'eps', 'target_price', 'cfo', 'cash'} | set(BULLISH_METRICS)
             )
         ]
     comparisons = [r for r in c.get('comparisons', []) if r['current_fact_id'] in fact_ids]

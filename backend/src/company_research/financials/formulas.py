@@ -100,6 +100,13 @@ register('closing_equity', 'opening_equity net_income dividends', lambda e, n, d
 register('closing_ppe', 'opening_ppe capex depreciation', lambda p, c, d: p + c - d, 'CNY_million')
 register('closing_debt', 'opening_debt borrowing repayment', lambda d, b, r: d + b - r, 'CNY_million')
 register('target_price', 'eps target_pe', lambda e, p: e * p, 'CNY/share')
+# Bullish valuation (valuation.py): peers' PE scaled by the ROE edge, at most 1.5 times.
+register(
+    'leader_pe', 'peer_pe company_roe peer_roe',
+    lambda p, a, b: p * min(max(ratio(a, b), D(1)), D('1.5')), 'times',
+)
+register('maximum', 'a b', lambda a, b: max(a, b), 'dynamic')
+register('dividend_yield', 'dps price', ratio)
 
 INPUT_UNITS = {
     'shares': 'million_shares',

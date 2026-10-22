@@ -159,6 +159,47 @@ def summary(data: dict) -> str:
     return '；'.join(parts) + '。'
 
 
+HISTORY_SOURCE = '东方财富个股估值（经 AKShare）'
+
+
+def valuation_history(code: str, as_of: date, years: int = 3) -> dict | None:
+    """The company's own daily PE(TTM) over the last `years` years: median and band.
+    None when the series is unavailable or covers fewer than about six months."""
+    import akshare as ak
+    import pandas as pd
+
+    df = call(ak.stock_value_em, symbol=code)
+    if df is None or df.empty or 'PE(TTM)' not in df.columns:
+        return None
+    dates = pd.to_datetime(df.iloc[:, 0], errors='coerce')
+    values = pd.to_numeric(df['PE(TTM)'], errors='coerce')
+    end = pd.Timestamp(as_of)
+    window = (dates <= end) & (dates > end - pd.DateOffset(years=years)) & (values > 0)
+    series, days = values[window], dates[window]
+    if len(series) < 120:
+        return None
+    return {
+        'source': HISTORY_SOURCE,
+        'metric': 'PE(TTM)',
+        'years': years,
+        'start': days.min().date().isoformat(),
+        'end': days.max().date().isoformat(),
+        'days': int(len(series)),
+        **{k: round(float(v), 2) for k, v in {
+            'median': series.median(), 'p25': series.quantile(0.25), 'p75': series.quantile(0.75),
+            'min': series.min(), 'max': series.max(),
+        }.items()},
+    }
+
+
+def history_summary(code: str, history: dict) -> str:
+    return (
+        f'{code} 近{history["years"]}年{history["metric"]}（{history["start"]}至{history["end"]}，'
+        f'{history["days"]}个交易日）：中位数 {history["median"]:.2f} 倍，25%—75%分位 {history["p25"]:.2f}—{history["p75"]:.2f} 倍，'
+        f'区间 {history["min"]:.2f}—{history["max"]:.2f} 倍。'
+    )
+
+
 def pe(price, earnings):
     return price / earnings if price and earnings and earnings > 0 else None
 

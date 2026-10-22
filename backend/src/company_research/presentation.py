@@ -788,6 +788,7 @@ def comps_table(report: ReportDocument) -> PTable | None:
 
 def scenario_table(report: ReportDocument) -> PTable | None:
     first = min((f.period for f in report.forecasts), default=None)
+    bullish = (bullish_view(report) or {}).get('targets') or {}
     rows = []
     for scenario, label in [('Bear', '悲观'), ('Base', '基准'), ('Bull', '乐观')]:
         f = next((x for x in report.forecasts if x.scenario == scenario and x.period == first), None)
@@ -800,15 +801,67 @@ def scenario_table(report: ReportDocument) -> PTable | None:
             cell(parent_income(f)),
             cell(forecast_value(f, 'income', 'eps'), 'num'),
             cell(target if target else None, 'num'),
-        ])
+        ] + ([cell(bullish.get(scenario), 'num')] if bullish else []))
     if len(rows) < 2:
         return None
-    return PTable(
-        f'情景分析（{first}）',
-        ['情景', '营业收入（百万元）', '归母净利润（百万元）', 'EPS（元/股）', '目标价（元）'],
-        rows,
-        source='研究预测',
-    )
+    columns = ['情景', '营业收入（百万元）', '归母净利润（百万元）', 'EPS（元/股）', '目标价（元）']
+    if bullish:
+        columns = columns[:-1] + ['目标价·可比 PE（元）', '目标价·看多估值（元）']
+    return PTable(f'情景分析（{first}）', columns, rows, source='研究预测')
+
+
+def bullish_view(report: ReportDocument) -> dict | None:
+    """The bullish valuation (valuation.py) of a bullish report, read back from its records."""
+    from .valuation import METRICS
+
+    if report.writing_style != 'bullish':
+        return None
+    calcs = {}
+    for r in report.calculations:
+        if r.output_metric in METRICS:
+            calcs.setdefault((r.output_metric, r.scenario), r)
+    target = calcs.get(('bullish_target_price', 'Base'))
+    if not target:
+        return None
+    by_id = {a.assumption_id: a for a in report.assumptions}
+    year = target.period
+    pick = lambda metric: next((a for a in report.assumptions if a.metric_code == metric and a.scenario == 'Base' and a.period == year and not a.segment_id), None)
+    leader = calcs.get(('leader_pe', 'Base'))
+    return {
+        'year': year,
+        'multiple': float(target.inputs['target_pe']),
+        'target': float(target.value),
+        'targets': {s: float(calcs[('bullish_target_price', s)].value) for s in ('Bear', 'Base', 'Bull') if ('bullish_target_price', s) in calcs},
+        'eps': float(target.inputs['eps']),
+        'peer': pick('target_pe'),
+        'history': pick('historical_pe_median'),
+        'leader': leader,
+        'roe': (by_id.get(leader.input_refs['company_roe']), by_id.get(leader.input_refs['peer_roe'])) if leader else None,
+        'upside': float(calcs[('bullish_upside', 'Base')].value) if ('bullish_upside', 'Base') in calcs else None,
+        'yield': float(calcs[('dividend_yield', 'Base')].value) if ('dividend_yield', 'Base') in calcs else None,
+    }
+
+
+def bullish_table(report: ReportDocument) -> PTable | None:
+    view = bullish_view(report)
+    if not view:
+        return None
+    rows = []
+    if view['peer'] and view['peer'].value > 0:
+        rows.append(['可比公司 PE 中位数', f'{float(view["peer"].value):.2f} 倍', view['peer'].rationale.split('：', 1)[-1]])
+    if view['history']:
+        rows.append(['历史估值中枢', f'{float(view["history"].value):.2f} 倍', view['history'].rationale.split('：', 1)[-1]])
+    if view['leader'] and view['roe'] and all(view['roe']):
+        own, peers = view['roe']
+        rows.append(['龙头溢价 PE', f'{float(view["leader"].value):.2f} 倍',
+                     f'可比公司 PE × ROE 比（公司 {float(own.value) * 100:.2f}% / 可比中位数 {float(peers.value) * 100:.2f}%，溢价 1—1.5 倍）'])
+    rows.append(['看多目标市盈率', f'{view["multiple"]:.2f} 倍', '历史估值中枢与龙头溢价 PE 的平均，不低于可比公司 PE 中位数'])
+    rows.append([f'{view["year"]} EPS（基准）', f'{view["eps"]:.2f} 元', '盈利预测基准情景'])
+    move = f'，较现价{"上涨" if view["upside"] >= 0 else "下跌"} {abs(view["upside"]) * 100:.1f}%' if view['upside'] is not None else ''
+    rows.append(['看多目标价', f'{view["target"]:.2f} 元', f'看多目标市盈率 × {view["year"]} EPS{move}'])
+    if view['yield'] is not None:
+        rows.append([f'{view["year"]} 股息率（现价）', f'{view["yield"] * 100:.2f}%', '基准情景分红率 × EPS / 现价'])
+    return PTable(f'看多估值（{view["year"]}）', ['估值方法', '数值', '依据'], rows, source='研究预测、东方财富、申万行业成份（经 AKShare）')
 
 
 def valuation_paragraph(report: ReportDocument) -> str | None:
@@ -831,7 +884,21 @@ def valuation_paragraph(report: ReportDocument) -> str | None:
         (a for a in report.assumptions if a.metric_code == 'target_pe' and a.scenario == 'Base' and a.period == base[0].period),
         None,
     )
-    if target and pe_assumption and float(pe_assumption.value) > 0:
+    view = bullish_view(report)
+    if view:
+        anchors = []
+        if view['history']:
+            anchors.append(f'近三年 PE(TTM) 中枢 {float(view["history"].value):.1f} 倍')
+        if view['leader']:
+            anchors.append(f'龙头溢价 PE {float(view["leader"].value):.1f} 倍')
+        text += f'。综合{"与".join(anchors)}，给予公司{years[0]}年{view["multiple"]:.1f}倍 PE，对应目标价{view["target"]:.2f}元'
+        if view['upside'] is not None:
+            text += f'，较当前股价{"上涨" if view["upside"] >= 0 else "下跌"}空间{abs(view["upside"]) * 100:.1f}%'
+        if view['yield'] is not None:
+            text += f'；按基准分红率测算，{years[0]}年股息率约{view["yield"] * 100:.1f}%'
+        if target and pe_assumption and float(pe_assumption.value) > 0:
+            text += f'。按可比公司 PE 中位数{float(pe_assumption.value):.1f}倍计算的目标价为{target:.2f}元'
+    elif target and pe_assumption and float(pe_assumption.value) > 0:
         basis = pe_assumption.rationale.split('：', 1)[-1]
         text += f'。参考{basis}{float(pe_assumption.value):.1f}倍，对应{years[0]}年目标价{target:.2f}元'
         if price:
@@ -965,6 +1032,7 @@ def present(report: ReportDocument) -> Presentation:
             ('p', valuation_paragraph(report)),
             ('table', summary),
             ('table', scenario_table(report)),
+            ('table', bullish_table(report)),
             ('table', comps_table(report)),
         ]:
             if block[1]:

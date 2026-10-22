@@ -37,7 +37,7 @@ test('上传成果包后默认沿用合格章节，确认风险后才能导入',
  fireEvent.click(screen.getByRole('checkbox',{name:/我已了解以上风险/}))
  fireEvent.click(submit)
  await waitFor(()=>expect(onImported).toHaveBeenCalledWith({run_id:'new',status:'queued'}))
- expect(fetch).toHaveBeenLastCalledWith('/api/resume-packages/p1/import',expect.objectContaining({body:JSON.stringify({level:'writing',keep_sections:['company'],accept_risks:true})}))
+ expect(fetch).toHaveBeenLastCalledWith('/api/resume-packages/p1/import',expect.objectContaining({body:JSON.stringify({level:'writing',keep_sections:['company'],accept_risks:true,bullish:false})}))
 })
 
 test('不兼容的成果包不能导入',async()=>{

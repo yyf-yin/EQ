@@ -974,8 +974,8 @@ def present(report: ReportDocument) -> Presentation:
     # 四、风险提示
     risk = PSection('risk', CHAPTERS[3], 1)
     if 'risk' in by_id:
-        # Risks read as text only; the section carries no figures.
-        risk.blocks = [('p', p) for _, p in body_items(by_id['risk'])]
+        # Risks read as text only, one item per paragraph: short items are never merged.
+        risk.blocks = [('p', p) for p in body_paragraphs(by_id['risk'])]
     chapters.append(risk)
 
     # Two-level numbering: （一）（二）… then 1. 2. …

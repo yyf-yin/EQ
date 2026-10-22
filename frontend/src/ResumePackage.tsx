@@ -27,19 +27,19 @@ export function ResumePackageExport({run}:{run:Run}){
 
 export function ResumePackageImport({disabled,onImported}:{disabled:boolean;onImported:(run:Run)=>void}){
  const [info,setInfo]=useState<PackageInfo|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('')
- const [level,setLevel]=useState<string>(''),[keep,setKeep]=useState<string[]>([]),[accepted,setAccepted]=useState(false)
+ const [level,setLevel]=useState<string>(''),[keep,setKeep]=useState<string[]>([]),[accepted,setAccepted]=useState(false),[bullish,setBullish]=useState(false)
  async function upload(file:File){
   setBusy(true);setError('');setInfo(null)
   try{
    const value=await inspectPackage(file)
-   setInfo(value);setLevel(value.recommended_level||'');setAccepted(false)
+   setInfo(value);setLevel(value.recommended_level||'');setAccepted(false);setBullish(!!value.source.bullish)
    setKeep(value.review?.sections.filter(s=>s.default_keep).map(s=>s.section_id)||[])
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  }
  async function submit(){
   if(!info||!level)return
   setBusy(true);setError('')
-  try{const run=await importPackage(info.package_id,{level,keep_sections:level==='writing'?keep:[],accept_risks:accepted});setInfo(null);onImported(run)}
+  try{const run=await importPackage(info.package_id,{level,keep_sections:level==='writing'?keep:[],accept_risks:accepted,bullish});setInfo(null);onImported(run)}
   catch(e){setError((e as Error).message)}finally{setBusy(false)}
  }
  const needsRisk=!!info?.risks.length
@@ -62,6 +62,7 @@ export function ResumePackageImport({disabled,onImported}:{disabled:boolean;onIm
     {level==='writing'&&info.review&&<fieldset><legend className="font-medium">沿用的章节</legend><p className="mt-1 text-xs text-slate-500">未勾选的章节重新写作；有章节重写时核心观点也会重写。沿用的章节仍会重新经过终审。</p>
      <ul className="mt-2 space-y-2">{info.review.sections.map(s=><li key={s.section_id}><label className="flex gap-2"><input type="checkbox" checked={keep.includes(s.section_id)} onChange={e=>setKeep(v=>e.target.checked?[...v,s.section_id]:v.filter(x=>x!==s.section_id))}/><span>{s.title}<span className={`ml-2 text-xs ${s.status==='failed'?'text-red-700':'text-slate-500'}`}>{statusNames[s.status]}</span>{s.issues.map((issue,i)=><span key={i} className="block text-xs text-slate-500">{issue}</span>)}</span></label></li>)}</ul>
     </fieldset>}
+    <label className="flex gap-2"><input type="checkbox" checked={bullish} onChange={e=>setBullish(e.target.checked)}/><span>采用卖方看多逻辑写法<span className="block text-xs text-slate-500">风险提示压缩为简短条目{bullish!==!!info.source.bullish?'；与原任务写法不同，全部章节将重写':''}</span></span></label>
     {needsRisk&&<div className="rounded-lg bg-amber-50 border-l-2 border-amber-400 p-3" role="note"><p className="font-medium text-amber-900">当前配置与成果包生成时不同</p><ul className="mt-2 space-y-1 text-xs text-amber-900">{info.risks.map(r=><li key={r.field}>{r.label}（风险{riskNames[r.level]}）：{r.message}</li>)}</ul><label className="mt-3 flex gap-2 text-xs"><input type="checkbox" checked={accepted} onChange={e=>setAccepted(e.target.checked)}/>我已了解以上风险，仍沿用这些成果</label></div>}
    </>}
    <div className="flex gap-3"><button type="button" disabled={!canSubmit} onClick={()=>void submit()} className="rounded-lg bg-sea text-white px-5 py-2.5 disabled:opacity-40">{busy?'正在导入…':'导入并继续'}</button><button type="button" disabled={busy} onClick={()=>{setInfo(null);setError('')}} className="rounded-lg border border-slate-300 px-4 py-2">取消</button></div>

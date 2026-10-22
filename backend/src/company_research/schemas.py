@@ -36,6 +36,8 @@ class ResearchRun(Schema):
     attempt_id: str | None = None
     resume_count: int = 0
     reference_attachment_ids: list[str] = Field(default_factory=list)
+    # Chosen before research starts: write the sell-side positive thesis and a short risk list.
+    bullish: bool = False
 
 
 class ResearchEvent(Schema):
@@ -369,6 +371,8 @@ class ReportDocument(Schema):
     # Valuation inputs (price, peers, consensus) and which forecast model produced `forecasts`.
     market: dict[str, Any] | None = None
     forecast_model: str = ""
+    # "bullish" when the run asked for the sell-side positive thesis; reviewers read it too.
+    writing_style: str = "neutral"
     rules_version: str = "1.0"
     data_template_version: str | None = None
     snapshot_id: str = ""

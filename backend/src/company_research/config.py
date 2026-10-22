@@ -25,7 +25,8 @@ class Settings(BaseSettings):
     material_search_budget: int = Field(default=3, ge=0, le=6)
     material_document_budget: int = Field(default=8, ge=1, le=30)
     # Industry slots search each direction separately and read more reports.
-    material_industry_search_budget: int = Field(default=10, ge=0, le=12)
+    # One broad query plus one per industry direction (ten since upstream/downstream).
+    material_industry_search_budget: int = Field(default=12, ge=0, le=12)
     material_industry_document_budget: int = Field(default=16, ge=1, le=40)
     # Broker reports from Eastmoney (company and industry) are read first by industry slots,
     # within the industry document budget; a failure falls back to web search (real mode only).

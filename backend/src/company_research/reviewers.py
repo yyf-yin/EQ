@@ -578,6 +578,7 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False, memo=None):
                                 if s.source_id in source_ids
                             ],
                             'core_consistency': report.sections[0].consistency_checks,
+                            **({'writing_style': 'bullish'} if report.writing_style == 'bullish' else {}),
                         }
                         # Unchanged section and citations; the core view feeds every section but
                         # changes each round, so it does not unfreeze them.

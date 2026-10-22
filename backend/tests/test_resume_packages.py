@@ -192,3 +192,25 @@ def test_non_zip_package_is_rejected():
 
     with pytest.raises(PackageError):
         read_package(json.dumps({}).encode(), 1024)
+
+
+async def test_switching_to_the_bullish_style_rewrites_every_section(service, monkeypatch):
+    app, settings, store = service
+    source = await blocked_on_risk(settings, store, monkeypatch)
+    async with client(app) as http:
+        package = (await http.get(f'/api/research/{source}/resume-package')).content
+        info = (await http.post('/api/resume-packages', content=package)).json()
+        assert info['source']['bullish'] is False
+        keep = [s['section_id'] for s in info['review']['sections'] if s['default_keep']]
+        imported = await http.post(
+            f"/api/resume-packages/{info['package_id']}/import",
+            json={'level': 'writing', 'keep_sections': keep, 'bullish': True},
+        )
+        assert imported.status_code == 202, imported.text
+        run = await wait_done(store, imported.json()['run_id'])
+        assert run.bullish and run.status in {'completed', 'limited'}, run.error
+        report = store.report(run.run_id)
+        assert report.writing_style == 'bullish'
+        assert not any(MARK in p for s in sections_flat(report.sections) for p in s.paragraphs)
+        meta = store.execution_get(run.run_id, 'execution_meta', 'resume-package')
+        assert meta['writing_style'] == 'bullish' and meta['kept_sections'] == []

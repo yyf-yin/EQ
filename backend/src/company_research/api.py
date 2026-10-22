@@ -23,6 +23,7 @@ from .datasources import MAX_BYTES, DatasourceError
 class CreateResearch(BaseModel):
     company: str = Field(min_length=1, max_length=100)
     attachment_ids: list[str] = Field(default_factory=list, max_length=200)
+    bullish: bool = False
 
 
 class UpdateBudget(BaseModel):
@@ -35,6 +36,8 @@ class ImportPackage(BaseModel):
     level: Literal['collection', 'forecast', 'blocks', 'writing']
     keep_sections: list[str] = Field(default_factory=list, max_length=200)
     accept_risks: bool = False
+    # None keeps the source run's writing style.
+    bullish: bool | None = None
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -195,7 +198,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(422, '请先上传本次使用的公司年报；程序不自动寻找年报')
         if len(store.active_runs()) >= settings.max_active_runs * 4:
             raise HTTPException(429, '研究队列已满，请稍后重试')
-        run = ResearchRun(company_input=name, mode=settings.mode, rules_version='1.1')
+        run = ResearchRun(company_input=name, mode=settings.mode, rules_version='1.1', bullish=body.bullish)
         if body.attachment_ids:
             try:
                 create_with_attachments(store, run, body.attachment_ids, settings.reference_max_files)
@@ -514,7 +517,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(429, '研究队列已满，请稍后重试')
         try:
             run = await import_package(
-                settings, store, package_id, body.level, body.keep_sections, body.accept_risks
+                settings, store, package_id, body.level, body.keep_sections, body.accept_risks, body.bullish
             )
         except PackageError as exc:
             raise HTTPException(exc.status, str(exc)) from None

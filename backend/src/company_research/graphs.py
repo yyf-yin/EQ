@@ -1802,10 +1802,29 @@ class ResearchWorkflow:
         return {'validated': True}
 
     async def write_sections(self, c):
+        from .cost_structure import chain_data
         from .writers import make_report
 
+        # Cost structure and top-five concentration come from the annual reports already
+        # collected, so resumed runs gain them too without collecting again.
+        update = {}
+        if not self.mock:
+            sources, evidence, data = chain_data(c)
+            known = {d['data_id'] for d in c.get('industry_data', [])}
+            data = [d for d in data if d.data_id not in known]
+            if data:
+                for kind, items, key in (('source', sources, 'source_id'), ('evidence', evidence, 'evidence_id'), ('industry_data', data, 'data_id')):
+                    for item in items:
+                        self.store.record(self.run_id, kind, getattr(item, key), item.model_dump(mode='json'))
+                have = {s['source_id'] for s in c['sources']}, {e['evidence_id'] for e in c['evidence']}
+                update = {
+                    'sources': c['sources'] + [s.model_dump(mode='json') for s in sources if s.source_id not in have[0]],
+                    'evidence': c['evidence'] + [e.model_dump(mode='json') for e in evidence if e.evidence_id not in have[1]],
+                    'industry_data': c.get('industry_data', []) + [d.model_dump(mode='json') for d in data],
+                }
+                c = c | update
         report = await make_report(c, self.gateway, self.mock, self.store, self.run_id)
-        return {'report': report.model_dump(mode='json')}
+        return update | {'report': report.model_dump(mode='json')}
 
     async def core_conclusion(self, c):
         from .writers import write_core

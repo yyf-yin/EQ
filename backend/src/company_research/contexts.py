@@ -344,6 +344,16 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
         for status in s.get('direction_statuses', {}).values()
         for id in status.get('evidence_ids', [])
     }
+    # The company's own cost structure and top-five shares (cost_structure.py) are the
+    # upstream and downstream facts every industry and position block may cite.
+    from .cost_structure import PUBLISHER as ANNUAL_CHAIN
+
+    chain_ids = (
+        {d['evidence_id'] for d in c.get('industry_data', []) if d.get('publisher') == ANNUAL_CHAIN}
+        if template in {'I01', 'B01'}
+        else set()
+    )
+    material_ids |= chain_ids
     numeric_evidence = {f['evidence_id'] for f in c.get('fact_candidates', c.get('facts', [])) + c.get('facts', [])}
     words = re.findall(r'[\u4e00-\u9fff]{2}', ' '.join(b['questions'].values()))
     evidence = [

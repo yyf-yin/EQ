@@ -312,6 +312,7 @@ def export_package(settings, store, run_id):
             'status': run.status,
             'stage': run.stage,
             'error': run.error,
+            'bullish': run.bullish,
         },
         'rules_version': VERSION,
         'checkpoint_node': node,
@@ -454,7 +455,7 @@ async def _seed_graph(settings, store, run_id, context, as_node):
             raise
 
 
-async def import_package(settings, store, package_id, level, keep_sections, accept_risks):
+async def import_package(settings, store, package_id, level, keep_sections, accept_risks, bullish=None):
     from .graphs import NODE_LABELS, STAGES
     from .isolation import POLICY as isolation_policy
     from .references import public_attachment
@@ -476,6 +477,13 @@ async def import_package(settings, store, package_id, level, keep_sections, acce
     records = json.loads(content['state/records.json'].decode('utf-8').replace(old, new))
     context.update(revisions=0, issues=[], core_instructions=[])
     context.pop('imported_sections', None)
+    source_style = context.get('writing_style', 'neutral')
+    style = source_style if bullish is None else 'bullish' if bullish else 'neutral'
+    context['writing_style'] = style
+    run.bullish = style == 'bullish'
+    if style != source_style:
+        # Sections written in the other style would be kept verbatim; rewrite them all.
+        keep_sections = []
     if any(r['field'] in {'prompts', 'models', 'manifest'} for r in info['risks']):
         context.pop('review_memo', None)
     if level in {'collection', 'forecast'}:
@@ -520,6 +528,7 @@ async def import_package(settings, store, package_id, level, keep_sections, acce
         'level': level,
         'kept_sections': sorted(kept),
         'dropped_sections': dropped,
+        'writing_style': style,
         'accepted_risks': [r['field'] for r in info['risks']],
         'imported_at': now(),
     }

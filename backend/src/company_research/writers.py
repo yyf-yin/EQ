@@ -235,7 +235,8 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
     segments = (context.get('brief') or {}).get('segments') or []
     checks += gap_problems(draft.paragraphs, TOKEN.findall, context['facts'], segments)
     problems += meta_problems(draft.paragraphs)
-    problems += short_problems(draft.paragraphs)
+    # The bullish risk list is meant to be short items.
+    problems += [] if context.get('compact') else short_problems(draft.paragraphs)
     problems += chart_problems(draft, context)
     if len(clean_heading(draft.heading)) > 30:
         problems.append('heading 过长：观点式标题控制在 30 字以内，一句话说清本节判断')
@@ -263,11 +264,15 @@ def short_problems(paragraphs: list[str]) -> list[str]:
 # after the two Guangfa deep reports. Policy is written only when material supports it.
 INDUSTRY_PARTS = {
     'process': '产品与工艺',
+    'upstream': '上游原料与成本',
     'supply': '供给格局',
     'demand': '需求与规模',
+    'downstream': '下游与渠道',
     'price': '价格驱动',
     'policy': '政策事件',
 }
+# Written only when material supports them; the other parts are always written.
+OPTIONAL_PARTS = ['upstream', 'downstream', 'policy']
 
 
 def part_problems(draft: WriterDraft, topics: dict) -> list[str]:
@@ -298,6 +303,10 @@ CHART_SCALES = {'CNY_million': (Decimal('0.01'), '亿元'), 'ratio': (Decimal(10
 MAX_CHARTS = 3
 # The cover view and the risk chapter read as text; drafts for them carry no charts.
 NO_CHART_SECTIONS = {'core', 'risk'}
+RISK_LIST_GOAL = (
+    '列出三到五条对公司影响最大的风险，每条一段一句话，写成“风险名称：若……，则……。”，'
+    '30—80 字，按影响从大到小排列，不展开数据论证、监测指标或情景测算；evidence_ids 列出这些风险所依据的证据'
+)
 
 
 def primary_publisher(publisher: str) -> str:
@@ -618,8 +627,16 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
     }
     if local['no_charts']:
         data['charts_contract'] = '本章不配图，charts 留空'
+    bullish = c.get('writing_style') == 'bullish'
+    if bullish:
+        data['writing_style'] = 'bullish'
+    # The bullish risk chapter is a short list of one-sentence items, as in broker reports.
+    compact = bullish and section_id == 'risk'
+    local['compact'] = compact
+    if compact:
+        data['section'] = data['section'] | {'goal': RISK_LIST_GOAL}
     if local['part_topics']:
-        data['parts_contract'] = {'topics': local['part_topics'], 'optional': ['policy']}
+        data['parts_contract'] = {'topics': local['part_topics'], 'optional': OPTIONAL_PARTS}
     if core:
         data['consistency_checks'] = [
             '收入增长与现金流匹配',
@@ -650,23 +667,21 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
     # count. A clearly thin draft still gets one expansion request, never a hard fail.
     # The industry section carries four to five subsections, so it needs more substance.
     minimum = (
-        800
+        100
+        if compact
+        else 800
         if section_id.startswith('industry-')
         else 300
         if core or section_id in FINANCIAL_TITLES or section_id.startswith('position-')
         else 500
     )
     if sum(len(p) for p in draft.paragraphs) < minimum:
-        draft = await ask_draft(
-            gateway,
-            role,
-            data
-            | {
-                'instructions': (instructions or [])
-                + ['上一稿过于单薄：请逐一回答本章必需问题，补充有来源的机制分析、反证与限制。']
-            },
-            local,
+        thin = (
+            '上一稿过于单薄：请逐一回答本章必需问题，用有来源的数据论证投资逻辑的驱动与弹性。'
+            if bullish
+            else '上一稿过于单薄：请逐一回答本章必需问题，补充有来源的机制分析、反证与限制。'
         )
+        draft = await ask_draft(gateway, role, data | {'instructions': (instructions or []) + [thin]}, local)
     reflection = await ask_bounded(
         gateway,
         'reflection',
@@ -676,6 +691,7 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
             'draft': draft.model_dump(mode='json'),
             'evidence': selected['evidence'],
             'calculations': selected['calculations'],
+            **({'writing_style': 'bullish'} if bullish else {}),
         },
     )
     problems = draft_problems(draft, local)
@@ -739,7 +755,9 @@ async def patch_one(gateway, c, section: ReportSection, targets: dict[int, list[
             'current_paragraphs': section.paragraphs,
         },
         'patch_contract': {'targets': [{'paragraph': i + 1, 'problems': targets[i]} for i in order]},
+        **({'writing_style': 'bullish'} if c.get('writing_style') == 'bullish' else {}),
     }
+    local['compact'] = c.get('writing_style') == 'bullish' and section.section_id == 'risk'
     draft = await ask_draft(gateway, 'writer', data, local)
     problems = draft_problems(draft, local)
     if len(draft.paragraphs) != len(order):
@@ -1059,13 +1077,13 @@ async def make_report(c, gateway, mock=False, store=None, run_id=None):
                 (
                     f'industry-{i}',
                     '（一）行业情况',
-                    f'{segment}所在行业，按小节写：产品与工艺、供给格局、需求与规模、价格驱动；'
+                    f'{segment}所在行业，按小节写：产品与工艺、上游原料与成本、供给格局、需求与规模、下游与渠道、价格驱动；'
                     '近期有政策或贸易事件资料时加写政策事件，没有则不写',
                 ),
                 (
                     f'position-{i}',
                     '（二）公司情况',
-                    f'公司{segment}业务的位置：产能与产业链配套、成本与份额、竞争优势及业务展望',
+                    f'公司{segment}业务的位置：产能与产业链配套、成本结构与供应商集中度、客户与渠道、份额、竞争优势及业务展望',
                 ),
             ]
             for i, segment in enumerate(c['brief']['segments'])
@@ -1140,6 +1158,7 @@ async def make_report(c, gateway, mock=False, store=None, run_id=None):
     append_tables(report, c)
     report.market = c.get('market')
     report.forecast_model = c.get('forecast_model', '')
+    report.writing_style = c.get('writing_style', 'neutral')
     report.data_template_version = c.get('data_template_version')
     if c.get('rules_version') == '1.1':
         from .schemas import ResearchBrief, ResearchBlock, CoverageEntry, ComparisonResult

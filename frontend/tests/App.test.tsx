@@ -83,3 +83,4 @@ test('启动响应延迟时不会清除用户已经手动创建的新任务',asy
  expect(localStorage.getItem('cdr-run')).toBe('r1')
  expect(within(screen.getByRole('region',{name:'研究进度'})).getByRole('heading',{level:2})).toHaveTextContent('示例公司')
 })
+test('勾选看多逻辑后随研究请求提交',async()=>{const fetch=vi.fn(async(url:string,init?:RequestInit)=>({ok:true,json:async()=>init?.method==='POST'?run:{...run}}));vi.stubGlobal('fetch',fetch);render(<App/>);fireEvent.change(screen.getByLabelText('输入公司名称或股票代码'),{target:{value:'示例公司'}});fireEvent.click(screen.getByRole('checkbox',{name:/采用卖方看多逻辑写法/}));fireEvent.click(screen.getByRole('button',{name:'开始研究'}));await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/research',expect.objectContaining({body:JSON.stringify({company:'示例公司',bullish:true})})))})

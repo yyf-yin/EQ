@@ -88,7 +88,13 @@ class Runner:
                             None
                             if checkpoint.values
                             else {
-                                'context': {'input': run.company_input, 'run_id': run_id, 'replans': 0, 'revisions': 0}
+                                'context': {
+                                    'input': run.company_input,
+                                    'run_id': run_id,
+                                    'replans': 0,
+                                    'revisions': 0,
+                                    'writing_style': 'bullish' if run.bullish else 'neutral',
+                                }
                             },
                             config,
                             durability='sync',

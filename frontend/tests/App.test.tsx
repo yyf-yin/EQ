@@ -44,61 +44,31 @@ test('同一任务续跑后重新连接 SSE 并保留已有日志',async()=>{
  await waitFor(()=>expect(screen.getByRole('list',{name:'最近进度事件'})).toHaveTextContent('继续规划'))
 })
 
-test('新浏览器窗口自动打开 CMD 启动选择的任务',async()=>{
+test('新浏览器窗口自动打开最近未完成的任务',async()=>{
  localStorage.setItem('cdr-run','older')
- vi.stubGlobal('fetch',vi.fn(async(url:string)=>({ok:true,json:async()=>url==='/api/startup'?{session_id:'new-service',selected_run_id:'chosen'}:{...run,run_id:url.includes('chosen')?'chosen':'older',status:'interrupted'}})))
+ vi.stubGlobal('fetch',vi.fn(async(url:string)=>({ok:true,json:async()=>url==='/api/startup'?{session_id:'new-service',candidate:{run_id:'latest'}}:{...run,run_id:url.includes('latest')?'latest':'older',status:'interrupted'}})))
  render(<App/>)
- await waitFor(()=>expect(localStorage.getItem('cdr-run')).toBe('chosen'))
+ await waitFor(()=>expect(localStorage.getItem('cdr-run')).toBe('latest'))
  expect(sessionStorage.getItem('cdr-startup-session')).toBe('new-service')
  await waitFor(()=>expect(within(screen.getByRole('region',{name:'研究进度'})).getByRole('heading',{level:2})).toHaveTextContent('研究已暂停'))
 })
 
-test('同次服务刷新不重新切回启动时选择的旧任务',async()=>{
+test('同次服务刷新不重新切回最近未完成的旧任务',async()=>{
  localStorage.setItem('cdr-run','manually-created')
  sessionStorage.setItem('cdr-startup-session','same-service')
- vi.stubGlobal('fetch',vi.fn(async(url:string)=>({ok:true,json:async()=>url==='/api/startup'?{session_id:'same-service',selected_run_id:'old-choice'}:{...run,run_id:'manually-created',status:'interrupted'}})))
+ vi.stubGlobal('fetch',vi.fn(async(url:string)=>({ok:true,json:async()=>url==='/api/startup'?{session_id:'same-service',candidate:{run_id:'old-latest'}}:{...run,run_id:'manually-created',status:'interrupted'}})))
  render(<App/>)
  await waitFor(()=>expect(within(screen.getByRole('region',{name:'研究进度'})).getByRole('heading',{level:2})).toHaveTextContent('研究已暂停'))
  expect(localStorage.getItem('cdr-run')).toBe('manually-created')
 })
 
-test('启动选择 N 等待确认后清除旧任务并保持初始页面，刷新也不加载旧任务',async()=>{
- localStorage.setItem('cdr-run','older')
- let resolveStartup!:(value:unknown)=>void
- const startup=new Promise(resolve=>{resolveStartup=resolve})
- const fetch=vi.fn(async(url:string)=>({ok:true,json:async()=>startup}))
+test('没有未完成任务时保持上次查看的任务，启动不自动执行任何操作',async()=>{
+ localStorage.setItem('cdr-run','done')
+ const fetch=vi.fn(async(url:string,_init?:RequestInit)=>({ok:true,json:async()=>url==='/api/startup'?{session_id:'fresh-service',candidate:null}:{...run,run_id:'done',status:'failed',error:'旧任务失败'}}))
  vi.stubGlobal('fetch',fetch)
- const view=render(<App/>)
- expect(fetch).toHaveBeenCalledTimes(1)
- expect(fetch).toHaveBeenCalledWith('/api/startup',undefined)
- expect(screen.queryByRole('region',{name:'研究进度'})).not.toBeInTheDocument()
- resolveStartup({session_id:'declined-service',selected_run_id:null,answer:'N'})
- await waitFor(()=>expect(localStorage.getItem('cdr-run')).toBeNull())
- expect(screen.getByLabelText('输入公司名称或股票代码')).toHaveValue('')
- expect(screen.getByRole('button',{name:'开始研究'})).toBeDisabled()
- expect(fetch).toHaveBeenCalledTimes(1)
- view.unmount()
  render(<App/>)
- await waitFor(()=>expect(fetch).toHaveBeenCalledTimes(2))
- expect(fetch.mock.calls.every(([url])=>url==='/api/startup')).toBe(true)
- expect(screen.queryByRole('region',{name:'研究进度'})).not.toBeInTheDocument()
-})
-
-test('启动选择 N 后手动开始新公司，刷新仍保持新任务',async()=>{
- const fetch=vi.fn(async(url:string,init?:RequestInit)=>({ok:true,json:async()=>url==='/api/startup'
-  ?{session_id:'declined-service',selected_run_id:null,answer:'N'}
-  :{...run,run_id:'new-company',company_input:'新公司',status:'interrupted'}}))
- vi.stubGlobal('fetch',fetch)
- const view=render(<App/>)
- await waitFor(()=>expect(sessionStorage.getItem('cdr-startup-session')).toBe('declined-service'))
- fireEvent.change(screen.getByLabelText('输入公司名称或股票代码'),{target:{value:'新公司'}})
- fireEvent.click(screen.getByRole('button',{name:'开始研究'}))
- await screen.findByRole('heading',{level:2,name:/新公司/})
- expect(fetch).toHaveBeenCalledWith('/api/research',expect.objectContaining({method:'POST',body:JSON.stringify({company:'新公司'})}))
- view.unmount()
- render(<App/>)
- await screen.findByRole('heading',{level:2,name:/新公司/})
- expect(localStorage.getItem('cdr-run')).toBe('new-company')
+ await waitFor(()=>expect(within(screen.getByRole('region',{name:'研究进度'})).getByRole('heading',{level:2})).toHaveTextContent('研究未能完成'))
+ expect(fetch.mock.calls.some(([,init])=>init?.method==='POST')).toBe(false)
 })
 
 test('启动响应延迟时不会清除用户已经手动创建的新任务',async()=>{
@@ -113,3 +83,4 @@ test('启动响应延迟时不会清除用户已经手动创建的新任务',asy
  expect(localStorage.getItem('cdr-run')).toBe('r1')
  expect(within(screen.getByRole('region',{name:'研究进度'})).getByRole('heading',{level:2})).toHaveTextContent('示例公司')
 })
+test('勾选看多逻辑后随研究请求提交',async()=>{const fetch=vi.fn(async(url:string,init?:RequestInit)=>({ok:true,json:async()=>init?.method==='POST'?run:{...run}}));vi.stubGlobal('fetch',fetch);render(<App/>);fireEvent.change(screen.getByLabelText('输入公司名称或股票代码'),{target:{value:'示例公司'}});fireEvent.click(screen.getByRole('checkbox',{name:/采用卖方看多逻辑写法/}));fireEvent.click(screen.getByRole('button',{name:'开始研究'}));await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/research',expect.objectContaining({body:JSON.stringify({company:'示例公司',bullish:true})})))})

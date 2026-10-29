@@ -16,7 +16,7 @@ export function RecoveryControls({run,actionBusy,pendingAction,control,increaseB
    {current&&(active||stopped&&recovery?.can_resume)&&<button type="button" disabled={actionBusy||!stopped||!recovery?.can_resume} onClick={()=>void control('resume')} className="rounded-lg bg-sea text-white px-5 py-2.5 disabled:opacity-40">{pendingAction==='resume'?'正在继续…':run.status==='failed'?'从断点继续':'继续研究'}</button>}
    {stopped&&recovery?.can_increase_budget&&<button type="button" disabled={actionBusy} onClick={()=>setEditing(v=>!v)} className="rounded-lg border border-slate-300 px-4 py-2">调整续跑预算</button>}
   </div>
-  {current&&(active||run.status==='interrupted')&&<p className="mt-3 text-slate-500">{active?'研究运行中，可随时暂停；暂停完成后可继续。':'研究已暂停，可从当前进度继续。'} 程序重启后，由启动窗口选择 Y 继续最近未完成任务，或 N 重新开始。</p>}
+  {current&&(active||run.status==='interrupted')&&<p className="mt-3 text-slate-500">{active?'研究运行中，可随时暂停；暂停完成后可继续。':'研究已暂停，可从当前进度继续。'} 程序重启后，最近一个未完成的任务可在此页面继续；其它任务可导出成果包后上传继续。</p>}
   {stopped&&recovery&&<div className="mt-3 space-y-1 text-slate-600" aria-live="polite">
    <p>{recovery.reason}</p>
    <p>已保存 {recovery.saved_units.research_task||0} 个研究任务、{recovery.saved_units.model||0} 个模型步骤、{recovery.saved_units.node||0} 个流程节点；已续跑 {recovery.resume_count} 次。</p>

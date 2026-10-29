@@ -310,6 +310,11 @@ class Store:
             rows = db.execute('SELECT payload FROM records WHERE run_id=? AND kind=?', (run_id, kind)).fetchall()
         return [json.loads(row[0]) for row in rows]
 
+    def all_records(self, run_id: str) -> list[tuple[str, str, dict]]:
+        with self.connect() as db:
+            rows = db.execute('SELECT kind,id,payload FROM records WHERE run_id=? ORDER BY rowid', (run_id,)).fetchall()
+        return [(kind, record_id, json.loads(payload)) for kind, record_id, payload in rows]
+
     def runtime_summary(self, run_id: str) -> dict:
         """Small, read-only status projection; never expose prompts or source bodies."""
         with self.connect() as db:

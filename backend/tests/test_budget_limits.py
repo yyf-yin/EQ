@@ -190,7 +190,7 @@ role_limits:
             CALL_CONTEXT.reset(token)
 
 
-async def test_startup_y_adopts_legacy_global_budget_block(tmp_path, monkeypatch):
+async def test_page_continue_adopts_legacy_global_budget_block(tmp_path, monkeypatch):
     from company_research.api import create_app
     settings = config(tmp_path)
     original = create_app(settings)
@@ -210,11 +210,10 @@ async def test_startup_y_adopts_legacy_global_budget_block(tmp_path, monkeypatch
     async with app.router.lifespan_context(app):
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://fixture') as client:
             state = (await client.get('/api/startup')).json()
-            assert state['candidate']['can_continue']
-            assert (await client.post(f'/api/research/{run.run_id}/resume')).status_code == 409
-            reply = await client.post('/api/startup/decision', json={
-                'session_id':state['session_id'], 'run_id':run.run_id, 'answer':'Y'})
-            assert reply.status_code == 200
+            assert state['candidate']['run_id'] == run.run_id and state['candidate']['can_continue']
+            assert not called
+            reply = await client.post(f'/api/research/{run.run_id}/resume')
+            assert reply.status_code == 202
             await asyncio.sleep(.01)
             assert called == [run.run_id]
             info = (await client.get(f'/api/research/{run.run_id}/recovery')).json()

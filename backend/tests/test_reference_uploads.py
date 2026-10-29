@@ -207,7 +207,7 @@ async def test_researcher_with_prepared_references_does_not_retrieve_or_reextrac
     from company_research.agents import CompressedResearch
     store,run,bound=uploaded_run(tmp_path)
     class Datasource:
-        async def retrieve(self,q):raise AssertionError('covered field must not be fetched')
+        async def retrieve(self,q, **options):raise AssertionError('covered field must not be fetched')
     async def compress(*args):return CompressedResearch(summary='来自参考资料',evidence_ids=[],unresolved=[])
     monkeypatch.setattr('company_research.researcher.ask_bounded',compress)
     state={'task':{'task_id':'covered','company_id':'test','role':'financial','topic':'收入','queries':[]},
@@ -299,7 +299,7 @@ async def test_industry_context_extraction_keeps_numbers_as_evidence_not_company
     store=Store(tmp_path/'context.db')
     source=SourceRecord(kind='upload',attachment_id='industry',title='市场报告',content='2025年全球市场规模为3000百万元。')
     class Datasource:
-        async def retrieve(self,q):raise AssertionError('must read only uploaded industry material')
+        async def retrieve(self,q, **options):raise AssertionError('must read only uploaded industry material')
     class Gateway:
         concurrency=1
         def limits(self,*args):return SimpleNamespace(input_capacity=50000,concurrency=1)

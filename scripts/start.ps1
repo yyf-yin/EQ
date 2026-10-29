@@ -89,9 +89,6 @@ try {
     Wait-ForHttp "http://127.0.0.1:$BackendPort/api/health" $backendProcess
     $backendReady = $true
 
-    . (Join-Path $PSScriptRoot 'startup_choice.ps1')
-    Select-StartupResearch -BackendPort $BackendPort
-
     $frontendProcess = Start-Process -FilePath $hostExecutable -ArgumentList @(
         '-NoProfile', '-File', (Join-Path $PSScriptRoot 'start_frontend.ps1'), '-Port', $FrontendPort, '-BackendPort', $BackendPort
     ) -WorkingDirectory $repoRoot -WindowStyle Hidden -RedirectStandardOutput $frontendLog -RedirectStandardError $frontendErrorLog -PassThru

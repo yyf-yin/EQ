@@ -1,13 +1,17 @@
 import re
 from decimal import Decimal
-from .agents import ask, ask_bounded, WriterDraft, Reflection
+from .agents import ask, ask_bounded, WriterDraft, Reflection, DRAFT_ID_FIELDS
 from .schemas import (
+    ChartSeries,
+    ChartSpec,
+    SectionChart,
     ReportDocument,
     ReportSection,
     Table,
     SourceRecord,
     EvidenceRecord,
     FinancialFact,
+    IndustryDatum,
     CalculationResult,
     ForecastAssumption,
     FinancialForecast,
@@ -17,8 +21,10 @@ from .financials.formulas import FinancialDataProcessor, FinancialError
 from .comparisons import FINANCIAL_TITLES, bind_financial_sections, supplemental_financial_tables
 from .contexts import block_context
 from .framework import digest
+from .text_checks import direction_problems, gap_problems, meta_problems, strip_meta
 
-TOKEN = re.compile(r'\[\[(fact|calc|assumption):([a-zA-Z0-9_-]+)\]\]')
+TOKEN = re.compile(r'\[\[(fact|calc|assumption|ind):([a-zA-Z0-9_-]+)\]\]')
+KINDLESS_TOKEN = re.compile(r'\[\[((?:[a-z]+-)+[0-9a-f]{8,}(?:-\d+)?)\]\]')
 # Dates, reporting periods and structural ordinals are not financial quantities and
 # may be written directly; every other digit must come from a bound data token.
 ALLOWED_NUMERALS = re.compile(
@@ -31,23 +37,163 @@ ALLOWED_NUMERALS = re.compile(
 )
 
 
+# Internal record IDs (ev-…, fact-slot-…, cmp-…) are provenance, not prose. Their hex
+# digits used to read as raw numbers, which forced repair rounds and dropped sentences.
+RECORD_ID = re.compile(r'(?<![A-Za-z0-9-])(?:[a-z]+-)+[0-9a-f]{8,}(?![0-9A-Za-z])')
+ID_LIST = re.compile(RECORD_ID.pattern + r'(?:\s*[、，,和及/]\s*' + RECORD_ID.pattern + ')*')
+ID_GROUP = re.compile(r'[（(\[【][^（()）\[\]【】]*[)）\]】]')
+ID_LEAD = re.compile(r'(?:证据|来源|参见|详见|见)?[：:]?\s*$')
+ID_FILLER = re.compile(r'[\s、，,；;：:/]|证据|来源|参见|详见|比较|证券代码|见')
+# “归母净利润”/“归母净利” followed closely by the value it names.
+PARENT_LABEL = re.compile(r'归母净利(?:润)?(?:分别)?(?:为|达|约|是)?\s*\[\[(fact|calc):([a-zA-Z0-9_-]+)\]\]')
+
+
+def blank(pattern, text):
+    return pattern.sub(lambda m: ' ' * len(m.group(0)), text)
+
+
 def raw_numbers(paragraph: str) -> list[str]:
     """Return snippets containing digits that are neither data tokens nor dates/periods."""
-    text = ALLOWED_NUMERALS.sub(lambda m: ' ' * len(m.group(0)), TOKEN.sub(lambda m: ' ' * len(m.group(0)), paragraph))
+    text = blank(ALLOWED_NUMERALS, blank(RECORD_ID, blank(TOKEN, paragraph)))
     return [paragraph[max(0, m.start() - 12) : m.end() + 12] for m in re.finditer(r'\d+(?:[.,]\d+)*\s*%?', text)]
+
+
+def strip_record_ids(text: str, bare_ids=True) -> tuple[str, list[str]]:
+    """Remove record IDs written into prose; returns the text and the IDs removed.
+    Bracketed citations always go; with bare_ids=False an ID used as a noun stays
+    for the writer to rephrase. Data tokens such as [[fact:ID]] are kept untouched."""
+    found = []
+
+    def ids(part):
+        out, last = [], 0
+        for m in ID_LIST.finditer(part):
+            found.extend(RECORD_ID.findall(m.group(0)))
+            out.append(ID_LEAD.sub('', part[last : m.start()]))
+            last = m.end()
+        return ''.join(out) + part[last:]
+
+    bare = ids if bare_ids else (lambda part: part)
+
+    def group(m):
+        if not RECORD_ID.search(m.group(0)):
+            return m.group(0)
+        inner = re.sub(r'([、，,；;])(?:\s*[、，,；;])+', r'\1', ids(m.group(0)[1:-1]))
+        if len(ID_FILLER.sub('', inner)) <= 6:
+            return ''
+        return m.group(0)[0] + re.sub(r'^[\s、，,；;]+|[\s、，,；;]+$', '', inner) + m.group(0)[-1]
+
+    pieces, last = [], 0
+    for m in TOKEN.finditer(text):
+        pieces += [bare(ID_GROUP.sub(group, text[last : m.start()])), m.group(0)]
+        last = m.end()
+    pieces.append(bare(ID_GROUP.sub(group, text[last:])))
+    cleaned = re.sub(r'\s+([，。；、）)])', r'\1', ''.join(pieces))
+    cleaned = re.sub(r'([，、；])\s*([。；])', r'\2', re.sub(r'[ \t]{2,}', ' ', cleaned))
+    return cleaned.strip(), found
+
+
+def canonical_ids(draft: WriterDraft, context: dict) -> WriterDraft:
+    """Writers often drop the record prefix the token kind already names ([[ind:509f…]]
+    for ind-509f…). Such an ID is mapped back to the one record it denotes instead of
+    being reported as unknown, which made the repair round delete every industry number."""
+    aliases = {}
+    for kind, items in citable(context).items():
+        short = {}
+        for id in items:
+            for i, ch in enumerate(id):
+                if ch == '-':
+                    short.setdefault(id[i + 1 :], set()).add(id)
+        aliases[kind] = {s: next(iter(ids)) for s, ids in short.items() if len(ids) == 1 and s not in items}
+
+    def fix(kind, id):
+        return aliases[kind].get(id, id)
+
+    # [[fact-slot-…]] without its kind: the record's own collection names it. Left alone,
+    # ID cleanup removed the inner ID and left “[]” in the report.
+    objects = citable(context)
+    owners = {}
+    for kind, items in objects.items():
+        for id in items:
+            owners.setdefault(id, set()).add(kind)
+    inferred = {kind: [] for kind in DRAFT_ID_FIELDS}
+
+    def kindless(match):
+        kinds = owners.get(match.group(1), set())
+        if len(kinds) != 1:
+            return match.group(0)
+        kind = next(iter(kinds))
+        inferred[kind].append(match.group(1))
+        return f'[[{kind}:{match.group(1)}]]'
+
+    def fix_ref(ref):
+        kinds = owners.get(ref.strip(), set())
+        if len(kinds) == 1:
+            return f'{next(iter(kinds))}:{ref.strip()}'
+        match = CHART_REF.fullmatch(ref.strip())
+        return f'{match.group(1)}:{fix(*match.groups())}' if match and match.group(1) in aliases else ref
+
+    paragraphs = [
+        TOKEN.sub(lambda m: f'[[{m.group(1)}:{fix(*m.groups())}]]', KINDLESS_TOKEN.sub(kindless, p))
+        for p in draft.paragraphs
+    ]
+    fields = {
+        field: list(dict.fromkeys([fix(kind, id) for id in getattr(draft, field)] + inferred[kind]))
+        for kind, field in DRAFT_ID_FIELDS.items()
+    }
+    charts = [
+        c.model_copy(update={'series': [s.model_copy(update={'refs': [fix_ref(r) for r in s.refs]}) for s in c.series]})
+        for c in draft.charts
+    ]
+    if paragraphs == draft.paragraphs and charts == draft.charts and all(fields[f] == getattr(draft, f) for f in fields):
+        return draft
+    return draft.model_copy(update={'paragraphs': paragraphs, 'charts': charts, **fields})
+
+
+def without_record_ids(draft: WriterDraft, context: dict) -> WriterDraft:
+    """Prose never carries record IDs; valid evidence IDs move to evidence_ids instead."""
+    if context.get('no_charts') and draft.charts:
+        draft = draft.model_copy(update={'charts': []})
+    draft = canonical_ids(draft, context)
+    known = {e['evidence_id'] for e in context['evidence']}
+    paragraphs, removed = [], []
+    for paragraph in draft.paragraphs:
+        text, ids = strip_record_ids(paragraph, bare_ids=False)
+        paragraphs.append(text)
+        removed += ids
+    if not removed:
+        return draft
+    extra = [id for id in dict.fromkeys(removed) if id in known and id not in draft.evidence_ids]
+    # Empty paragraphs are kept so a paragraph-for-paragraph patch stays aligned.
+    return draft.model_copy(update={'paragraphs': paragraphs, 'evidence_ids': draft.evidence_ids + extra})
+
+
+async def ask_draft(gateway, role, data, local):
+    return without_record_ids(await ask_bounded(gateway, role, WriterDraft, data), local)
+
+
+def citable(context: dict) -> dict:
+    """Objects a draft may cite, by data-token kind."""
+    return {
+        'fact': {f['fact_id']: f for f in context['facts']},
+        'calc': {r['result_id']: r for r in context['calculations']},
+        'assumption': {a['assumption_id']: a for a in context['assumptions']},
+        'ind': {d['data_id']: d for d in context.get('industry_data', [])},
+    }
+
+
+def declared_ids(draft: WriterDraft) -> dict:
+    return {kind: set(getattr(draft, field)) for kind, field in DRAFT_ID_FIELDS.items()}
 
 
 def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
     """Describe every contract violation so one targeted repair round can fix them."""
-    objects = {
-        'fact': {f['fact_id'] for f in context['facts']},
-        'calc': {r['result_id'] for r in context['calculations']},
-        'assumption': {a['assumption_id'] for a in context['assumptions']},
-    }
-    declared = {
-        'fact': set(draft.fact_ids),
-        'calc': set(draft.calculation_ids),
-        'assumption': set(draft.assumption_ids),
+    objects = {kind: set(items) for kind, items in citable(context).items()}
+    declared = declared_ids(draft)
+    parent_periods = {
+        (item.get('period'), item.get('scenario'))
+        for items in citable(context).values()
+        for item in items.values()
+        if (item.get('metric_code') or item.get('output_metric')) == 'parent_net_income'
     }
     problems = []
     unknown = sorted(set(draft.evidence_ids) - {e['evidence_id'] for e in context['evidence']})
@@ -63,24 +209,238 @@ def draft_problems(draft: WriterDraft, context: dict) -> list[str]:
                 problems.append(f'第{i + 1}段的 [[{kind}:{id}]] 不在输入数据中，请删除或换成存在的 ID')
             elif id not in declared[kind]:
                 problems.append(f'第{i + 1}段使用了 [[{kind}:{id}]] 但未在对应 ID 列表中声明')
+        named = RECORD_ID.findall(blank(TOKEN, paragraph))
+        if named:
+            problems.append(
+                f'第{i + 1}段正文写了记录 ID“{"、".join(named[:3])}”：正文不写任何 ID，'
+                '改为说明资料名称或直接陈述内容，证据只列入 evidence_ids'
+            )
+        for kind, id in PARENT_LABEL.findall(paragraph):
+            item = citable(context)[kind].get(id) or {}
+            # Without minority interests net_income is the owners' income itself.
+            if (item.get('metric_code') or item.get('output_metric')) == 'net_income' and (
+                item.get('period'),
+                item.get('scenario'),
+            ) in parent_periods:
+                problems.append(
+                    f'第{i + 1}段把 [[{kind}:{id}]] 写成归母净利润，但它是合并净利润（net_income）：'
+                    '归母净利润改引 parent_net_income，或改称“合并净利润”'
+                )
         for snippet in raw_numbers(paragraph):
             problems.append(
-                f'第{i + 1}段直接写了数字“{snippet.strip()}”：财务/经营数值必须改用 [[fact:ID]]/[[calc:ID]]/[[assumption:ID]]，没有对应数据时改为定性表述'
+                f'第{i + 1}段直接写了数字“{snippet.strip()}”：财务/经营数值必须改用 [[fact:ID]]/[[calc:ID]]/[[assumption:ID]]，'
+                '行业与第三方数字改用 industry_data 的 [[ind:ID]]，没有对应数据时改为定性表述'
             )
+    checks = direction_problems(draft.paragraphs, TOKEN.findall, context['facts'], context.get('comparisons', []))
+    segments = (context.get('brief') or {}).get('segments') or []
+    checks += gap_problems(draft.paragraphs, TOKEN.findall, context['facts'], segments)
+    problems += meta_problems(draft.paragraphs)
+    # The bullish risk list is meant to be short items.
+    problems += [] if context.get('compact') else short_problems(draft.paragraphs)
+    problems += chart_problems(draft, context)
+    if len(clean_heading(draft.heading)) > 30:
+        problems.append('heading 过长：观点式标题控制在 30 字以内，一句话说清本节判断')
+    problems += part_problems(draft, context.get('part_topics') or {})
+    return list(dict.fromkeys(problems + [text for _, text in checks]))
+
+
+# A broker paragraph argues one point with data, cause and comparison; a run of one- or
+# two-sentence paragraphs reads as a list of facts. Tokens count as a short rendered value.
+SHORT_PARAGRAPH = 120
+
+
+def short_problems(paragraphs: list[str]) -> list[str]:
+    lengths = [len(TOKEN.sub('数值数值', p)) for p in paragraphs]
+    short = [i + 1 for i, n in enumerate(lengths) if 0 < n < SHORT_PARAGRAPH]
+    if len(short) < 3 or len(short) * 3 <= len(paragraphs):
+        return []
+    return [
+        f'第{"、".join(map(str, short[:8]))}段过短（不足 {SHORT_PARAGRAPH} 字）：同一主题的相邻段落合并为一段，'
+        '每段按“判断→数据→原因→与历史或同行对比→对公司的影响”写完整，不要一个数据一段'
+    ]
+
+
+# Each business's industry section is written as these subsections, in this order,
+# after the two Guangfa deep reports. Policy is written only when material supports it.
+INDUSTRY_PARTS = {
+    'process': '产品与工艺',
+    'upstream': '上游原料与成本',
+    'supply': '供给格局',
+    'demand': '需求与规模',
+    'downstream': '下游与渠道',
+    'price': '价格驱动',
+    'policy': '政策事件',
+}
+# Written only when material supports them; the other parts are always written.
+OPTIONAL_PARTS = ['upstream', 'downstream', 'policy']
+
+
+def part_problems(draft: WriterDraft, topics: dict) -> list[str]:
+    if not draft.parts:
+        return []
+    if not topics:
+        return ['本章不分小节：parts 必须为空']
+    order = list(topics)
+    problems = []
+    if any(p.topic not in topics for p in draft.parts):
+        problems.append('parts.topic 只能取：' + '、'.join(order))
+    ranks = [order.index(p.topic) for p in draft.parts if p.topic in topics]
+    starts = [p.start for p in draft.parts]
+    if ranks != sorted(set(ranks)):
+        problems.append('parts 按 ' + '→'.join(order) + ' 的顺序排列，每个 topic 至多一次')
+    if starts[0] != 0 or starts != sorted(set(starts)) or starts[-1] >= len(draft.paragraphs):
+        problems.append('parts.start 是该小节第一段的序号（从 0 开始）：首个为 0，严格递增，且小于段落数')
+    if any(len(clean_heading(p.heading)) > 30 for p in draft.parts):
+        problems.append('parts.heading 过长：小节观点式标题控制在 30 字以内')
     return problems
+
+
+# Writer-proposed charts carry data tokens, not numbers: each value is read from the
+# cited record, so a chart can only show what the text could cite.
+CHART_REF = re.compile(r'(fact|calc|assumption|ind):([a-zA-Z0-9_-]+)')
+IND_VALUE = re.compile(r'\s*([-+]?\d[\d,，]*(?:\.\d+)?)\s*(.*?)\s*')
+CHART_SCALES = {'CNY_million': (Decimal('0.01'), '亿元'), 'ratio': (Decimal(100), '%'), 'percentage_points': (Decimal(1), 'pct')}
+MAX_CHARTS = 3
+# The cover view and the risk chapter read as text; drafts for them carry no charts.
+NO_CHART_SECTIONS = {'core', 'risk'}
+RISK_LIST_GOAL = (
+    '列出三到五条对公司影响最大的风险，每条一段一句话，写成“风险名称：若……，则……。”，'
+    '30—80 字，按影响从大到小排列，不展开数据论证、监测指标或情景测算；evidence_ids 列出这些风险所依据的证据'
+)
+
+
+def primary_publisher(publisher: str) -> str:
+    """The first named source: “国家统计局、中国酒业协会” and “国家统计局” are one series."""
+    return re.split(r'[、,，/;；]|和|与|及', publisher or '')[0].strip()
+
+
+def chart_value(kind: str, item: dict) -> tuple[float, str] | None:
+    if kind == 'ind':
+        match = IND_VALUE.fullmatch(item['value_text'])
+        return (float(re.sub('[,，]', '', match.group(1))), match.group(2)) if match else None
+    if item.get('value') is None:
+        return None
+    scale, unit = CHART_SCALES.get(item['unit'], (Decimal(1), UNITS.get(item['unit'], item['unit'])))
+    return float(Decimal(str(item['value'])) * scale), unit
+
+
+def resolve_chart(spec: ChartSpec, objects: dict) -> tuple[SectionChart | None, list[str]]:
+    """The chart with values read from its cited records, or the reasons it cannot be drawn."""
+    name = f'图表“{spec.title}”'
+    n = len(spec.categories)
+    if not 2 <= n <= 12 or not 1 <= len(spec.series) <= 5:
+        return None, [f'{name}：categories 需 2—12 项，series 需 1—5 个']
+    if spec.kind == 'pie' and len(spec.series) != 1:
+        return None, [f'{name}：饼图只能有一个序列']
+    problems, series, units, refs, sources = [], [], {}, [], set()
+    for s in spec.series:
+        if len(s.refs) != n:
+            problems.append(f'{name}：序列“{s.name}”的 refs 必须与 categories 一一对应（{n} 项，缺值写空字符串）')
+            continue
+        values, origins = [], set()
+        for ref in s.refs:
+            if not ref.strip():
+                values.append(None)
+                continue
+            match = CHART_REF.fullmatch(ref.strip())
+            item = objects.get(match.group(1), {}).get(match.group(2)) if match else None
+            value = chart_value(match.group(1), item) if item else None
+            if value is None:
+                problems.append(f'{name}：序列“{s.name}”的“{ref}”不是输入中可取值的 fact/calc/assumption/ind 记录')
+                values.append(None)
+                continue
+            kind = match.group(1)
+            units.setdefault(s.axis, set()).add(value[1])
+            values.append(value[0])
+            refs.append(f'{kind}:{match.group(2)}')
+            if kind == 'ind':
+                origins.add((item['metric'], primary_publisher(item.get('publisher', ''))))
+                sources.add(primary_publisher(item.get('publisher', '')) or '行业资料')
+            else:
+                sources.add('研究预测' if kind == 'assumption' or item.get('scenario') not in (None, 'historical') else '公司公告')
+        if len(origins) > 1:
+            problems.append(f'{name}：序列“{s.name}”混用了不同指标或来源的行业数据，不同口径不能放进同一序列')
+        if sum(v is not None for v in values) < 2:
+            problems.append(f'{name}：序列“{s.name}”至少需要两个有值的数据点')
+        if spec.kind == 'pie' and any(v is not None and v <= 0 for v in values):
+            problems.append(f'{name}：饼图各项必须为正数')
+        series.append(ChartSeries(name=s.name, values=values, kind=s.kind, axis=s.axis))
+    for axis, found in units.items():
+        if len(found) > 1:
+            problems.append(f'{name}：{"右" if axis == "right" else "左"}轴混用了单位（{"、".join(sorted(found))}），不同单位的序列放到另一侧坐标轴或拆成两张图')
+    if spec.kind == 'combo' and len(spec.series) == 1 and n < 3:
+        problems.append(f'{name}：单序列图至少需要三个期间')
+    if problems:
+        return None, problems
+    return SectionChart(
+        title=spec.title,
+        kind=spec.kind,
+        categories=spec.categories,
+        series=series,
+        unit=next(iter(units.get('left', {''}))),
+        right_unit=next(iter(units.get('right', {''}))),
+        source='、'.join(sorted(sources, key=lambda s: (s != '公司公告', s))),
+        refs=list(dict.fromkeys(refs)),
+    ), []
+
+
+def chart_problems(draft: WriterDraft, context: dict) -> list[str]:
+    objects = citable(context)
+    cited = {f'{k}:{i}' for p in draft.paragraphs for k, i in TOKEN.findall(p)}
+    problems = [] if len(draft.charts) <= MAX_CHARTS else [f'每节至多 {MAX_CHARTS} 张图表，只保留最能说明论点的']
+    for spec in draft.charts:
+        chart, found = resolve_chart(spec, objects)
+        problems += found
+        if chart and not cited & set(chart.refs):
+            problems.append(f'图表“{spec.title}”的数据没有在正文中引用：图表跟在讨论它的段落之后，请在该段引用其中至少一项')
+    return problems
+
+
+def chart_after(chart: SectionChart, paragraphs: list[str]) -> int:
+    """Index of the first paragraph citing the chart's data (tokens, before rendering)."""
+    refs = set(chart.refs)
+    return next(
+        (i for i, p in enumerate(paragraphs) if refs & {f'{k}:{id}' for k, id in TOKEN.findall(p)}),
+        max(len(paragraphs) - 1, 0),
+    )
+
+
+def remap_charts(charts, mapping):
+    """Charts after paragraphs were dropped; a chart whose paragraph went follows the one before."""
+    out = []
+    for chart in charts:
+        kept = [m for m in mapping[: chart.after + 1] if m is not None]
+        out.append(chart.model_copy(update={'after': kept[-1] if kept else 0}))
+    return out
+
+
+def remap_parts(parts, mapping):
+    """Parts after paragraphs were dropped or merged; mapping[i] is paragraph i's new
+    index, or None when it is gone. A part left without paragraphs disappears."""
+    out = []
+    for k, part in enumerate(parts):
+        end = parts[k + 1].start if k + 1 < len(parts) else len(mapping)
+        kept = [mapping[i] for i in range(part.start, min(end, len(mapping))) if mapping[i] is not None]
+        if kept:
+            out.append(part.model_copy(update={'start': kept[0]}))
+    return out
+
+
+def clean_heading(heading: str) -> str:
+    """A viewpoint title carries no numbering, data tokens, IDs or trailing punctuation."""
+    text, _ = strip_record_ids(TOKEN.sub('', heading or ''))
+    text = re.sub(r'^\s*(?:[一二三四五六七八九十]+、|（[一二三四五六七八九十]+）|\d+[.、．])\s*', '', text)
+    return text.strip().rstrip('。；;，,')
 
 
 def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list[str]]:
     """Last resort after a failed repair: drop unverifiable sentences and unknown IDs
     instead of failing the whole section. Returns the cleaned draft and what was removed."""
-    objects = {
-        'fact': {f['fact_id'] for f in context['facts']},
-        'calc': {r['result_id'] for r in context['calculations']},
-        'assumption': {a['assumption_id'] for a in context['assumptions']},
-    }
+    objects = {kind: set(items) for kind, items in citable(context).items()}
     evidence = {e['evidence_id'] for e in context['evidence']}
     removed = []
     paragraphs = []
+    mapping = []
     for paragraph in draft.paragraphs:
         kept = []
         for sentence in re.split(r'(?<=[。！？；])', paragraph):
@@ -91,19 +451,34 @@ def sanitize_draft(draft: WriterDraft, context: dict) -> tuple[WriterDraft, list
                 removed.append(sentence.strip())
                 continue
             kept.append(sentence)
+        mapping.append(len(paragraphs) if ''.join(kept).strip() else None)
         if ''.join(kept).strip():
             paragraphs.append(''.join(kept))
-    used = {'fact': set(), 'calc': set(), 'assumption': set()}
+    # Malformed parts are dropped rather than guessed; the section then reads unsplit.
+    valid = not part_problems(draft, context.get('part_topics') or {})
+    used = {kind: set() for kind in DRAFT_ID_FIELDS}
     for paragraph in paragraphs:
         for kind, id in TOKEN.findall(paragraph):
             used[kind].add(id)
+    declared = declared_ids(draft)
+    cited = {f'{k}:{i}' for p in paragraphs for k, i in TOKEN.findall(p)}
+    charts = []
+    for spec in draft.charts[:MAX_CHARTS]:
+        chart, problems = resolve_chart(spec, citable(context))
+        if chart and cited & set(chart.refs):
+            charts.append(spec)
+        else:
+            removed.append(f'图表“{spec.title}”')
     clean = draft.model_copy(
         update={
             'paragraphs': paragraphs,
+            'charts': charts,
+            'parts': remap_parts(draft.parts, mapping) if valid else [],
             'evidence_ids': [e for e in draft.evidence_ids if e in evidence],
-            'fact_ids': sorted((set(draft.fact_ids) & objects['fact']) | used['fact']),
-            'calculation_ids': sorted((set(draft.calculation_ids) & objects['calc']) | used['calc']),
-            'assumption_ids': sorted((set(draft.assumption_ids) & objects['assumption']) | used['assumption']),
+            **{
+                field: sorted((declared[kind] & objects[kind]) | used[kind])
+                for kind, field in DRAFT_ID_FIELDS.items()
+            },
         }
     )
     return clean, removed
@@ -131,19 +506,11 @@ def number(value: Decimal, unit: str) -> str:
 
 
 def resolve_draft(draft: WriterDraft, context: dict, section_id: str, title: str) -> ReportSection:
-    objects = {
-        'fact': {f['fact_id']: f for f in context['facts']},
-        'calc': {r['result_id']: r for r in context['calculations']},
-        'assumption': {a['assumption_id']: a for a in context['assumptions']},
-    }
+    objects = citable(context)
     evidence = {e['evidence_id'] for e in context['evidence']}
     if not set(draft.evidence_ids).issubset(evidence):
         raise FinancialError('Writer 引用未知证据')
-    declarations = {
-        'fact': set(draft.fact_ids),
-        'calc': set(draft.calculation_ids),
-        'assumption': set(draft.assumption_ids),
-    }
+    declarations = declared_ids(draft)
     for kind, ids in declarations.items():
         if not ids.issubset(objects[kind]):
             raise FinancialError('Writer 引用未知数据 ID')
@@ -155,9 +522,10 @@ def resolve_draft(draft: WriterDraft, context: dict, section_id: str, title: str
         if id not in declarations[kind]:
             raise FinancialError('数值引用未在章节引用字段声明')
         item = objects[kind][id]
-        text = number(Decimal(item['value']), item['unit'])
+        # Industry numbers keep the source's own wording and unit.
+        text = item['value_text'] if kind == 'ind' else number(Decimal(item['value']), item['unit'])
         bindings[f'{kind}:{id}'] = text
-        if kind == 'fact':
+        if kind in {'fact', 'ind'}:
             used_evidence.add(item['evidence_id'])
         if kind == 'assumption':
             used_evidence.update(item['evidence_ids'])
@@ -167,11 +535,26 @@ def resolve_draft(draft: WriterDraft, context: dict, section_id: str, title: str
     for paragraph in draft.paragraphs:
         if raw_numbers(paragraph):
             raise FinancialError('Writer 直接生成数字，必须改用数据或计算引用')
+        paragraph, named = strip_record_ids(paragraph)
+        used_evidence.update(id for id in named if id in evidence)
+        paragraph = strip_meta(paragraph)
         paragraphs.append(TOKEN.sub(replace, paragraph))
+    charts = []
+    for spec in draft.charts[:MAX_CHARTS]:
+        chart, _ = resolve_chart(spec, objects)
+        if chart:
+            charts.append(chart.model_copy(update={'after': chart_after(chart, draft.paragraphs)}))
+            for ref in chart.refs:
+                kind, id = ref.split(':', 1)
+                if kind in {'fact', 'ind'}:
+                    used_evidence.add(objects[kind][id]['evidence_id'])
     return ReportSection(
         section_id=section_id,
         title=title,
+        heading=clean_heading(draft.heading),
         paragraphs=paragraphs,
+        parts=[p.model_copy(update={'heading': clean_heading(p.heading)}) for p in draft.parts],
+        charts=charts,
         evidence_ids=sorted(used_evidence),
         calculation_ids=draft.calculation_ids,
         number_bindings=bindings,
@@ -212,7 +595,20 @@ def section_block(section_id):
     }.get(section_id, 'C01')
 
 
+def section_parts(section_id):
+    return INDUSTRY_PARTS if section_id.startswith('industry-') else {}
+
+
+def imported_section(c, section_id, instructions=None):
+    """A section accepted from a resume package; rework instructions always redraft."""
+    value = (c.get('imported_sections') or {}).get(section_id)
+    return ReportSection.model_validate(value) if value and not instructions else None
+
+
 async def write_one(gateway, c, section_id, title, goal, core=False, instructions=None, store=None, run_id=None):
+    imported = imported_section(c, section_id, instructions)
+    if imported:
+        return imported
     role = 'core_writer' if core else 'writer'
     package = block_context(c, section_block(section_id), 'writing', store, run_id, 1000000)
     selected = package.content
@@ -221,11 +617,26 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
         'evidence': selected['evidence'],
         'calculations': selected['calculations'],
         'assumptions': selected['assumptions'],
+        'industry_data': selected.get('industry_data', []),
+        'part_topics': section_parts(section_id),
+        'no_charts': core or section_id in NO_CHART_SECTIONS,
     }
     data = selected | {
         'section': {'section_id': section_id, 'block_id': section_block(section_id), 'title': title, 'goal': goal},
         'instructions': instructions or [],
     }
+    if local['no_charts']:
+        data['charts_contract'] = '本章不配图，charts 留空'
+    bullish = c.get('writing_style') == 'bullish'
+    if bullish:
+        data['writing_style'] = 'bullish'
+    # The bullish risk chapter is a short list of one-sentence items, as in broker reports.
+    compact = bullish and section_id == 'risk'
+    local['compact'] = compact
+    if compact:
+        data['section'] = data['section'] | {'goal': RISK_LIST_GOAL}
+    if local['part_topics']:
+        data['parts_contract'] = {'topics': local['part_topics'], 'optional': OPTIONAL_PARTS}
     if core:
         data['consistency_checks'] = [
             '收入增长与现金流匹配',
@@ -251,23 +662,26 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
         )
         if cached:
             return ReportSection.model_validate(cached['content'])
-    draft = await ask_bounded(gateway, role, WriterDraft, data)
+    draft = await ask_draft(gateway, role, data, local)
     # Depth is judged by reflection against the block's questions, not by character
     # count. A clearly thin draft still gets one expansion request, never a hard fail.
+    # The industry section carries four to five subsections, so it needs more substance.
     minimum = (
-        300 if core or section_id in FINANCIAL_TITLES or section_id.startswith(('industry-', 'position-')) else 500
+        100
+        if compact
+        else 800
+        if section_id.startswith('industry-')
+        else 300
+        if core or section_id in FINANCIAL_TITLES or section_id.startswith('position-')
+        else 500
     )
     if sum(len(p) for p in draft.paragraphs) < minimum:
-        draft = await ask_bounded(
-            gateway,
-            role,
-            WriterDraft,
-            data
-            | {
-                'instructions': (instructions or [])
-                + ['上一稿过于单薄：请逐一回答本章必需问题，补充有来源的机制分析、反证与限制。']
-            },
+        thin = (
+            '上一稿过于单薄：请逐一回答本章必需问题，用有来源的数据论证投资逻辑的驱动与弹性。'
+            if bullish
+            else '上一稿过于单薄：请逐一回答本章必需问题，补充有来源的机制分析、反证与限制。'
         )
+        draft = await ask_draft(gateway, role, data | {'instructions': (instructions or []) + [thin]}, local)
     reflection = await ask_bounded(
         gateway,
         'reflection',
@@ -277,16 +691,17 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
             'draft': draft.model_dump(mode='json'),
             'evidence': selected['evidence'],
             'calculations': selected['calculations'],
+            **({'writing_style': 'bullish'} if bullish else {}),
         },
     )
     problems = draft_problems(draft, local)
     if reflection.needs_revision or problems:
         fixes = reflection.instructions if reflection.needs_revision else []
-        draft = await ask_bounded(
+        draft = await ask_draft(
             gateway,
             role,
-            WriterDraft,
             data | {'draft': draft.model_dump(mode='json'), 'instructions': problems + fixes + (instructions or [])},
+            local,
         )
         problems = draft_problems(draft, local)
     if problems:
@@ -316,6 +731,68 @@ async def write_one(gateway, c, section_id, title, goal, core=False, instruction
             },
         )
     return section
+
+
+async def patch_one(gateway, c, section: ReportSection, targets: dict[int, list[str]], store=None, run_id=None):
+    """Redraft only the flagged paragraphs (0-based index -> review notes); the rest keep their
+    text and bindings. Returns None when the model does not answer paragraph-for-paragraph."""
+    package = block_context(c, section_block(section.section_id), 'writing', store, run_id, 1000000)
+    selected = package.content
+    local = c | {
+        'facts': selected['financial_facts'],
+        'evidence': selected['evidence'],
+        'calculations': selected['calculations'],
+        'assumptions': selected['assumptions'],
+        'industry_data': selected.get('industry_data', []),
+    }
+    order = sorted(targets)
+    data = selected | {
+        'section': {
+            'section_id': section.section_id,
+            'block_id': section_block(section.section_id),
+            'title': section.title,
+            'goal': '只改写终审指出问题的段落',
+            'current_paragraphs': section.paragraphs,
+        },
+        'patch_contract': {'targets': [{'paragraph': i + 1, 'problems': targets[i]} for i in order]},
+        **({'writing_style': 'bullish'} if c.get('writing_style') == 'bullish' else {}),
+    }
+    local['compact'] = c.get('writing_style') == 'bullish' and section.section_id == 'risk'
+    draft = await ask_draft(gateway, 'writer', data, local)
+    problems = draft_problems(draft, local)
+    if len(draft.paragraphs) != len(order):
+        problems.append(f'paragraphs 必须恰好 {len(order)} 项，与 targets 一一对应')
+    if problems:
+        draft = await ask_draft(
+            gateway, 'writer', data | {'draft': draft.model_dump(mode='json'), 'instructions': problems}, local
+        )
+        if len(draft.paragraphs) != len(order):
+            return None
+        if draft_problems(draft, local):
+            # Clean paragraph by paragraph so a dropped sentence never shifts the alignment.
+            single = [sanitize_draft(draft.model_copy(update={'paragraphs': [p]}), local)[0] for p in draft.paragraphs]
+            paragraphs = [s.paragraphs[0] if s.paragraphs else '' for s in single]
+            draft = sanitize_draft(draft, local)[0].model_copy(update={'paragraphs': paragraphs})
+    fresh = resolve_draft(draft, local, section.section_id, section.title)
+    replaced = dict(zip(order, fresh.paragraphs))
+    paragraphs = [replaced.get(i, p) for i, p in enumerate(section.paragraphs)]
+    # A paragraph emptied by the patch is deleted; subsections keep their own paragraphs.
+    mapping, count = [], 0
+    for p in paragraphs:
+        mapping.append(count if p.strip() else None)
+        count += bool(p.strip())
+    paragraphs = [p for p in paragraphs if p.strip()]
+    kept = {k: v for k, v in section.number_bindings.items() if any(v in p for p in paragraphs)}
+    return section.model_copy(
+        update={
+            'paragraphs': paragraphs,
+            'parts': remap_parts(section.parts, mapping),
+            'charts': remap_charts(section.charts, mapping),
+            'evidence_ids': sorted(set(section.evidence_ids) | set(fresh.evidence_ids)),
+            'calculation_ids': list(dict.fromkeys(section.calculation_ids + fresh.calculation_ids)),
+            'number_bindings': kept | fresh.number_bindings,
+        }
+    )
 
 
 MOCK_TEXT = {
@@ -571,6 +1048,15 @@ def append_tables(report: ReportDocument, c):
 async def make_report(c, gateway, mock=False, store=None, run_id=None):
     if mock:
         sections = mock_sections(c)
+
+        def accept(items):
+            for index, s in enumerate(items):
+                imported = imported_section(c, s.section_id)
+                if imported:
+                    items[index] = imported.model_copy(update={'children': s.children})
+                accept(items[index].children)
+
+        accept(sections)
     else:
         from .execution import bounded_schedule, optimized_run
 
@@ -588,8 +1074,19 @@ async def make_report(c, gateway, mock=False, store=None, run_id=None):
         ]
         business = [
             [
-                (f'industry-{i}', '（一）行业情况', f'{segment}需求、周期、竞争、驱动及资料限制'),
-                (f'position-{i}', '（二）公司情况', f'{segment}经营、竞争能力、份额证据、财务连接及局限'),
+                (
+                    f'industry-{i}',
+                    '（一）行业情况',
+                    f'{segment}所在行业的横向分析，以产品、行业和主要厂商为主体而非只写本公司，按小节写：'
+                    '产品与工艺（产品性能、用途与工艺路线介绍）、上游原料与成本、供给格局（国内外主要厂商产能与扩产对比）、'
+                    '需求与规模、下游与渠道、价格驱动；近期有政策或贸易事件资料时加写政策事件，没有则不写',
+                ),
+                (
+                    f'position-{i}',
+                    '（二）公司情况',
+                    f'公司{segment}业务的位置：产能与产业链配套、成本结构与供应商集中度、客户与渠道、份额、竞争优势及业务展望；'
+                    '产能、份额、毛利率等有同行同口径数据时与主要同行横向比较',
+                ),
             ]
             for i, segment in enumerate(c['brief']['segments'])
         ]
@@ -649,6 +1146,7 @@ async def make_report(c, gateway, mock=False, store=None, run_id=None):
         sources=[SourceRecord.model_validate(s) for s in c['sources']],
         evidence=[EvidenceRecord.model_validate(e) for e in c['evidence']],
         financial_facts=[FinancialFact.model_validate(f) for f in c['facts']],
+        industry_data=[IndustryDatum.model_validate(d) for d in c.get('industry_data', [])],
         calculations=[CalculationResult.model_validate(r) for r in c['calculations']],
         assumptions=[ForecastAssumption.model_validate(a) for a in c['assumptions']],
         forecasts=[FinancialForecast.model_validate(f) for f in c['forecasts']],
@@ -660,6 +1158,9 @@ async def make_report(c, gateway, mock=False, store=None, run_id=None):
         ),
     )
     append_tables(report, c)
+    report.market = c.get('market')
+    report.forecast_model = c.get('forecast_model', '')
+    report.writing_style = c.get('writing_style', 'neutral')
     report.data_template_version = c.get('data_template_version')
     if c.get('rules_version') == '1.1':
         from .schemas import ResearchBrief, ResearchBlock, CoverageEntry, ComparisonResult
@@ -674,10 +1175,22 @@ async def make_report(c, gateway, mock=False, store=None, run_id=None):
         report.limitations += [
             '必需研究问题受限：' + e.question_id + '；' + '; '.join(e.gaps) for e in report.coverage if e.gaps
         ]
+    if c.get('imported_sections'):
+        from .reports import sections_flat
+
+        # Imported sections already hold the deterministic paragraphs added above.
+        for s in sections_flat(report.sections):
+            if s.section_id in c['imported_sections']:
+                s.paragraphs = list(dict.fromkeys(s.paragraphs))
+                s.evidence_ids = list(dict.fromkeys(s.evidence_ids))
+                s.calculation_ids = list(dict.fromkeys(s.calculation_ids))
     return report
 
 
 async def write_core(c, gateway, mock, store=None, run_id=None):
+    imported = imported_section(c, 'core', c.get('core_instructions'))
+    if imported:
+        return imported
     if mock:
         report = ReportDocument.model_validate(c['report'])
         base = next((f for f in report.forecasts if f.scenario == 'Base'), None)
@@ -721,10 +1234,30 @@ async def write_core(c, gateway, mock, store=None, run_id=None):
         TITLES[0],
         '整体综合并显式检查四类跨块矛盾；重大矛盾列明责任块和修复要求',
         core=True,
+        instructions=c.get('core_instructions'),
         store=store,
         run_id=run_id,
     )
 
 
 def report_snapshot(report):
-    return digest(report.model_dump(mode='json', exclude={'issues', 'snapshot_id', 'approved_snapshot_id'}))
+    data = report.model_dump(mode='json', exclude={'issues', 'snapshot_id', 'approved_snapshot_id'})
+
+    def legacy(section):
+        # Reports approved before viewpoint headings existed keep their snapshot.
+        if section.get('heading') == '':
+            del section['heading']
+        if section.get('parts') == []:
+            del section['parts']
+        for child in section.get('children', []):
+            legacy(child)
+
+    for section in data['sections']:
+        legacy(section)
+    # Reports approved before industry data existed keep their snapshot.
+    if not data.get('industry_data'):
+        data.pop('industry_data', None)
+    for key, empty in (('market', None), ('forecast_model', '')):
+        if data.get(key) == empty:
+            data.pop(key, None)
+    return digest(data)

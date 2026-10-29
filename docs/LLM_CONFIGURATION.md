@@ -46,7 +46,7 @@ models.yaml 的 role_limits 支持 default 和具体角色；具体角色未填�
 | CDR_ENFORCE_CALL_BUDGETS | false | 默认只统计次数；true 时才启用总调用与每块调用硬上限 |
 | CDR_BLOCK_CALL_BUDGET | 40 | 显式启用时的单个分析块所有角色合计调用上限；无块 ID 的请求不受此项限制 |
 | CDR_GLOBAL_CALL_BUDGET | 240 | 显式启用时的研究 HTTP 调用上限，失败/重试也计入 |
-| CDR_GLOBAL_TOKEN_BUDGET | 2000000 | 已返回实际用量加未知请求预留的累计上限；发请求前另检查本次输入估算和输出预留 |
+| CDR_GLOBAL_TOKEN_BUDGET | 50000000 | 单次研究全流程 token 累计上限（默认 5000 万）；已返回实际用量加未知请求预留，发请求前另检查本次输入估算和输出预留 |
 | CDR_MAX_BATCH_SPLITS | 2 | 原文提取批次的恢复拆分深度；分析/写作的截断和不完整输出拆分深度 |
 | CDR_PLAN_REPAIRS | 2 | Plan/必需问题语义修复次数 |
 | CDR_MAX_REPLANS | 2 | 研究缺口补查轮次 |

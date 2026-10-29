@@ -1,4 +1,4 @@
-export interface Run {data_template_version?:string|null;data_slot_counts?:Record<string,number>;collection_slot_counts?:Record<string,number>;run_id:string;company_input:string;company_name:string;mode:'mock'|'real';status:string;stage:string;limitations:string[];error:string|null;created_at?:string;updated_at?:string;formats?:string[];rules_version?:string;blocks?:{block_id:string;status:string;version:string}[];coverage_counts?:Record<string,number>;batch_counts?:Record<string,number>;runtime?:RuntimeSummary;recovery?:Recovery}
+export interface Run {bullish?:boolean;data_template_version?:string|null;data_slot_counts?:Record<string,number>;collection_slot_counts?:Record<string,number>;run_id:string;company_input:string;company_name:string;mode:'mock'|'real';status:string;stage:string;limitations:string[];error:string|null;created_at?:string;updated_at?:string;formats?:string[];rules_version?:string;blocks?:{block_id:string;status:string;version:string}[];coverage_counts?:Record<string,number>;batch_counts?:Record<string,number>;runtime?:RuntimeSummary;recovery?:Recovery}
 export interface Recovery {
   current_session?:boolean;can_pause?:boolean;
  can_resume:boolean;can_increase_budget:boolean;reason:string;checkpoint_node:string|null;
@@ -63,3 +63,13 @@ export interface ReferenceAttachment {
  source_count:number
 }
 export interface ReferenceLimits {max_files:number;max_file_bytes:number;annual_reports_required?:boolean}
+export interface PackageInfo {
+ package_id:string;created_at:string;checkpoint_node:string;
+ source:{run_id:string;company_input:string;company_name:string;mode:'mock'|'real';status:string;stage:string;error:string|null;bullish?:boolean};
+ levels:{level:'collection'|'forecast'|'blocks'|'writing';label:string;stages:string[];available:boolean}[];
+ recommended_level:PackageInfo['levels'][number]['level']|null;recommendation:string;
+ review:{snapshot_id:string;reviewed:boolean;unmapped_issues:string[];sections:{section_id:string;title:string;status:'passed'|'failed'|'unreviewed';issues:string[];default_keep:boolean}[]}|null;
+ attachments:{filename:string;size:number}[];
+ risks:{field:string;label:string;level:'low'|'medium'|'high';message:string}[];
+ incompatible:string|null;
+}

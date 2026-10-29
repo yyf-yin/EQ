@@ -1,6 +1,8 @@
 import asyncio
 import copy
-from datetime import datetime, timezone
+import json
+import re
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import TypedDict
@@ -22,10 +24,18 @@ from .schemas import (
     ReportDocument,
 )
 from .agents import ask, ask_bounded, locate_quote, SupervisorDecision, FinancialAnalysis, AssumptionOutput
-from .datasources import LocalDatasource, UnifiedDatasource, WebAdapter, HTTPWebSearchProvider, BochaWebSearchProvider
+from .datasources import (
+    LocalDatasource,
+    UnifiedDatasource,
+    WebAdapter,
+    HTTPWebSearchProvider,
+    BochaWebSearchProvider,
+    SourcePolicy,
+)
 from .evidence import EvidenceStore
 from .financials import DependencyResolver, Calculator, ForecastEngine, FinancialError
 from .financials.formulas import REGISTRY, FinancialDataProcessor, INPUT_UNITS, input_unit
+from .financials.generic import plan as generic_plan
 from .financials.forecast import (
     OPENING_KEYS,
     ASSUMPTION_KEYS,
@@ -185,6 +195,10 @@ def brief_business_support(brief, sources):
     return support, errors
 
 
+def revision_note(problem):
+    return f"问题（{problem['location']}）：{problem['description']} 修复：{problem['suggested_fix']}"
+
+
 class ResearchWorkflow:
     def __init__(self, settings, store, run_id, gateway=None):
         ensure_isolation(store, run_id)
@@ -224,7 +238,17 @@ class ResearchWorkflow:
                 store,
                 run_id=run_id,
             )
-        self.datasource = UnifiedDatasource(local, web)
+        self.reports = None
+        if not self.mock and settings.research_reports and settings.research_report_limit:
+            from .research_reports import ResearchReports
+
+            self.reports = ResearchReports(web or WebAdapter(None, store, run_id=run_id))
+        self.peers = None
+        if not self.mock and settings.peer_disclosures:
+            from .peer_disclosures import PeerDisclosures
+
+            self.peers = PeerDisclosures(store, run_id)
+        self.datasource = UnifiedDatasource(local, web, SourcePolicy.load(settings.source_domains))
         self.datasource.exclude_annual_reports = not self.mock and settings.data_collection_mode == 'fixed'
         self.datasource.reference_sources = self.references
         from .fixed_collection import FixedCollection
@@ -1415,6 +1439,71 @@ class ResearchWorkflow:
         return {'block_analyses': analyses, 'coverage': coverage, 'plan': c['plan']}
 
     async def assumptions(self, c):
+        market = await self.market(c)
+        try:
+            planned = await self.planned_assumptions(c | market)
+        except FinancialError as exc:
+            # Model errors propagate so the run can resume and retry; only assumptions that
+            # fail validation hand over to the generic historical-trend model in calculate.
+            if self.mock:
+                raise
+            planned = {
+                'assumptions': [],
+                'segment_models': {},
+                'limitations': list(dict.fromkeys(c['limitations'] + ['有据预测假设未能生成：' + str(exc)])),
+            }
+        return planned | market
+
+    async def market(self, c):
+        """Price, peers and consensus EPS, fetched once per run and cited like any source."""
+        ticker = str(c['company'].get('ticker') or '')
+        if self.mock or not self.settings.market_data or not re.fullmatch(r'\d{6}', ticker):
+            return {}
+        saved = self.store.execution_get(self.run_id, 'execution_meta', 'market-snapshot')
+        if not saved:
+            from .market_data import snapshot
+
+            as_of = date.fromisoformat(str(c['brief'].get('as_of') or date.today().isoformat())[:10])
+            years = [p[:4] for p in sorted(c['brief']['forecast_periods'])]
+            history = max(c['brief']['historical_periods'])[:4]
+            self.store.emit(self.run_id, '盈利预测', 'market_data', 'running', '获取股价、可比公司与一致预期')
+            try:
+                saved = await asyncio.to_thread(snapshot, ticker, as_of, history, years)
+            except Exception as exc:  # network or upstream format change: valuation degrades, research continues
+                saved = {'company': {'code': ticker}, 'peers': [], 'errors': [f'{type(exc).__name__}: {exc}']}
+            self.store.execution_put(self.run_id, 'execution_meta', 'market-snapshot', saved)
+        from .market_data import SOURCE, summary
+
+        text = summary(saved)
+        source = SourceRecord(
+            source_id='market-' + digest(saved)[:16],
+            kind='web',
+            title=f'市场数据快照（{saved.get("as_of") or "日期未知"}）',
+            content=text + '\n' + json.dumps(saved, ensure_ascii=False, default=str),
+            publication_date=saved.get('as_of'),
+            source_url=None,
+        )
+        evidence = EvidenceRecord(
+            evidence_id='ev-' + digest([source.source_id, 'market'])[:24],
+            source_id=source.source_id,
+            claim='股价、可比公司估值与一致预期（' + SOURCE + '）',
+            quote=text,
+            locator='全文',
+            actual_or_forecast='context',
+            validation_status='verified',
+        )
+        self.store.record(self.run_id, 'source', source.source_id, source.model_dump(mode='json'))
+        self.store.record(self.run_id, 'evidence', evidence.evidence_id, evidence.model_dump(mode='json'))
+        known = {e['evidence_id'] for e in c['evidence']}
+        sources = {s['source_id'] for s in c['sources']}
+        return {
+            'market': saved,
+            'market_evidence_ids': [evidence.evidence_id],
+            'evidence': c['evidence'] + ([evidence.model_dump(mode='json')] if evidence.evidence_id not in known else []),
+            'sources': c['sources'] + ([source.model_dump(mode='json')] if source.source_id not in sources else []),
+        }
+
+    async def planned_assumptions(self, c):
         if c.get('data_template_version'):
             reason = self.fixed_collection.forecast_limit(c)
             if reason:
@@ -1567,35 +1656,14 @@ class ResearchWorkflow:
             'limitations': list(dict.fromkeys(c['limitations'] + limitations)),
         }
 
-    async def calculate(self, c):
-        processor = FinancialDataProcessor()
-        facts = [FinancialFact.model_validate(f) for f in c['facts']]
-        assumptions = [ForecastAssumption.model_validate(a) for a in c['assumptions']]
-        results = list(c['calculations'])
-        forecasts = []
-        limitations = list(c['limitations'])
-        period = max(c['brief']['historical_periods'])
-        company = c['company']['company_id']
-        try:
-            opening_facts = {k: processor.get(facts, company, k, period) for k in OPENING_KEYS}
-            opening = {k: f.value for k, f in opening_facts.items()}
-            opening_refs = {k: f.fact_id for k, f in opening_facts.items()}
-            segments, historical, segment_note = forecast_segments(
-                facts, company, period, c['brief']['segments'], bool(c.get('data_template_version'))
-            )
-        except FinancialError as exc:
-            return {'forecasts': [], 'limitations': limitations + [str(exc), '关键三表输入缺失，未生成预测。']}
-        if segment_note:
-            limitations.append(segment_note)
-        # Fixed-template runs used to stop on minority interest; they now need an
-        # explicit split. Legacy runs keep the consolidated simplification.
-        minority = bool(c.get('data_template_version')) and has_minority_interest(facts, company, period)
+    def run_engine(self, company, years, assumptions, models, opening, opening_refs, previous, minority):
+        """Roll Bear/Base/Bull through the three-statement engine; a failed scenario stops at its first bad year."""
+        forecasts, computed, failures = [], [], []
         for scenario in ['Bear', 'Base', 'Bull']:
-            balance = dict(opening)
-            balance_refs = dict(opening_refs)
-            prev = {s: f.value for s, f in historical.items()}
-            prev_refs = {s: f.fact_id for s, f in historical.items()}
-            for year in sorted(c['brief']['forecast_periods']):
+            balance, balance_refs = dict(opening), dict(opening_refs)
+            prev = {s: v for s, (v, _) in previous.items()}
+            prev_refs = {s: r for s, (_, r) in previous.items()}
+            for year in years:
                 try:
                     if minority and not any(
                         a.scenario == scenario and a.period == year and a.segment_id is None
@@ -1604,22 +1672,14 @@ class ResearchWorkflow:
                     ):
                         raise FinancialError('历史存在少数股东损益，缺少 minority_ratio 假设')
                     drivers = {}
-                    for segment in segments:
-                        model = c['segment_models'].get(segment)
-                        if model not in {
-                            'volume_price',
-                            'capacity_utilization',
-                            'users_arpu',
-                            'market_share',
-                            'growth',
-                        }:
+                    for segment in previous:
+                        model = models.get(segment)
+                        if model not in {'volume_price', 'capacity_utilization', 'users_arpu', 'market_share', 'growth'}:
                             raise FinancialError('分部缺少适用预测模型')
-                        params = {}
-                        refs = {}
+                        params, refs = {}, {}
                         for metric in REGISTRY[model].inputs:
                             if model == 'growth' and metric == 'previous':
-                                params[metric] = prev[segment]
-                                refs[metric] = prev_refs[segment]
+                                params[metric], refs[metric] = prev[segment], prev_refs[segment]
                                 continue
                             matches = [
                                 a
@@ -1631,36 +1691,110 @@ class ResearchWorkflow:
                             ]
                             if len(matches) != 1:
                                 raise FinancialError(f'缺少分部驱动 {segment}/{metric}/{year}/{scenario}')
-                            params[metric] = matches[0].value
-                            refs[metric] = matches[0].assumption_id
+                            params[metric], refs[metric] = matches[0].value, matches[0].assumption_id
                         drivers[segment] = {'model': model, 'inputs': params, 'input_refs': refs}
-                    forecast, computed = ForecastEngine().forecast(
+                    forecast, results = ForecastEngine().forecast(
                         company, year, scenario, balance, drivers, assumptions, balance_refs
                     )
                     forecasts.append(forecast.model_dump(mode='json'))
-                    results += [r.model_dump(mode='json') for r in computed]
+                    computed += [r.model_dump(mode='json') for r in results]
                     from .work_products import preserve_materials
 
                     preserve_materials(
                         self.store,
                         self.run_id,
                         [('forecast', scenario + '-' + year, forecast.model_dump(mode='json'))]
-                        + [('calculation', r.result_id, r.model_dump(mode='json')) for r in computed],
+                        + [('calculation', r.result_id, r.model_dump(mode='json')) for r in results],
                     )
                     balance = {k: forecast.balance[k] for k in OPENING_KEYS}
-                    balance_refs = {**balance_refs, **{r.output_metric: r.result_id for r in computed}}
+                    balance_refs = {**balance_refs, **{r.output_metric: r.result_id for r in results}}
                     prev = {s: v['revenue'] for s, v in forecast.segments.items()}
                     prev_refs = {
-                        s: next(r.result_id for r in computed if r.output_metric == f'{s}.revenue') for s in prev
+                        s: next(r.result_id for r in results if r.output_metric == f'{s}.revenue') for s in prev
                     }
                 except FinancialError as exc:
-                    limitations.append(f'{scenario}/{year}：{exc}')
+                    failures.append(f'{scenario}/{year}：{exc}')
                     break
+        return forecasts, computed, failures
+
+    async def calculate(self, c):
+        processor = FinancialDataProcessor()
+        facts = [FinancialFact.model_validate(f) for f in c['facts']]
+        assumptions = [ForecastAssumption.model_validate(a) for a in c['assumptions']]
+        models = dict(c.get('segment_models') or {})
+        limitations = list(c['limitations'])
+        period = max(c['brief']['historical_periods'])
+        company = c['company']['company_id']
+        years = sorted(c['brief']['forecast_periods'])
+        # Fixed-template runs used to stop on minority interest; they now need an
+        # explicit split. Legacy runs keep the consolidated simplification.
+        minority = bool(c.get('data_template_version')) and has_minority_interest(facts, company, period)
+        forecasts, computed = [], []
+        try:
+            opening_facts = {k: processor.get(facts, company, k, period) for k in OPENING_KEYS}
+            segments, historical, segment_note = forecast_segments(
+                facts, company, period, c['brief']['segments'], bool(c.get('data_template_version'))
+            )
+            if segment_note:
+                limitations.append(segment_note)
+            forecasts, computed, failures = self.run_engine(
+                company,
+                years,
+                assumptions,
+                models,
+                {k: f.value for k, f in opening_facts.items()},
+                {k: f.fact_id for k, f in opening_facts.items()},
+                {s: (f.value, f.fact_id) for s, f in historical.items()},
+                minority,
+            )
+            limitations += failures
+        except FinancialError as exc:
+            limitations += [str(exc), '关键三表输入缺失，未按有据假设生成预测。']
+        model = 'planned'
+        if not self.mock and len(forecasts) < 3 * len(years):
+            # Evidence-based assumptions did not cover every scenario and year: the whole
+            # forecast switches to the generic historical-trend model, never a mix.
+            try:
+                generic = generic_plan(facts, company, c['brief'], c.get('market'), c.get('market_evidence_ids'))
+                assumptions, models = generic['assumptions'], generic['models']
+                forecasts, computed, failures = self.run_engine(
+                    company,
+                    years,
+                    assumptions,
+                    models,
+                    {k: Decimal(v) for k, v in generic['opening'].items()},
+                    generic['opening_refs'],
+                    {s: (Decimal(v), generic['previous_refs'][s]) for s, v in generic['previous'].items()},
+                    minority,
+                )
+                model = 'generic'
+                limitations += generic['notes'] + failures + ['盈利预测采用历史趋势通用模型：有据假设未覆盖全部情景与年份。']
+                derived = [r.model_dump(mode='json') for r in generic['calculations']]
+                computed = derived + computed
+                from .work_products import preserve_materials
+
+                preserve_materials(
+                    self.store,
+                    self.run_id,
+                    [('assumption', a.assumption_id, a.model_dump(mode='json')) for a in assumptions]
+                    + [('calculation', r['result_id'], r) for r in derived],
+                )
+            except FinancialError as exc:
+                limitations.append('通用预测未能生成：' + str(exc))
+        results = list(c['calculations']) + computed
         for r in results:
             self.store.record(self.run_id, 'calculation', r['result_id'], r)
-        for a in c['assumptions']:
+        assumption_rows = [a.model_dump(mode='json') for a in assumptions]
+        for a in assumption_rows:
             self.store.record(self.run_id, 'assumption', a['assumption_id'], a)
-        return {'calculations': results, 'forecasts': forecasts, 'limitations': list(dict.fromkeys(limitations))}
+        return {
+            'calculations': results,
+            'forecasts': forecasts,
+            'assumptions': assumption_rows,
+            'segment_models': models,
+            'forecast_model': model,
+            'limitations': list(dict.fromkeys(limitations)),
+        }
 
     async def validate(self, c):
         if any(not Calculator().recompute(CalculationResult.model_validate(r)) for r in c['calculations']):
@@ -1668,10 +1802,78 @@ class ResearchWorkflow:
         return {'validated': True}
 
     async def write_sections(self, c):
+        from .cost_structure import chain_data
         from .writers import make_report
 
+        # Cost structure and top-five concentration come from the annual reports already
+        # collected, so resumed runs gain them too without collecting again.
+        update = {}
+        if not self.mock:
+            sources, evidence, data = chain_data(c)
+            known = {d['data_id'] for d in c.get('industry_data', [])}
+            data = [d for d in data if d.data_id not in known]
+            if data:
+                for kind, items, key in (('source', sources, 'source_id'), ('evidence', evidence, 'evidence_id'), ('industry_data', data, 'data_id')):
+                    for item in items:
+                        self.store.record(self.run_id, kind, getattr(item, key), item.model_dump(mode='json'))
+                have = {s['source_id'] for s in c['sources']}, {e['evidence_id'] for e in c['evidence']}
+                update = {
+                    'sources': c['sources'] + [s.model_dump(mode='json') for s in sources if s.source_id not in have[0]],
+                    'evidence': c['evidence'] + [e.model_dump(mode='json') for e in evidence if e.evidence_id not in have[1]],
+                    'industry_data': c.get('industry_data', []) + [d.model_dump(mode='json') for d in data],
+                }
+                c = c | update
+        if not self.mock and c.get('writing_style') == 'bullish' and c.get('forecasts'):
+            valued = await self.bullish_valuation(c)
+            update |= valued
+            c = c | valued
         report = await make_report(c, self.gateway, self.mock, self.store, self.run_id)
-        return {'report': report.model_dump(mode='json')}
+        return update | {'report': report.model_dump(mode='json')}
+
+    async def bullish_valuation(self, c):
+        """The bullish multiple and target price (valuation.py), added to the forecast's own
+        assumptions and calculations. The PE history is fetched once per run and cited."""
+        from .market_data import HISTORY_SOURCE, history_summary, valuation_history
+        from .valuation import HISTORY_YEARS, bullish_valuation
+
+        ticker = str(c['company'].get('ticker') or '')
+        history, evidence_ids, added = None, [], {'sources': c['sources'], 'evidence': c['evidence']}
+        if self.settings.market_data and re.fullmatch(r'\d{6}', ticker):
+            saved = self.store.execution_get(self.run_id, 'execution_meta', 'valuation-history')
+            if saved is None:
+                as_of = date.fromisoformat(str((c.get('market') or {}).get('as_of') or c['brief'].get('as_of') or date.today().isoformat())[:10])
+                try:
+                    found = await asyncio.to_thread(valuation_history, ticker, as_of, HISTORY_YEARS)
+                except Exception:  # network or upstream format change: the history anchor is skipped
+                    found = None
+                saved = {'history': found}
+                self.store.execution_put(self.run_id, 'execution_meta', 'valuation-history', saved)
+            history = saved.get('history')
+        if history:
+            text = history_summary(ticker, history)
+            source = SourceRecord(
+                source_id='valuation-' + digest(history)[:16], kind='web', title=f'个股历史估值（{history["end"]}）',
+                content=text + '\n' + json.dumps(history, ensure_ascii=False), publication_date=history['end'],
+            )
+            evidence = EvidenceRecord(
+                evidence_id='ev-' + digest([source.source_id, 'valuation-history'])[:24], source_id=source.source_id,
+                claim=f'公司历史估值（{HISTORY_SOURCE}）', quote=text, locator='全文',
+                actual_or_forecast='context', validation_status='verified',
+            )
+            self.store.record(self.run_id, 'source', source.source_id, source.model_dump(mode='json'))
+            self.store.record(self.run_id, 'evidence', evidence.evidence_id, evidence.model_dump(mode='json'))
+            evidence_ids = [evidence.evidence_id]
+            if source.source_id not in {s['source_id'] for s in c['sources']}:
+                added['sources'] = c['sources'] + [source.model_dump(mode='json')]
+            if evidence.evidence_id not in {e['evidence_id'] for e in c['evidence']}:
+                added['evidence'] = c['evidence'] + [evidence.model_dump(mode='json')]
+        assumptions, calculations = bullish_valuation(c, history, evidence_ids)
+        known_a = {a['assumption_id'] for a in c['assumptions']}
+        known_r = {r['result_id'] for r in c['calculations']}
+        return added | {
+            'assumptions': c['assumptions'] + [a.model_dump(mode='json') for a in assumptions if a.assumption_id not in known_a],
+            'calculations': c['calculations'] + [r.model_dump(mode='json') for r in calculations if r.result_id not in known_r],
+        }
 
     async def core_conclusion(self, c):
         from .writers import write_core
@@ -1721,6 +1923,8 @@ class ResearchWorkflow:
             'block_analyses': analyses,
             'plan': c['plan'],
             'coverage': coverage,
+            # Sections accepted from a resume package apply to the first draft only.
+            'imported_sections': {},
         }
 
     async def assemble(self, c):
@@ -1736,6 +1940,10 @@ class ResearchWorkflow:
         report = ReportDocument.model_validate(c['report'])
         report.snapshot_id = report_snapshot(report)
         report.approved_snapshot_id = ''
+        memo = dict(c.get('review_memo') or {})
+        from .reports import sections_flat
+
+        titles = {s.section_id: s.title for s in sections_flat(report.sections)}
         from .work_products import preserve_review
 
         evaluation_review_id = preserve_review(self.store, self.run_id, report, c.get('revisions', 0) + 1)
@@ -1765,23 +1973,50 @@ class ResearchWorkflow:
                         affected_refs=decision['candidate_ids'],
                     )
                 )
-        if any(i.severity in {'critical', 'error'} for i in deterministic):
+        from .reviewers import NON_BLOCKING
+
+        if any(i.severity in {'critical', 'error'} and not i.rule_id.startswith(NON_BLOCKING) for i in deterministic):
             all_issues = [i.model_dump(mode='json') for i in deterministic]
         else:
-            output = await review_graph(self.gateway, self.store, self.run_id, self.mock).ainvoke(
+            output = await review_graph(self.gateway, self.store, self.run_id, self.mock, memo).ainvoke(
                 {'report': report.model_dump(mode='json'), 'issues': []}
             )
             all_issues = output['issues']
         for i in all_issues:
             i['snapshot_id'] = report.snapshot_id
         hard = [i for i in all_issues if i['severity'] in {'critical', 'error'}]
+        unresolved = []
+        if (
+            hard
+            and c.get('revisions', 0) >= self.settings.max_revisions
+            and all(i.get('rule_id', '').startswith(NON_BLOCKING) for i in hard)
+        ):
+            # Model reviewers and text heuristics drive rework but cannot block on their own:
+            # after the last round their open findings stay on record, disclosed as limitations.
+            for i in hard:
+                i['severity'], i['validation_status'] = 'warning', 'unresolved'
+            unresolved, hard = hard, []
+        # Deterministic gate failures lead the blocking message.
+        hard.sort(key=lambda i: i.get('rule_id', '').startswith(NON_BLOCKING))
         report = ReportDocument.model_validate(c['report'])
         report.issues = [
             __import__('company_research.schemas', fromlist=['ReviewIssue']).ReviewIssue.model_validate(i)
             for i in all_issues
         ]
+        by_section = {}
+        for i in unresolved:
+            by_section.setdefault(i.get('section_id') or i['location'], []).append(i)
+        disclosures = [
+            f'终审未解决意见（{titles.get(sid, sid)}，{len(items)} 项）：'
+            + '；'.join(x['description'][:80] for x in items)
+            for sid, items in by_section.items()
+        ]
         report.limitations = list(
-            dict.fromkeys(report.limitations + [i['description'] for i in all_issues if i['severity'] == 'warning'])
+            dict.fromkeys(
+                report.limitations
+                + [i['description'] for i in all_issues if i['severity'] == 'warning' and i not in unresolved]
+                + disclosures
+            )
         )
         preserve_review(
             self.store,
@@ -1823,7 +2058,7 @@ class ResearchWorkflow:
             preserve_review(
                 self.store, self.run_id, report, c.get('revisions', 0) + 1, evaluation_review_id, 'approved'
             )
-        return {'issues': hard, 'report': report.model_dump(mode='json')}
+        return {'issues': hard, 'report': report.model_dump(mode='json'), 'review_memo': memo}
 
     async def revise(self, c):
         targets = {i['target_node'] for i in c['issues']}
@@ -1839,6 +2074,18 @@ class ResearchWorkflow:
                 'affected_blocks': sorted(descendants(c['plan']['blocks'], responsible)),
                 'reason': 'review repair',
             },
+        )
+
+        from .reviewers import issue_sections
+
+        report = ReportDocument.model_validate(c['report'])
+        # Every core redraft in this round, whichever branch runs it, sees the core findings.
+        c['core_instructions'] = list(
+            dict.fromkeys(
+                revision_note(i)
+                for i in c['issues']
+                if i['target_node'] == 'core_conclusion' or 'core' in issue_sections(i, report.sections)
+            )
         )
 
         async def execute(node):
@@ -1889,14 +2136,14 @@ class ResearchWorkflow:
             await execute('core_conclusion')
             await execute('assemble')
         elif 'write_sections' in targets:
-            from .writers import write_one, mock_sections
-            from .reviewers import issue_sections, FIXED_SECTIONS
+            from .writers import write_one, patch_one, mock_sections
+            from .reviewers import issue_paragraphs, FIXED_SECTIONS
 
             report = ReportDocument.model_validate(c['report'])
             per_section = {}
             for problem in c['issues']:
                 for sid in issue_sections(problem, report.sections):
-                    per_section.setdefault(sid, []).append(problem['suggested_fix'])
+                    per_section.setdefault(sid, []).append(problem)
             # Any located issue keeps the repair local; fixed sections (core, statements) are
             # never redrafted here, and core_conclusion below refreshes the core view.
             matched = bool(per_section)
@@ -1921,16 +2168,30 @@ class ResearchWorkflow:
 
                 for s in sections_flat(report.sections):
                     if s.section_id in per_section and s.section_id not in FIXED_SECTIONS:
-                        updated = await write_one(
-                            self.gateway,
-                            c,
-                            s.section_id,
-                            s.title,
-                            '修复终审定位问题',
-                            instructions=list(dict.fromkeys(per_section[s.section_id])),
-                            store=self.store,
-                            run_id=self.run_id,
-                        )
+                        problems = per_section[s.section_id]
+                        # Paragraph numbers are relative to the section the reviewer read.
+                        spots = [
+                            issue_paragraphs(p, len(s.paragraphs)) if p.get('section_id') == s.section_id else []
+                            for p in problems
+                        ]
+                        updated = None
+                        if all(spots):
+                            notes = {}
+                            for p, at in zip(problems, spots):
+                                for index in at:
+                                    notes.setdefault(index, []).append(revision_note(p))
+                            updated = await patch_one(self.gateway, c, s, notes, self.store, self.run_id)
+                        if updated is None:
+                            updated = await write_one(
+                                self.gateway,
+                                c,
+                                s.section_id,
+                                s.title,
+                                '修复终审定位问题',
+                                instructions=list(dict.fromkeys(revision_note(p) for p in problems)),
+                                store=self.store,
+                                run_id=self.run_id,
+                            )
                         s.paragraphs, s.evidence_ids, s.calculation_ids, s.number_bindings = (
                             updated.paragraphs,
                             updated.evidence_ids,
@@ -1949,7 +2210,7 @@ class ResearchWorkflow:
             await execute('core_conclusion')
         elif 'core_conclusion' in targets:
             await execute('core_conclusion')
-        return {**c, 'revisions': c.get('revisions', 0) + 1}
+        return {**c, 'core_instructions': [], 'revisions': c.get('revisions', 0) + 1}
 
     async def render(self, c):
         report = ReportDocument.model_validate(c['report'])
@@ -1973,7 +2234,7 @@ class ResearchWorkflow:
             key = 'render-' + ext
             previous = self.store.execution_get(self.run_id, 'execution_meta', key)
             target = folder / f'report.{ext}'
-            version = digest([report.approved_snapshot_id, 'render-1', ext])
+            version = digest([report.approved_snapshot_id, 'render-2', ext])  # render-2: reader layout with charts
             if (
                 previous
                 and previous['version'] == version

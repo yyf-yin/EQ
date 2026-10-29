@@ -135,7 +135,7 @@ async def test_new_sources_do_not_reextract_validated_old_source(tmp_path):
     a=SourceRecord(kind='local',title='first',content='营业收入：原有披露。\n')
     b=SourceRecord(kind='local',title='second',content='营业收入：新增披露。\n')
     class Datasource:
-        async def retrieve(self,q): return ([a] if q=='first' else [b]),[]
+        async def retrieve(self,q, **options): return ([a] if q=='first' else [b]),[]
     # Use Gateway's real wire size calculation with a deterministic model stub.
     class Model(Gateway):
         def __init__(self):
@@ -170,7 +170,7 @@ async def test_parallel_batches_save_successful_peers_after_failure(tmp_path):
     store=Store(tmp_path/'db')
     source=SourceRecord(kind='local',title='年报',content='营业收入 '+('原始披露文字。'*1000))
     class Datasource:
-        async def retrieve(self,q): return [source],[]
+        async def retrieve(self,q, **options): return [source],[]
     class Model(Gateway):
         def __init__(self):
             super().__init__({'m':ModelConfig(protocol='openai',base_url='https://fixture.test',model='m',api_key_env='unused')},

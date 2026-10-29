@@ -201,6 +201,8 @@ def manifest(settings, gateway=None, mode='real'):
                     'extraction_input_tokens',
                     'material_search_budget',
                     'material_document_budget',
+                    'material_industry_search_budget',
+                    'material_industry_document_budget',
                     'material_extra_direction_limit',
                     'material_policy_years',
                 )
@@ -331,10 +333,9 @@ def recovery_info(settings, store, run_id):
     budget_failure = run.failure_code == 'budget' or (
         not run.failure_code and (run.error or '').startswith('调用/全局 token 预算耗尽：')
     )
-    session_id = getattr(store, 'service_session_id', None)
-    current_session = session_id is None or store.execution_get(run_id, 'execution_meta', 'service-session') == {
-        'session_id': session_id
-    }
+    from .startup import owns_run
+
+    current_session = owns_run(store, run_id)
     allowed = (
         run.status in {'interrupted', 'waiting_human'}
         or (run.status == 'failed' and run.failure_code in {None, 'execution', 'budget'})
@@ -391,7 +392,7 @@ def recovery_info(settings, store, run_id):
         reason = isolation['reason']
     if not current_session:
         allowed = False
-        reason = '此任务未被本次启动选择继续；仅启动窗口选中的最近未完成任务可恢复，原成果可查看或导出。'
+        reason = '只有最近一个未完成的任务可以在页面继续；此任务可导出成果包后在首页上传继续，原成果可查看。'
     elif run.failure_code == 'configuration':
         reason = '配置错误需要修复后新建研究；原成果可查看或导出。'
     counts = {}

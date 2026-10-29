@@ -237,6 +237,11 @@ def extraction_batches(sources, task, periods, capacity, request_size=None, reus
     return sorted(batches, key=order) if reusable else batches
 
 
+INDUSTRY_DATA_FIELDS = (
+    'data_id', 'evidence_id', 'subject', 'metric', 'period', 'value_text', 'actual_or_forecast', 'publisher'
+)
+
+
 def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000):
     blocks = {b['block_id']: b for b in c.get('plan', {}).get('blocks', [])}
     b = blocks.get(block_id, {'template_id': block_id, 'segment_id': None, 'dependencies': [], 'questions': {}})
@@ -269,7 +274,8 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             if (f['metric_code'] in CORE and f['period'] in display and f['scope'] == 'consolidated')
             or (
                 f['period'] == latest
-                and f['metric_code'] in {'revenue', 'cost', 'cash', 'debt', 'equity', 'shares', 'price', 'net_income'}
+                and f['metric_code']
+                in {'revenue', 'cost', 'cash', 'debt', 'equity', 'shares', 'price', 'net_income', 'parent_net_income'}
             )
             or (
                 c.get('data_template_version')
@@ -290,12 +296,15 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
         if (set(r['input_refs'].values()) & fact_ids or (template in {'V01', 'X01'} and r['scenario'] != 'historical'))
         and (not template.startswith('F') or r['scenario'] == 'historical')
     ]
+    from .valuation import METRICS as BULLISH_METRICS
+
     if template in {'V01', 'R01', 'X01'}:
         calculations = [
             r
             for r in calculations
             if r['output_metric']
-            in {'revenue', 'net_income', 'eps', 'target_price', 'cfo', 'fcf', 'cash', 'pe', 'roe', 'roic'}
+            in {'revenue', 'net_income', 'parent_net_income', 'eps', 'target_price', 'cfo', 'fcf', 'cash', 'pe', 'roe', 'roic'}
+            | set(BULLISH_METRICS)
             or r['output_metric'].endswith(('.yoy', '.delta'))
         ]
         # Tables retain all detailed calculation chains. Analysis sees key final results and latest comparisons.
@@ -306,7 +315,8 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             if r['period'] == latest
             or (
                 r['scenario'] != 'historical'
-                and r['output_metric'] in {'revenue', 'net_income', 'eps', 'target_price', 'cfo', 'cash'}
+                and r['output_metric']
+                in {'revenue', 'net_income', 'parent_net_income', 'eps', 'target_price', 'cfo', 'cash'} | set(BULLISH_METRICS)
             )
         ]
     comparisons = [r for r in c.get('comparisons', []) if r['current_fact_id'] in fact_ids]
@@ -317,12 +327,37 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             if r['current_period'] == max(c['brief']['historical_periods'])
             or r['current_period'] == c['brief'].get('interim_period')
         ]
+    # A comparison is cited through its own delta/rate results, so those stay citable
+    # even where the calculation list above is narrowed to key metrics.
+    listed = {r['result_id'] for r in calculations}
+    cited = {id for r in comparisons for id in r['calculation_ids']} - listed
+    calculations += [r for r in c.get('calculations', []) if r['result_id'] in cited]
     # C01/I01/B01 need actual excerpts. Finance sees only its own evidence and topic matches.
     evidence_ids = {f['evidence_id'] for f in facts}
     from .references import reference_question_support
 
     support = reference_question_support(c, store, run_id)
     reference_ids = {id for q in b['questions'] for id in support.get(q, [])}
+    # Material collected for this business or its industry follows the block even when a
+    # quote does not name the business itself (e.g. 维生素E market data for 营养品).
+    material_ids = {
+        id
+        for s in c.get('material_collections', [])
+        if template in {'I01', 'B01'}
+        and (s.get('block_id') == block_id or segment in s.get('scope', {}).get('linked_segments', []))
+        for status in s.get('direction_statuses', {}).values()
+        for id in status.get('evidence_ids', [])
+    }
+    # The company's own cost structure and top-five shares (cost_structure.py) are the
+    # upstream and downstream facts every industry and position block may cite.
+    from .cost_structure import PUBLISHER as ANNUAL_CHAIN
+
+    chain_ids = (
+        {d['evidence_id'] for d in c.get('industry_data', []) if d.get('publisher') == ANNUAL_CHAIN}
+        if template in {'I01', 'B01'}
+        else set()
+    )
+    material_ids |= chain_ids
     numeric_evidence = {f['evidence_id'] for f in c.get('fact_candidates', c.get('facts', [])) + c.get('facts', [])}
     words = re.findall(r'[\u4e00-\u9fff]{2}', ' '.join(b['questions'].values()))
     evidence = [
@@ -330,6 +365,7 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
         for e in c.get('evidence', [])
         if e['evidence_id'] in evidence_ids
         or e['evidence_id'] in reference_ids
+        or e['evidence_id'] in material_ids
         or (
             e['evidence_id'] not in numeric_evidence
             and not e['quote'].startswith('{')
@@ -343,7 +379,7 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
         # Select paragraphs mentioning this business rather than the entire shared company note.
         evidence = [
             e | {'quote': '\n'.join(p for p in e['quote'].split('\n\n') if segment in p)}
-            if not e['quote'].startswith('{') and e['evidence_id'] not in reference_ids
+            if not e['quote'].startswith('{') and e['evidence_id'] not in reference_ids | material_ids
             else e
             for e in evidence
         ]
@@ -387,6 +423,23 @@ def block_context(c, block_id, purpose, store=None, run_id=None, capacity=120000
             )
         ],
     }
+    if template in {'I01', 'B01'}:
+        # Industry numbers travel with the evidence they were read from; only business
+        # and industry sections cite them.
+        selected_evidence = {e['evidence_id'] for e in evidence}
+        content['industry_data'] = [
+            {k: d[k] for k in INDUSTRY_DATA_FIELDS}
+            for d in c.get('industry_data', [])
+            if d['evidence_id'] in selected_evidence
+        ]
+    if template in {'V01', 'X01'} and (c.get('market') or c.get('forecast_model')):
+        from .market_data import summary
+
+        content['valuation_reference'] = {
+            'market': summary(c['market']) if c.get('market') else '',
+            'forecast_model': '历史趋势通用模型' if c.get('forecast_model') == 'generic' else '有据假设模型',
+            'note': '股价、可比公司估值与一致预期在报告的估值表中列示；正文可作定性比较（如估值高于或低于可比公司），不要手写其中的数字。',
+        }
     # Shared industry packets follow every linked business; gaps remain visible in analysis and writing.
     materials = c.get('material_collections', [])
     if materials:

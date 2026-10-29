@@ -1,0 +1,41 @@
+# 行业资料网页来源的域名策略（仅作用于行业资料槽的检索）。
+# 域名按后缀匹配：gov.cn 同时匹配 www.gov.cn、stats.gov.cn 等子域名。
+# 被屏蔽的结果在读取前剔除，不占读取预算，改读下一条结果。
+
+# 文档分享站只能读到预览残片；股吧/论坛是个人帖子，不作为行业资料。
+blocked_domains:
+  - renrendoc.com
+  - book118.com
+  - doc88.com
+  - docin.com
+  - wenku.baidu.com
+  - wenku.so.com
+  - mbalib.com
+  - taodocs.com
+  - zhangqiaokeyan.com
+  - guba.eastmoney.com
+  - tieba.baidu.com
+  - zhidao.baidu.com
+
+# 按 URL 正则屏蔽（域名不能整体屏蔽时使用），例如雪球个人帖子 xueqiu.com/<用户>/<帖子>。
+blocked_url_patterns:
+  - '^https?://(www\.)?xueqiu\.com/\d+/\d+'
+
+# 优先读取的来源，按列表顺序排在其他结果之前；未列出的域名保持搜索引擎原顺序。
+preferred_domains:
+  - stats.gov.cn
+  - gov.cn
+  - sse.com.cn
+  - szse.cn
+  - bse.cn
+  - cninfo.com.cn
+  - csrc.gov.cn
+  - org.cn
+  - data.eastmoney.com
+  - pdf.dfcfw.com
+  - hibor.com.cn
+  - vzkoo.com
+  - fxbaogao.com
+
+# 政策方向检索附加的站点限定；留空则不限定。
+policy_site: gov.cn

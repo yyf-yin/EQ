@@ -135,17 +135,13 @@ class ForecastEngine:
         if any(not a.evidence_ids or not a.rationale for a in selected):
             raise FinancialError('预测假设缺少依据')
         values = {k: a.value for k, a in global_assumptions.items()}
-        for k in [
-            'cost_ratio',
-            'opex_ratio',
-            'tax_rate',
-            'receivables_ratio',
-            'inventory_ratio',
-            'payables_ratio',
-            'payout_ratio',
-            'interest_rate',
-        ]:
+        for k in ['cost_ratio', 'opex_ratio', 'tax_rate', 'payout_ratio', 'interest_rate']:
             if not 0 <= values[k] <= 1:
+                raise FinancialError('比例假设越界 ' + k)
+        # Balances relative to annual flows: long-ageing inventory (baijiu, real estate)
+        # legitimately exceeds a year of cost.
+        for k in ['receivables_ratio', 'inventory_ratio', 'payables_ratio']:
+            if not 0 <= values[k] <= 10:
                 raise FinancialError('比例假设越界 ' + k)
         if values['shares'] <= 0:
             raise FinancialError('股本必须为正')

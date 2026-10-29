@@ -14,7 +14,7 @@ from .reports import html_report
 from .execution import recovery_info, budget_limits, ensure_manifest, RecoveryError, load_gateway
 from .llm import ConfigurationError
 from .isolation import ensure_isolation, isolation_info
-from .startup import latest_unfinished, continuation_view
+from .startup import latest_unfinished, claim_run, release_retired_guard
 from .human_intervention import HumanInterventionAgent, HumanFeedback, FeedbackError
 from .references import prepare_uploads, register_upload, create_with_attachments
 from .datasources import MAX_BYTES, DatasourceError
@@ -23,6 +23,7 @@ from .datasources import MAX_BYTES, DatasourceError
 class CreateResearch(BaseModel):
     company: str = Field(min_length=1, max_length=100)
     attachment_ids: list[str] = Field(default_factory=list, max_length=200)
+    bullish: bool = False
 
 
 class UpdateBudget(BaseModel):
@@ -31,10 +32,12 @@ class UpdateBudget(BaseModel):
     block_call_budget: int = Field(ge=1)
 
 
-class StartupDecision(BaseModel):
-    run_id: str
-    session_id: str
-    answer: Literal['Y', 'N']
+class ImportPackage(BaseModel):
+    level: Literal['collection', 'forecast', 'blocks', 'writing']
+    keep_sections: list[str] = Field(default_factory=list, max_length=200)
+    accept_risks: bool = False
+    # None keeps the source run's writing style.
+    bullish: bool | None = None
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -49,9 +52,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     store = Store(settings.database)
     prepare_uploads(store)
     store.service_session_id = uid()
-    startup_candidate = latest_unfinished(store)
-    startup_state = {'selected_run_id': None, 'answer': None}
-    startup_lock = asyncio.Lock()
     runner = Runner(settings, store)
     tasks: dict[str, asyncio.Task] = {}
     pause_tasks: set[asyncio.Task] = set()
@@ -93,8 +93,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 run.stage,
                 'run',
                 'interrupted',
-                '程序已重启，等待启动窗口选择是否继续；可查看或导出已保存成果。',
+                '程序已重启，研究已暂停；最近的未完成任务可在页面继续，也可导出成果包。',
             )
+        release_retired_guard(store)
         yield
         active = list(tasks.items())
         for run_id, task in active:
@@ -146,17 +147,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get('/api/startup')
     async def startup():
         candidate = None
-        if startup_candidate:
-            current = store.run(startup_candidate.run_id)
-            _, info = continuation_view(settings, store, current)
+        latest = latest_unfinished(store)
+        if latest:
+            info = recovery_info(settings, store, latest.run_id)
             candidate = {
-                'run_id': current.run_id,
-                'company': current.company_name or current.company_input,
-                'created_at': current.created_at,
-                'stage': current.stage,
-                'status': current.status,
+                'run_id': latest.run_id,
+                'company': latest.company_name or latest.company_input,
+                'created_at': latest.created_at,
+                'stage': latest.stage,
+                'status': latest.status,
                 'can_continue': info['can_resume'],
-                'can_adjust_budget': info['can_increase_budget'],
                 'reason': info['reason'],
             }
         return {
@@ -167,79 +167,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 'max_file_bytes': MAX_BYTES,
                 'annual_reports_required': settings.mode == 'real' and settings.data_collection_mode == 'fixed',
             },
-        } | startup_state
-
-    @app.post('/api/startup/decision')
-    async def startup_decision(body: StartupDecision):
-        async with startup_lock:
-            if (
-                body.session_id != store.service_session_id
-                or not startup_candidate
-                or body.run_id != startup_candidate.run_id
-            ):
-                raise HTTPException(409, '启动选择已过期或不属于最近的未完成任务，请重新启动检查。')
-            if startup_state['answer']:
-                if startup_state['answer'] != body.answer:
-                    raise HTTPException(409, '本次启动已经完成选择，不能再次更改。')
-                return startup_state
-            latest = latest_unfinished(store)
-            if not latest or latest.run_id != startup_candidate.run_id:
-                raise HTTPException(409, '已有更新的任务，本次启动选择已过期。')
-            run = store.run(body.run_id)
-            if body.answer == 'N':
-                selected_id = None
-                store.execution_put(
-                    run.run_id,
-                    'execution_meta',
-                    'startup-decision',
-                    {'session_id': store.service_session_id, 'answer': 'N'},
-                )
-            else:
-                candidate, info = continuation_view(settings, store, run)
-                if not info['can_increase_budget']:
-                    raise HTTPException(409, info['reason'])
-                try:
-                    gateway = load_gateway(settings, store, run.run_id) if run.mode == 'real' else None
-                    if gateway:
-                        for role in gateway.routes:
-                            gateway.resolve(role)
-                    ensure_manifest(settings, store, run.run_id, gateway)
-                except (ConfigurationError, RecoveryError, ValueError, KeyError, OSError) as exc:
-                    raise HTTPException(
-                        409, '原资料、模型或配置不支持安全继续，请选择 N 返回首页；原成果保留。'
-                    ) from None
-                store.execution_put(
-                    run.run_id,
-                    'execution_meta',
-                    'startup-decision',
-                    {
-                        'session_id': store.service_session_id,
-                        'answer': 'Y',
-                        'previous_status': run.status,
-                        'previous_error': run.error,
-                        'previous_failure_code': run.failure_code,
-                    },
-                )
-                store.execution_put(
-                    run.run_id, 'execution_meta', 'service-session', {'session_id': store.service_session_id}
-                )
-                selected = store.transition_run(
-                    run.run_id,
-                    {'interrupted', 'failed', 'blocked', 'waiting_human'},
-                    status='queued' if info['can_resume'] else 'interrupted',
-                    failure_code=candidate.failure_code,
-                    stop_reason=None,
-                )
-                if not selected:
-                    raise HTTPException(409, '任务状态已变化，不能继续。')
-                selected_id = run.run_id
-                store.emit(
-                    selected_id, selected.stage, 'run', selected.status, '启动时选择继续，仅使用本任务已保存成果'
-                )
-                if info['can_resume']:
-                    schedule(selected_id)
-            startup_state.update(selected_run_id=selected_id, answer=body.answer)
-            return startup_state
+        }
 
     @app.post('/api/reference-attachments', status_code=201)
     async def upload_reference(request: Request, filename: str = Query(min_length=1, max_length=250)):
@@ -270,7 +198,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(422, '请先上传本次使用的公司年报；程序不自动寻找年报')
         if len(store.active_runs()) >= settings.max_active_runs * 4:
             raise HTTPException(429, '研究队列已满，请稍后重试')
-        run = ResearchRun(company_input=name, mode=settings.mode, rules_version='1.1')
+        run = ResearchRun(company_input=name, mode=settings.mode, rules_version='1.1', bullish=body.bullish)
         if body.attachment_ids:
             try:
                 create_with_attachments(store, run, body.attachment_ids, settings.reference_max_files)
@@ -417,7 +345,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         run = get_run(run_id)
         info = recovery_info(settings, store, run_id)
         if not human_can_submit(run_id):
-            raise HTTPException(409, '当前任务不能提交人工反馈；请在启动窗口选择兼容任务，原成果仍可查看。')
+            raise HTTPException(409, '当前任务不能提交人工反馈；只有最近一个未完成的兼容任务可以继续，原成果仍可查看。')
         try:
             receipt = HumanInterventionAgent(store, run_id).submit(issue_id, body)
         except FeedbackError as exc:
@@ -544,6 +472,60 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             },
         )
 
+    @app.get('/api/research/{run_id}/resume-package')
+    async def resume_package(run_id: str):
+        from .resume_packages import export_package, PackageError
+
+        get_run(run_id)
+        try:
+            content = await asyncio.to_thread(export_package, settings, store, run_id)
+        except PackageError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+        except (sqlite3.Error, OSError, ValueError):
+            raise HTTPException(503, '任务记录暂时无法读取，成果包未生成；研究状态未改变。') from None
+        return Response(
+            content,
+            media_type='application/zip',
+            headers={
+                'Content-Disposition': f'attachment; filename="resume-package-{run_id[:8]}.zip"',
+                'X-Content-Type-Options': 'nosniff',
+                'Cache-Control': 'no-store',
+            },
+        )
+
+    @app.post('/api/resume-packages', status_code=201)
+    async def upload_resume_package(request: Request):
+        from .resume_packages import inspect, read_package, save_upload, PackageError
+
+        data = bytearray()
+        async for chunk in request.stream():
+            if len(data) + len(chunk) > settings.resume_package_max_bytes:
+                raise HTTPException(413, '成果包超过大小限制，可提高 CDR_RESUME_PACKAGE_MAX_BYTES 后重试')
+            data.extend(chunk)
+        try:
+            await asyncio.to_thread(read_package, bytes(data), settings.resume_package_max_bytes)
+            package_id = await asyncio.to_thread(save_upload, store, bytes(data))
+            return await inspect(settings, store, package_id)
+        except PackageError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+
+    @app.post('/api/resume-packages/{package_id}/import', status_code=202)
+    async def import_resume_package(package_id: str, body: ImportPackage):
+        from .resume_packages import import_package, PackageError
+
+        if len(store.active_runs()) >= settings.max_active_runs * 4:
+            raise HTTPException(429, '研究队列已满，请稍后重试')
+        try:
+            run = await import_package(
+                settings, store, package_id, body.level, body.keep_sections, body.accept_risks, body.bullish
+            )
+        except PackageError as exc:
+            raise HTTPException(exc.status, str(exc)) from None
+        except (ConfigurationError, RecoveryError, DatasourceError) as exc:
+            raise HTTPException(409, str(exc)) from None
+        schedule(run.run_id)
+        return run
+
     @app.get('/api/research/{run_id}/download')
     async def download(run_id: str, format: Literal['docx', 'pdf'] = 'docx'):
         run = get_run(run_id)
@@ -573,7 +555,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def cancel(run_id: str):
         run = get_run(run_id)
         if not recovery_info(settings, store, run_id)['current_session']:
-            raise HTTPException(409, '此任务未被启动窗口选择继续，不能暂停或继续；原成果可查看或导出。')
+            raise HTTPException(409, '只有最近一个未完成的任务可以在页面暂停或继续；原成果可查看或导出成果包。')
         if run.status in {'pausing', 'interrupted'}:
             return run
         if run.status not in {'running', 'queued'}:
@@ -634,6 +616,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(
                 409, '资料、模型或配置无法通过恢复检查，请恢复原资料/模型并检查凭证；已有进度保留。'
             ) from None
+        claim_run(store, run_id)
         run = store.transition_run(run_id, {'interrupted', 'failed', 'blocked', 'waiting_human'}, status='queued')
         if not run:
             return get_run(run_id)

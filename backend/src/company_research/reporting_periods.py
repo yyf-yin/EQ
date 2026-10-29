@@ -108,7 +108,10 @@ def period_columns(text, default_year=None, default_suffix=None):
 
 
 def interim_document(source, company=None):
-    from .annual_reports import SECONDARY, industry_annual_title
+    from .annual_reports import SECONDARY, industry_annual_title, peer_excerpt
+
+    if peer_excerpt(source):
+        return False
 
     try:
         row = json.loads(source.content)

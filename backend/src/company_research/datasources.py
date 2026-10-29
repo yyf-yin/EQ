@@ -8,6 +8,8 @@ import ipaddress
 import json
 import re
 import socket
+from bisect import bisect_right
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlparse
 from typing import Protocol
@@ -25,6 +27,71 @@ EXTENSIONS = {'.pdf', '.docx', '.xlsx', '.csv', '.txt', '.md', '.html', '.htm', 
 
 class DatasourceError(RuntimeError):
     pass
+
+
+NUMBERED_PART = re.compile(r'^([a-z]+):(\d+)$')
+CHAR_PART = re.compile(r'^chars:(\d+)-(\d+)$')
+CHUNK_MARKER = re.compile(r'^\[([a-z]+:[^\]\n]+)\]$', re.M)
+
+
+def compact_locator(locator: str | None) -> str | None:
+    """'page:1; page:2; page:3 chars 10:20' -> 'page:1-3 chars 10:20'.
+
+    Joined documents list every chunk; consecutive pages or character windows
+    collapse into one range and anything unrecognised is kept as written."""
+    if not locator:
+        return locator
+    head, sep, tail = locator.partition(' chars ')
+    out = []
+    run = None  # (kind, first, last) for numbered parts, ('chars', start, end) for windows
+
+    def flush():
+        if run:
+            kind, first, last = run
+            if kind == 'chars':
+                out.append(f'chars:{first}-{last}')
+            else:
+                out.append(f'{kind}:{first}' + (f'-{last}' if last != first else ''))
+
+    for part in (p.strip() for p in head.split(';')):
+        if not part:
+            continue
+        numbered, chars = NUMBERED_PART.match(part), CHAR_PART.match(part)
+        if numbered and run and run[0] == numbered[1] and int(numbered[2]) == run[2] + 1:
+            run = (run[0], run[1], run[2] + 1)
+            continue
+        if chars and run and run[0] == 'chars' and int(chars[1]) == run[2]:
+            run = ('chars', run[1], int(chars[2]))
+            continue
+        flush()
+        run = None
+        if numbered:
+            run = (numbered[1], int(numbered[2]), int(numbered[2]))
+        elif chars:
+            run = ('chars', int(chars[1]), int(chars[2]))
+        else:
+            out.append(part)
+    flush()
+    return '; '.join(out) + sep + tail
+
+
+@lru_cache(maxsize=64)
+def chunk_markers(content: str) -> tuple[tuple[int, str], ...]:
+    return tuple((m.start(), m.group(1)) for m in CHUNK_MARKER.finditer(content))
+
+
+def span_locator(source: SourceRecord, start: int, end: int) -> str:
+    """Locator of the chunks (pages, rows) a quote at content[start:end] actually spans."""
+    markers = chunk_markers(source.content)
+    first = bisect_right([pos for pos, _ in markers], start) - 1
+    labels = [label for pos, label in markers[max(first, 0) :] if pos < end] if first >= 0 else []
+    where = compact_locator('; '.join(labels)) if labels else compact_locator(source.locator)
+    return f'{where} chars {start}:{end}'
+
+
+def quote_locator(source: SourceRecord, quote: str) -> str:
+    start = source.content.find(quote) if quote else -1
+    return span_locator(source, start, start + len(quote)) if start >= 0 else compact_locator(source.locator)
 
 
 def clean_html(text: str) -> str:
@@ -148,18 +215,20 @@ def join_document_chunks(records):
             continue
         first = chunks[0]
         content = '\n\n'.join('[' + s.locator + ']\n' + s.content for s in chunks)
-        structured.append(
-            source_record(
-                first.kind,
-                first.title,
-                content,
-                '; '.join(s.locator for s in chunks),
-                local_path=first.local_path,
-                source_url=first.source_url,
-                publication_date=first.publication_date,
-                attachment_id=first.attachment_id,
-            )
+        joined = '; '.join(s.locator for s in chunks)
+        record = source_record(
+            first.kind,
+            first.title,
+            content,
+            joined,
+            local_path=first.local_path,
+            source_url=first.source_url,
+            publication_date=first.publication_date,
+            attachment_id=first.attachment_id,
         )
+        # The ID still hashes the full chunk list so earlier runs keep resolving;
+        # only the stored locator is shortened (page:1; page:2; ... -> page:1-124).
+        structured.append(record.model_copy(update={'locator': compact_locator(joined)}))
     return structured
 
 
@@ -397,12 +466,57 @@ class WebAdapter:
         return []
 
 
+def domain_match(host: str, domain: str) -> bool:
+    return host == domain or host.endswith('.' + domain)
+
+
+class SourcePolicy:
+    """Domain table from configs/source_domains.yaml; filtering happens before any read."""
+
+    def __init__(self, blocked_domains=(), blocked_url_patterns=(), preferred_domains=(), policy_site=''):
+        self.blocked_domains = [d.lower().strip('.') for d in blocked_domains]
+        self.blocked_patterns = [re.compile(p, re.I) for p in blocked_url_patterns]
+        self.preferred_domains = [d.lower().strip('.') for d in preferred_domains]
+        self.policy_site = (policy_site or '').strip()
+
+    @classmethod
+    def load(cls, path: Path | None) -> 'SourcePolicy':
+        if not path or not Path(path).is_file():
+            return cls()
+        import yaml
+
+        data = yaml.safe_load(Path(path).read_text(encoding='utf-8')) or {}
+        return cls(
+            data.get('blocked_domains') or [],
+            data.get('blocked_url_patterns') or [],
+            data.get('preferred_domains') or [],
+            data.get('policy_site') or '',
+        )
+
+    def blocked(self, url: str) -> bool:
+        host = (urlparse(url).hostname or '').lower()
+        return any(domain_match(host, d) for d in self.blocked_domains) or any(
+            p.search(url) for p in self.blocked_patterns
+        )
+
+    def rank(self, url: str) -> int:
+        host = (urlparse(url).hostname or '').lower()
+        return next(
+            (i for i, d in enumerate(self.preferred_domains) if domain_match(host, d)), len(self.preferred_domains)
+        )
+
+    def select(self, results: list[dict]) -> list[dict]:
+        kept = [r for r in results if isinstance(r.get('url'), str) and not self.blocked(r['url'])]
+        return sorted(kept, key=lambda r: self.rank(r['url']))  # Stable: unlisted keep engine order.
+
+
 class UnifiedDatasource:
-    def __init__(self, local: LocalDatasource, web: WebAdapter | None):
+    def __init__(self, local: LocalDatasource, web: WebAdapter | None, policy: SourcePolicy | None = None):
         self.local, self.web = local, web
+        self.policy = policy or SourcePolicy()
         self.exclude_annual_reports = False
 
-    async def retrieve(self, query: str, web_limit=4) -> tuple[list[SourceRecord], list[str]]:
+    async def retrieve(self, query: str, web_limit=4, filter_sources=False) -> tuple[list[SourceRecord], list[str]]:
         from .annual_reports import annual_search_result, SECONDARY
         from .reporting_periods import financial_document, INTERIM
 
@@ -424,6 +538,9 @@ class UnifiedDatasource:
                         and not re.search(SECONDARY, r.get('title', ''), re.I)
                     )
                 ]
+            if filter_sources:
+                # Blocked previews never consume the read budget; the next result is read instead.
+                results = self.policy.select(results)
             read = await asyncio.gather(*(self.web.read(r) for r in results[:web_limit]), return_exceptions=True)
             for r in read:
                 if isinstance(r, Exception):

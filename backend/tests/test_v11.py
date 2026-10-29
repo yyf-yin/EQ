@@ -117,9 +117,15 @@ def test_consistent_snapshot_and_exports(completed_v11):
     from docx import Document
     doc=Document(docx);doc_text=' '.join(p.text for p in doc.paragraphs)
     pdf_text=''.join(p.extract_text() for p in PdfReader(pdf).pages)
+    # Comparisons reach the reader as charts and the appendix statements, never as
+    # repeated narrative paragraphs or record IDs.
+    table_text=' '.join(cell.text for t in doc.tables for row in t.rows for cell in row.cells)
+    assert '附录：财务报表' in doc_text and '附录：财务报表' in pdf_text
     for c in report.comparisons:
-        assert narrative(c) in doc_text
-        assert c.comparison_id in pdf_text
+        assert narrative(c) not in doc_text
+        assert c.comparison_id not in pdf_text and c.comparison_id not in doc_text
+        if c.metric_code=='revenue' and c.current_period.endswith('A'):
+            assert f'{c.current_value:,.0f}' in table_text
     changed=report.model_copy(deep=True);changed.sections[3].children[0].paragraphs.append('变更')
     assert report_snapshot(changed)!=changed.approved_snapshot_id
 
@@ -187,7 +193,7 @@ async def test_split_recovery_and_validated_batch_reuse(tmp_path):
             return CompressedResearch(summary='test',evidence_ids=[],unresolved=[])
     source=SourceRecord(kind='local',title='test',content='单位：百万元\n营业收入 550 同期500\n'*60)
     class Datasource:
-        async def retrieve(self,q):return [source],[]
+        async def retrieve(self,q, **options):return [source],[]
     gateway=Stub();store=Store(tmp_path/'db');settings=Settings(extraction_input_tokens=8000,max_batch_splits=2)
     task=ResearchTask(company_id='D',block_id='F01',topic='收入',role='financial',queries=['营业收入']).model_dump(mode='json')
     state={'task':task,'brief':brief().model_dump(mode='json'),'round':0,'sources':[],'evidence':[],'facts':[],'queries':task['queries'],'gaps':[],'warnings':[],'summary':{}}

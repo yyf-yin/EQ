@@ -36,6 +36,8 @@ class ResearchRun(Schema):
     attempt_id: str | None = None
     resume_count: int = 0
     reference_attachment_ids: list[str] = Field(default_factory=list)
+    # Chosen before research starts: write the sell-side positive thesis and a short risk list.
+    bullish: bool = False
 
 
 class ResearchEvent(Schema):
@@ -172,6 +174,24 @@ class FinancialFact(Schema):
     derivation_id: str | None = None
 
 
+class IndustryDatum(Schema):
+    """A third-party or industry number (market size, capacity, price, share, forecast).
+    value_text is the number with its unit exactly as the quote writes it; it is cited
+    as [[ind:ID]] and rendered verbatim, never converted or used in calculations."""
+
+    data_id: str
+    source_id: str
+    evidence_id: str
+    subject: str
+    metric: str
+    period: str
+    value_text: str
+    actual_or_forecast: Literal["actual", "forecast"] = "actual"
+    publisher: str = ""
+    quote: str
+    locator: str
+
+
 class CalculationResult(Schema):
     result_id: str = Field(default_factory=uid)
     formula_id: str
@@ -216,14 +236,66 @@ class Table(Schema):
     rows: list[list[str]]
 
 
+class SectionPart(Schema):
+    """A subsection of a section's flat paragraph list: from paragraph `start` (0-based)
+    up to the next part. Paragraph indexes used by review and repair stay unchanged."""
+
+    topic: str
+    heading: str = ""
+    start: int = Field(ge=0)
+
+
+class ChartSeriesSpec(Schema):
+    """One series of a writer-proposed chart: refs[i] is the data token for categories[i]
+    ("fact:ID", "calc:ID", "assumption:ID" or "ind:ID"), "" where the period has no value."""
+
+    name: str = Field(min_length=1, max_length=20)
+    refs: list[str]
+    kind: Literal["bar", "line"] = "bar"
+    axis: Literal["left", "right"] = "left"
+
+
+class ChartSpec(Schema):
+    title: str = Field(min_length=1, max_length=40)
+    kind: Literal["combo", "stacked", "pie"] = "combo"
+    categories: list[str]
+    series: list[ChartSeriesSpec]
+
+
+class ChartSeries(Schema):
+    name: str
+    values: list[float | None]
+    kind: Literal["bar", "line"] = "bar"
+    axis: Literal["left", "right"] = "left"
+
+
+class SectionChart(Schema):
+    """A chart resolved from cited data; drawn after paragraph `after` (0-based)."""
+
+    title: str
+    kind: Literal["combo", "stacked", "pie"] = "combo"
+    categories: list[str]
+    series: list[ChartSeries]
+    unit: str = ""
+    right_unit: str = ""
+    source: str = "公司公告"
+    refs: list[str] = Field(default_factory=list)
+    after: int = 0
+
+
 class ReportSection(Schema):
     section_id: str
     title: str
+    # Reader-facing viewpoint title written with the section; `title` stays the fixed
+    # structural name that review and resume locate sections by.
+    heading: str = ''
     paragraphs: list[str] = Field(default_factory=list)
+    parts: list[SectionPart] = Field(default_factory=list)
     children: list["ReportSection"] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
     calculation_ids: list[str] = Field(default_factory=list)
     tables: list[Table] = Field(default_factory=list)
+    charts: list[SectionChart] = Field(default_factory=list)
     number_bindings: dict[str, str] = Field(default_factory=dict)
     consistency_checks: dict[str, str] = Field(default_factory=dict)
 
@@ -260,6 +332,8 @@ class ReviewIssue(Schema):
     rule_id: str = ""
     block_id: str | None = None
     section_id: str | None = None
+    # 1-based positions in the reviewed section's paragraphs; empty means the whole section.
+    paragraphs: list[int] = Field(default_factory=list)
     requested_target: str = ""
     affected_refs: list[str] = Field(default_factory=list)
     validation_status: str = "open"
@@ -290,9 +364,15 @@ class ReportDocument(Schema):
     assumptions: list[ForecastAssumption] = Field(default_factory=list)
     forecasts: list[FinancialForecast] = Field(default_factory=list)
     financial_facts: list[FinancialFact] = Field(default_factory=list)
+    industry_data: list[IndustryDatum] = Field(default_factory=list)
     issues: list[ReviewIssue] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     charts: list[dict[str, Any]] = Field(default_factory=list)
+    # Valuation inputs (price, peers, consensus) and which forecast model produced `forecasts`.
+    market: dict[str, Any] | None = None
+    forecast_model: str = ""
+    # "bullish" when the run asked for the sell-side positive thesis; reviewers read it too.
+    writing_style: str = "neutral"
     rules_version: str = "1.0"
     data_template_version: str | None = None
     snapshot_id: str = ""

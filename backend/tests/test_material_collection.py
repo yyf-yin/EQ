@@ -38,14 +38,20 @@ def default_handler(schema, context):
         for d in context['directions']})
 
 
-async def setup(tmp_path, handler=default_handler, input_capacity=100000, task_count=1, **options):
+async def setup(tmp_path, handler=default_handler, input_capacity=100000, task_count=1, sources=(), **options):
+    # The fixture task is an industry slot; budget options given for the shared
+    # settings apply to it unless an industry budget is set explicitly.
+    for shared, industry in (('material_search_budget', 'material_industry_search_budget'),
+                             ('material_document_budget', 'material_industry_document_budget')):
+        if shared in options:
+            options.setdefault(industry, options[shared])
     settings = Settings(_env_file=None, database=tmp_path/'material.sqlite', search_url='https://fixture.invalid', **options)
     store = Store(settings.database)
     run = ResearchRun(company_input='测试公司', mode='real', created_at='2026-10-14T00:00:00+00:00')
     store.save_run(run)
     gateway = ScriptGateway(handler,input_capacity)
     requests, reads = [], []
-    async def retrieve(query):
+    async def retrieve(query, **options):
         requests.append(query)
         return [], []
     w = SimpleNamespace(settings=settings, store=store, run_id=run.run_id, gateway=gateway,
@@ -67,7 +73,7 @@ async def setup(tmp_path, handler=default_handler, input_capacity=100000, task_c
     c = dict(company={'company_id':'TEST','name':'测试公司','source_ids':[]},
         brief={'company_id':'TEST','scope':'制造业务','historical_periods':['2023A','2024A','2025A'],
             'forecast_periods':['2026E'],'segments':['设备','服务'],'industries':{'设备':'制造业','服务':'制造业'}},
-        sources=[], material_source_ids=[], facts=[], evidence=[], limitations=[],
+        sources=[dict(source_id=f'disclosure-{i}',content=text) for i,text in enumerate(sources)], material_source_ids=[], facts=[], evidence=[], limitations=[],
         plan={'tasks':[], 'blocks':[dict(block_id=task.block_id, template_id='I01', segment_id='设备', dependencies=[], questions={'q':'产业链'})]})
     tasks=[task]
     for i in range(1,task_count):
@@ -121,9 +127,11 @@ async def test_optional_gaps_can_deliver_ready_packet_without_false_no_change(tm
     assert slot['state'] == 'ready'
     assert slot['direction_statuses']['policy']['status'] == 'not_found'
     assert '不代表不存在或无变化' in slot['direction_statuses']['policy']['reason']
-    assert slot['direction_statuses']['market']['status'] == 'not_found'
-    assert 1 <= len(requests) <= collector.settings.material_search_budget
-    assert result['material_collections'][0]['limitations']
+    assert slot['direction_statuses']['market']['status'] == 'found'  # market size is required
+    assert 1 <= len(requests) <= collector.settings.material_industry_search_budget
+    # No recent policy found: left out of the report, not listed as a limitation.
+    assert not any('政策' in v for v in result['material_collections'][0]['limitations'])
+    assert not any('政策' in v for v in result['limitations'])
     assert not result['facts']
 
 
@@ -158,12 +166,12 @@ async def test_policy_no_change_requires_real_quote_and_known_evidence(tmp_path)
 
 async def test_transport_failure_never_becomes_no_information(tmp_path):
     collector,c,task,_,_,_ = await setup(tmp_path)
-    async def failed(query):raise DatasourceError('搜索服务请求失败')
+    async def failed(query, **options):raise DatasourceError('搜索服务请求失败')
     collector.w.datasource.retrieve = failed
     await collector.collect(c)
     slot = collector.slot(task)
     assert slot['state'] == 'limited'
-    assert slot['search_count'] <= 3
+    assert slot['search_count'] <= collector.settings.material_industry_search_budget
     assert all(v['status']=='retrieval_failed' for v in slot['direction_statuses'].values())
     assert slot['search_history'][0]['warnings'] == ['搜索服务请求失败']
 
@@ -195,7 +203,7 @@ async def test_grouped_supplement_closes_gaps_and_terminal_replay(tmp_path):
         return MaterialAssessment(sufficient=True, direction_findings={d['direction_id']:DirectionFinding(
             status='found', evidence_ids=ids, reason='适用行业资料') for d in context['directions']})
     collector,c,task,requests,reads,gateway = await setup(tmp_path,handler)
-    async def retrieve(query):
+    async def retrieve(query, **options):
         requests.append(query)
         if len(requests)==1:return [],[]
         return [SourceRecord(source_id='external',kind='web',title='制造业综合资料',content='制造业供需、竞争与政策资料。')],[]
@@ -204,7 +212,7 @@ async def test_grouped_supplement_closes_gaps_and_terminal_replay(tmp_path):
     slot = collector.slot(task)
     assert slot['state']=='ready' and len(requests)==2 and reads==['external']
     assert set(slot['search_history'][0]['direction_ids'])=={d['direction_id'] for d in slot['directions']}
-    assert len(slot['search_history'][1]['direction_ids'])==3
+    assert slot['search_history'][1]['direction_ids']==['boundary']  # one direction per supplement
     assert slot['stop_reason']=='coverage_complete'
     calls=len(gateway.calls)
     await collector.collect(result | {'plan':c['plan'],'company':c['company'],'brief':c['brief']})
@@ -213,7 +221,7 @@ async def test_grouped_supplement_closes_gaps_and_terminal_replay(tmp_path):
 
 async def test_search_interruption_reuses_saved_search_and_reads_result(tmp_path,monkeypatch):
     collector,c,task,requests,reads,_ = await setup(tmp_path)
-    async def retrieve(query):
+    async def retrieve(query, **options):
         requests.append(query)
         return [SourceRecord(source_id='web',kind='web',title='制造业资料',content='制造业设备供需与产业链。')],[]
     collector.w.datasource.retrieve=retrieve
@@ -250,9 +258,9 @@ async def test_analysis_receives_shared_industry_gaps_and_snapshot_tracks_them(t
     result=await collector.collect(c)
     c.update(result)
     package=block_context(c,task['block_id'],'analysis')
-    assert package.content['material_collections'][0]['direction_statuses']['market']['status']=='pending'
+    assert package.content['material_collections'][0]['direction_statuses']['policy']['status']=='pending'
     first=package.snapshot_id
-    c['material_collections'][0]['direction_statuses']['market']['reason']='统计范围存在缺口'
+    c['material_collections'][0]['direction_statuses']['policy']['reason']='统计范围存在缺口'
     assert block_context(c,task['block_id'],'analysis').snapshot_id!=first
     c['plan']['blocks'].append(dict(block_id='I01:服务',template_id='I01',segment_id='服务',dependencies=[],questions={}))
     assert block_context(c,'I01:服务','analysis').content['material_collections']
@@ -279,6 +287,29 @@ async def test_large_excerpt_does_not_hide_other_evidence_or_reextract(tmp_path)
     assert {e['source_id'] for v in calls for e in v['evidence']}=={'large','small'}
     assert any(e.get('excerpt_truncated') for v in calls for e in v['evidence'])
     assert any(len(e['quote'])>50000 for e in collector.store.records(collector.run_id,'evidence'))
+    before=len(gateway.calls)
+    await collector.assess(c,task)
+    assert len(gateway.calls)==before
+
+
+async def test_malformed_assessment_output_halves_batch_instead_of_failing_run(tmp_path):
+    from company_research.llm import IncompleteOutput
+    def handler(schema, context):
+        if schema is MaterialDirectionPlan:return schema()
+        if len(context['evidence'])>1 or context['evidence'][0]['source_id']=='bad':
+            raise IncompleteOutput('结构化 JSON 不完整，需要缩小请求')
+        return default_handler(schema, context)
+    collector,c,task,_,_,gateway=await setup(tmp_path,handler)
+    for source_id in ('a','b','bad'):
+        source=add_source(collector,c,f'制造业设备供需资料{source_id}。',source_id)
+        await collector.fixed.extract_document(c,source,False)
+    await collector.assess(c,task)
+    calls=[v for name,v in gateway.calls if name=='MaterialAssessment']
+    assert len(calls[0]['evidence'])==3
+    assessed={v['evidence'][0]['source_id'] for v in calls if len(v['evidence'])==1}
+    assert assessed=={'a','b','bad'}
+    refs=collector.slot(task)['direction_statuses']['market']['evidence_ids']
+    assert len(refs)==2
     before=len(gateway.calls)
     await collector.assess(c,task)
     assert len(gateway.calls)==before
@@ -339,3 +370,89 @@ async def test_new_counter_evidence_can_reduce_adequacy_without_losing_old_refs(
     assert not (await collector.assess(c,task)).sufficient
     finding=collector.slot(task)['direction_statuses']['boundary']
     assert finding['status']=='partial' and old<set(finding['evidence_ids'])
+
+
+async def test_industry_directions_are_searched_one_by_one_until_each_had_its_query(tmp_path):
+    from company_research.material_collection import DIRECTION_TERMS
+    collector,c,task,requests,_,_=await setup(tmp_path,material_industry_search_budget=13)
+    result=await collector.collect(c)
+    slot=collector.slot(task)
+    # A broad query, then one query per open direction: fruitless searches do not end the loop.
+    assert len(requests)==1+len(PRESETS['industry'])
+    assert [h['direction_ids'] for h in slot['search_history'][1:]]==[[d] for d,*_ in
+        sorted(PRESETS['industry'],key=lambda p:not p[3])]
+    assert all(DIRECTION_TERMS[h['direction_ids'][0]] in h['query'] for h in slot['search_history'][1:])
+    policy=next(h['query'] for h in slot['search_history'] if h['direction_ids']==['policy'])
+    assert '2023-2026' in policy
+    assert slot['stop_reason']=='directions_exhausted' and slot['search_budget']==13
+    limits=result['material_collections'][0]['limitations']
+    assert any(v.startswith('市场规模与结构') for v in limits)  # required gap stays visible
+    assert not any(v.startswith('政策与监管变化') for v in limits)  # 无则过
+
+
+async def test_business_slots_keep_the_shared_budget(tmp_path):
+    collector,_,_,_,_,_=await setup(tmp_path)
+    business={'topic':'业务资料：设备'}
+    assert collector.search_budget(business)==collector.settings.material_search_budget==3
+    assert collector.search_budget({'topic':'行业资料：制造业'})==13
+    assert collector.document_budget(business)==8 and collector.document_budget({'topic':'行业资料：制造业'})==16
+
+
+def refine_handler(subject):
+    def handler(schema, context):
+        if schema is MaterialDirectionPlan:
+            return schema.model_validate({'slots':[{'slot_id':s['slot_id'],'refined_subject':subject} for s in context['slots']]})
+        return default_handler(schema, context)
+    return handler
+
+
+async def test_industry_subject_is_refined_and_original_scope_kept(tmp_path):
+    collector,c,task,requests,_,_=await setup(tmp_path,refine_handler('专用设备制造'),
+        sources=['公司主营业务属于专用设备制造，收入占比最高。'])
+    scope=collector.slot(task)['scope']
+    assert scope['subject']=='制造业' and scope['refined_subject']=='专用设备制造'
+    task['material_scope']=scope
+    calls=[]
+    async def retrieve(query, **options):
+        calls.append((query, options))
+        return [], []
+    collector.w.datasource.retrieve=retrieve
+    await collector.collect(c)
+    assert calls and all(q.startswith('专用设备制造 ') and o=={'filter_sources':True} for q,o in calls)
+    # The refinement is frozen with the plan, so a replay keeps the same subject.
+    await collector.configure(c,[ResearchTask.model_validate(task)])
+    assert collector.slot(task)['scope']['refined_subject']=='专用设备制造'
+
+
+@pytest.mark.parametrize('subject',['白酒','测试公司设备','设备，服务','是否高端'])
+async def test_refined_subject_must_be_disclosed_and_neutral(tmp_path,subject):
+    collector,c,task,requests,_,_=await setup(tmp_path,refine_handler(subject),
+        sources=['测试公司设备 设备，服务 是否高端'])
+    scope=collector.slot(task)['scope']
+    assert scope['subject']=='制造业' and 'refined_subject' not in scope
+    await collector.collect(c)
+    assert all(q.startswith('制造业 ') for q in requests)
+
+
+async def test_policy_query_is_limited_to_configured_site(tmp_path):
+    from company_research.datasources import SourcePolicy
+    collector,c,task,requests,_,_=await setup(tmp_path,material_industry_search_budget=13)
+    collector.w.datasource.policy=SourcePolicy(policy_site='gov.cn')
+    await collector.collect(c)
+    slot=collector.slot(task)
+    policy=[h['query'] for h in slot['search_history'] if h['direction_ids']==['policy']]
+    assert len(policy)==1 and policy[0].endswith(' site:gov.cn')
+    assert not any('site:' in h['query'] for h in slot['search_history'] if h['direction_ids']!=['policy'])
+
+
+async def test_business_and_company_searches_are_not_domain_filtered(tmp_path):
+    collector,c,task,_,_,_=await setup(tmp_path)
+    seen=[]
+    async def retrieve(query, **options):
+        seen.append(options)
+        return [], []
+    collector.w.datasource.retrieve=retrieve
+    for topic in ('业务资料：设备','公司整体资料'):
+        await collector.search(c,task|{'topic':topic},topic+' 查询',[])
+    await collector.search(c,task,'行业 查询',[])
+    assert seen==[{},{},{'filter_sources':True}]

@@ -276,7 +276,7 @@ async def test_completed_batch_survives_next_model_call_failure(service, monkeyp
     quote = '合并 单位百万元 营业收入 2025A 550'
     source = SourceRecord(kind='local', title='披露', content=quote)
     class Datasource:
-        async def retrieve(self, query):
+        async def retrieve(self, query, **options):
             return [source], []
     class Gateway:
         calls = 0

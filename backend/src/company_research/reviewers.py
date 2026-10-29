@@ -13,6 +13,8 @@ from .financials.formulas import FinancialDataProcessor, FinancialError
 from .agents import ask, ask_bounded, ReviewOutput
 from .writers import number, section_block
 from .comparisons import FINANCIAL_TITLES
+from .framework import digest
+from .text_checks import direction_problems
 
 
 def issue(kind, location, description, target, severity='critical', fix='根据原始资料及注册公式修复后重新审核'):
@@ -28,6 +30,8 @@ def issue(kind, location, description, target, severity='critical', fix='根据�
 
 # Semantic reviewers read one section; re-collection, recalculation and reassembly are
 # decided by deterministic gates only, so their requests become a local rewrite.
+# Findings from models or text heuristics: they drive rework but never block on their own.
+NON_BLOCKING = ('semantic.', 'heuristic.')
 SEMANTIC_TARGETS = {'write_sections', 'core_conclusion', 'assumptions'}
 FIXED_SECTIONS = {'core', 'toc', 'statements', 'disclaimer'}
 # Python-generated sections: the three statements are checked by financial_review and no
@@ -72,6 +76,7 @@ def cited_context(report: ReportDocument, section) -> dict:
         'facts': cited_facts,
         'calculations': [r for r in report.calculations if r.result_id in seen],
         'assumptions': cited_assumptions,
+        'industry_data': [d for d in report.industry_data if 'ind:' + d.data_id in section.number_bindings],
     }
 
 
@@ -85,6 +90,44 @@ def bind_semantic(problem: ReviewIssue, section_id: str):
         problem.requested_target = problem.requested_target or problem.target_node
         problem.target_node = target
     return problem
+
+
+CN_NUMERALS = dict(zip('一二三四五六七八九', range(1, 10)))
+NUMERAL = r'\d+|[一二三四五六七八九十]+'
+PARAGRAPH_SPAN = re.compile(rf'({NUMERAL})(?:\s*[至到~\-—]\s*第?\s*({NUMERAL}))?')
+PARAGRAPH_REFS = re.compile(
+    r'第\s*([0-9一二三四五六七八九十、,，\s至到和及与~\-—第]+?)\s*段|段落\s*(\d+)|paragraphs\[(\d+)\]|(?<![A-Za-z])p(\d+)\b'
+)
+# The core view feeds every section's review but changes each round; it does not unfreeze them.
+VOLATILE = {'snapshot_id', 'core_consistency'}
+
+
+def numeral(text):
+    if text.isdigit():
+        return int(text)
+    if '十' not in text:
+        return CN_NUMERALS.get(text, 0)
+    tens, _, ones = text.partition('十')
+    return CN_NUMERALS.get(tens, 1) * 10 + CN_NUMERALS.get(ones, 0)
+
+
+def issue_paragraphs(problem: dict, count: int) -> list[int]:
+    """0-based paragraphs an issue points at: the reviewer's list, else 第N段-style locations."""
+    found = {n - 1 for n in problem.get('paragraphs') or []}
+    if not found:
+        location = problem.get('location') or ''
+        for listed, numbered, zero_based, short in PARAGRAPH_REFS.findall(location):
+            if listed:
+                for start, end in PARAGRAPH_SPAN.findall(listed):
+                    first = numeral(start)
+                    found.update(range(first - 1, (numeral(end) if end else first)))
+            elif zero_based:
+                found.add(int(zero_based))
+            else:
+                found.add(int(numbered or short) - 1)
+        if re.search(r'文末|末段|最后一段', location):
+            found.add(count - 1)
+    return sorted(i for i in found if 0 <= i < count)
 
 
 def block_section(block_id):
@@ -168,6 +211,7 @@ def financial_review(report: ReportDocument):
     results = {r.result_id: r for r in report.calculations}
     assumptions = {a.assumption_id: a for a in report.assumptions}
     refs = {**facts, **results, **assumptions}
+    industry = {d.data_id: d for d in report.industry_data}
     from .comparisons import core_gate
 
     issues += core_gate(report)
@@ -275,8 +319,13 @@ def financial_review(report: ReportDocument):
     for section in sections_flat(report.sections):
         for reference, rendered in section.number_bindings.items():
             kind, id = reference.split(':', 1)
-            obj = refs.get(id)
-            if not obj or number(obj.value, obj.unit) != rendered or not any(rendered in p for p in section.paragraphs):
+            if kind == 'ind':
+                datum = industry.get(id)
+                expected = datum.value_text if datum else None
+            else:
+                obj = refs.get(id)
+                expected = number(obj.value, obj.unit) if obj else None
+            if expected != rendered or not any(rendered in p for p in section.paragraphs):
                 issues.append(
                     issue(
                         'financial',
@@ -452,12 +501,38 @@ def editorial_review(report: ReportDocument):
     return issues
 
 
+def prose_review(report: ReportDocument):
+    """Direction words checked against the numbers bound in the same clause. Text heuristics
+    drive rework like semantic findings and, like them, never block a report on their own.
+    Gap claims are checked at drafting time only, against the context the writer saw."""
+    issues = []
+    facts = [f.model_dump(mode='json') for f in report.financial_facts]
+    comparisons = [r.model_dump(mode='json') for r in report.comparisons]
+    for s in sections_flat(report.sections):
+        if not s.paragraphs or s.section_id in UNREVIEWED_SECTIONS:
+            continue
+
+        def refs(clause, bindings=s.number_bindings):
+            return [tuple(ref.split(':', 1)) for ref, text in bindings.items() if text in clause]
+
+        target = 'core_conclusion' if s.section_id == 'core' else 'write_sections'
+        for index, text in direction_problems(s.paragraphs, refs, facts, comparisons):
+            problem = issue('financial', f'{s.section_id} 第{index + 1}段', text, target, 'error', text)
+            problem.rule_id, problem.section_id, problem.paragraphs = 'heuristic.direction', s.section_id, [index + 1]
+            problem.block_id = section_block(s.section_id)
+            issues.append(problem)
+    return issues
+
+
 class ReviewState(TypedDict):
     report: dict
     issues: Annotated[list[dict], operator.add]
 
 
-def review_graph(gateway=None, store=None, run_id=None, mock=False):
+def review_graph(gateway=None, store=None, run_id=None, mock=False, memo=None):
+    """memo maps reviewer + section input digest to its findings; it is filled in place so a
+    later round reuses the verdict on unchanged sections instead of sampling the model again."""
+    memo = {} if memo is None else memo
     g = StateGraph(ReviewState)
     nodes = []
     for name, fn in [
@@ -466,6 +541,7 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False):
         ('evidence', evidence_review),
         ('critical', critical_review),
         ('editorial', editorial_review),
+        ('prose', prose_review),
     ]:
 
         def reviewer(name, fn):
@@ -476,11 +552,13 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False):
                     'evidence': '来源与时效',
                     'critical': '研究逻辑',
                     'editorial': '语言与完整性',
+                    'prose': '数字方向与缺口表述',
                 }[name]
                 if store:
                     store.emit(run_id, '最终审核', 'review_' + name, 'running', f'独立审核：{label}')
                 report = ReportDocument.model_validate(state['report'])
                 issues = fn(report)
+                frozen = 0
                 if gateway and not mock and name in {'evidence', 'critical', 'editorial'}:
                     # Review a section and its referenced originals, never a full-company dump.
                     for section in sections_flat(report.sections):
@@ -500,17 +578,31 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False):
                                 if s.source_id in source_ids
                             ],
                             'core_consistency': report.sections[0].consistency_checks,
+                            **({'writing_style': 'bullish'} if report.writing_style == 'bullish' else {}),
                         }
+                        # Unchanged section and citations; the core view feeds every section but
+                        # changes each round, so it does not unfreeze them.
+                        key = name + ':' + digest({k: v for k, v in data.items() if k not in VOLATILE})
+                        if key in memo:
+                            frozen += 1
+                            issues += [ReviewIssue.model_validate(i) for i in memo[key]]
+                            continue
                         semantic = await ask_bounded(gateway, name + '_reviewer', ReviewOutput, data)
                         for problem in semantic.issues:
                             problem.snapshot_id = report.snapshot_id
                             # Models cannot soften deterministic gates; separate issues only.
                             problem.rule_id = 'semantic.' + name
                             bind_semantic(problem, section.section_id)
+                        memo[key] = [i.model_dump(mode='json') for i in semantic.issues]
                         issues += semantic.issues
                 if store:
+                    note = f'（{frozen} 节未改动，沿用上轮结论）' if frozen else ''
                     store.emit(
-                        run_id, '最终审核', 'review_' + name, 'completed', f'{label}审核完成，发现 {len(issues)} 项问题'
+                        run_id,
+                        '最终审核',
+                        'review_' + name,
+                        'completed',
+                        f'{label}审核完成，发现 {len(issues)} 项问题{note}',
                     )
                 return {'issues': [i.model_dump(mode='json') for i in issues]}
 
@@ -532,6 +624,13 @@ def review_graph(gateway=None, store=None, run_id=None, mock=False):
 def deterministic_review(report):
     return [
         i
-        for fn in [structural_review, financial_review, evidence_review, critical_review, editorial_review]
+        for fn in [
+            structural_review,
+            financial_review,
+            evidence_review,
+            critical_review,
+            editorial_review,
+            prose_review,
+        ]
         for i in fn(report)
     ]

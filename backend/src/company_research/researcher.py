@@ -4,6 +4,7 @@ from langgraph.graph import StateGraph, START, END
 from .agents import ask, ask_bounded, ResearchExtraction, CompressedResearch, bind_extraction
 from .schemas import ResearchTask, SourceRecord, EvidenceRecord, FinancialFact
 from .execution import unit, settle, bounded_schedule, optimized_run
+from .datasources import quote_locator
 
 
 class ResearcherState(TypedDict):
@@ -264,9 +265,7 @@ def researcher_graph(gateway, datasource, store, run_id: str, max_rounds: int, m
             evidence_mapping = {}
             for e in evidence:
                 src = next(s for s in sources if s.source_id == e.source_id)
-                e.locator = (
-                    src.locator + f' chars {src.content.find(e.quote)}:{src.content.find(e.quote) + len(e.quote)}'
-                )
+                e.locator = quote_locator(src, e.quote)
                 old_id = e.evidence_id
                 e.evidence_id = 'ev-' + digest([e.source_id, e.quote, e.actual_or_forecast])[:24]
                 evidence_mapping[old_id] = e

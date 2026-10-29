@@ -47,3 +47,23 @@ def test_writer_problems_are_specific_and_sanitize_keeps_valid_text():
     assert len(removed)==2 and draft_problems(clean,c)==[]
     section=resolve_draft(clean,c,'financial','财务')
     assert section.paragraphs==['2025年收入为 100.50百万元。']
+
+
+def test_parent_income_label_must_cite_parent_net_income():
+    from company_research.agents import WriterDraft
+    from company_research.writers import draft_problems
+
+    calc = lambda id, metric: dict(result_id=id, output_metric=metric, period='2026E', scenario='base', value='1', unit='CNY_million')
+    local = dict(
+        facts=[], assumptions=[], evidence=[], industry_data=[],
+        calculations=[calc('calc-net', 'net_income'), calc('calc-parent', 'parent_net_income')],
+    )
+    draft = lambda id: WriterDraft(
+        paragraphs=[f'预计2026E归母净利润[[calc:{id}]]。'],
+        evidence_ids=[], calculation_ids=[id], fact_ids=[], assumption_ids=[],
+    )
+    assert any('合并净利润' in p for p in draft_problems(draft('calc-net'), local))
+    assert not any('合并净利润' in p for p in draft_problems(draft('calc-parent'), local))
+    # Without minority interests net_income is the owners' income; nothing to flag.
+    local['calculations'] = local['calculations'][:1]
+    assert not any('合并净利润' in p for p in draft_problems(draft('calc-net'), local))

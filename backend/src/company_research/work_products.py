@@ -92,6 +92,7 @@ FIELDS = {
     'source': 'source_id kind title source_url locator publication_date retrieved_at content_hash attachment_id',
     'evidence': 'evidence_id source_id claim quote locator actual_or_forecast validation_status',
     'fact': 'fact_id company_id metric_code period unit value actual_or_forecast source_id evidence_id locator validation_status segment_id scope currency accounting_basis version supersedes slot_id raw_value raw_unit locked_at value_origin derivation_id',
+    'industry_data': 'data_id source_id evidence_id subject metric period value_text actual_or_forecast publisher quote locator',
     'calculation': 'result_id formula_id formula_version output_metric period scenario segment_id unit value input_refs inputs',
     'comparison': 'comparison_id metric_code current_period previous_period current_fact_id previous_fact_id current_value previous_value delta rate unit status scope currency accounting_basis comparison_type calculation_ids formula_version',
     'assumption': 'assumption_id company_id metric_code period scenario value unit rationale evidence_ids segment_id',
@@ -100,15 +101,15 @@ FIELDS = {
     'block_analysis': 'block_id version conclusions evidence_ids calculation_ids counter_evidence_ids limitations status',
     'coverage': 'block_id question_id required requirements status gaps task_id verified_refs validation',
     'task': 'task_id company_id topic role queries block_id question_ids segment_id required_data_ids linked_segments',
-    'review_issue': 'issue_id issue_type severity location description suggested_fix target_node snapshot_id rule_id block_id section_id requested_target affected_refs validation_status',
+    'review_issue': 'issue_id issue_type severity location description suggested_fix target_node snapshot_id rule_id block_id section_id paragraphs requested_target affected_refs validation_status',
     'batch': 'batch_id block_id company_id segment_id question_ids periods scope_hint metric_codes status estimated_input_tokens parent_id failure',
     'call': 'call_id role block_id batch_id model_config model protocol prompt_version attempt estimated_input_tokens budget_tokens count_method input_tokens output_tokens usage_source finish_reason result duration_seconds',
     'invalidation': 'snapshot_id responsible_blocks affected_blocks reason',
 }
 SECTION_FIELDS = (
-    'section_id title paragraphs children evidence_ids calculation_ids tables number_bindings consistency_checks'
+    'section_id title paragraphs parts children evidence_ids calculation_ids tables number_bindings consistency_checks'
 )
-REPORT_FIELDS = 'title company_id mode as_of sections sources evidence calculations assumptions forecasts financial_facts issues limitations charts rules_version data_template_version snapshot_id approved_snapshot_id brief blocks coverage comparisons'
+REPORT_FIELDS = 'title company_id mode as_of sections sources evidence calculations assumptions forecasts financial_facts industry_data issues limitations charts rules_version data_template_version snapshot_id approved_snapshot_id brief blocks coverage comparisons'
 
 
 def project(value, fields):
@@ -134,6 +135,7 @@ def report_view(report):
         ('sources', 'source'),
         ('evidence', 'evidence'),
         ('financial_facts', 'fact'),
+        ('industry_data', 'industry_data'),
         ('calculations', 'calculation'),
         ('assumptions', 'assumption'),
         ('forecasts', 'forecast'),

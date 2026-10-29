@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     block_call_budget: int = Field(default=40, ge=1)
     global_call_budget: int = Field(default=240, ge=1)
     enforce_call_budgets: bool = False
-    global_token_budget: int = Field(default=2000000, ge=1)
+    global_token_budget: int = Field(default=50000000, ge=1)
     max_batch_splits: int = Field(default=2, ge=0, le=4)
     plan_repairs: int = Field(default=2, ge=0, le=2)
     cache_ttl_hours: float = Field(default=6, ge=0)

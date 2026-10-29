@@ -313,7 +313,7 @@ class Gateway:
         timeout: float = 45,
         role_limits=None,
         global_call_budget=240,
-        global_token_budget=2000000,
+        global_token_budget=50000000,
         block_call_budget=40,
         enforce_call_budgets=False,
     ):
